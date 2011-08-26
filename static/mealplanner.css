@@ -1,0 +1,61 @@
+body {
+   margin: 0px;
+	background:#333;
+color:white;
+}
+a { color:white; }
+#container {
+   position:fixed;
+   height:100%;
+   width:100%;
+}
+#layout {
+   border-collapse: collapse;
+   height:100%;
+   width:100%;
+   padding:0px;
+}
+#workspace, .workspace {
+   height:100%;
+   width:100%;
+   margin:0px;
+}
+
+.current-mode {
+   background:#333;
+   color:white;
+}
+
+.pinnable {
+	background:#DDD;
+   color:black;
+}
+
+.sidebar-item {
+   padding: 2px 5px;
+	-moz-border-radius: 5px 0px 0px 5px/*{cornerRadius}*/;
+	-webkit-border-radius: 5px 0px 0px 5px/*{cornerRadius}*/;
+	border-radius: 5px 0px 0px 5px/*{cornerRadius}*/;
+   font-weight: bold;
+   font-size: 1.1em;
+}
+.filter-icon {
+   font-size: 0.8em;
+   vertical-align: top;
+}
+.post-panel {
+   float: left;
+   height:100%;
+   border: solid thin #CCC;
+   border-width: 0px 1px 0px 0px;
+   padding:0px 3px 0px 0px;
+}
+.post-panel-item {
+   width:100%;
+   font-size: 0.9em;
+}
+.trash {
+   padding: 10px 0px 10px 0px;
+   border: solid thin #CCC;
+   border-width: 1px 0px 0px 0px;
+}
