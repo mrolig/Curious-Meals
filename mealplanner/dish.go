@@ -16,11 +16,16 @@ type Dish struct {
 	Rating int
 }
 
-/*const (
-	Entree string = "entree",
-	Side string = "side",
-	Appetizer string = "appetizer",
-	Dessert string = "dessert",
-	Drink string = "drink"
-)*/
+func (self *Dish) Owner() string {
+	return self.User
+}
+func (self *Dish) SetOwner(o string) {
+	self.User = o
+}
 
+func (self *Dish) ID() string {
+	return self.Id
+}
+func (self *Dish) SetID(o string) {
+	self.Id = o
+}

@@ -18,6 +18,7 @@ func init() {
 	http.HandleFunc("/dish", errorHandler(dishHandler))
 	http.HandleFunc("/dish/", errorHandler(dishHandler))
 	http.HandleFunc("/users", errorHandler(usersHandler))
+	http.HandleFunc("/ingredient/", errorHandler(ingredientHandler))
 }
 
 // errorHandler catches errors and prints an HTTP 500 error 
@@ -49,51 +50,70 @@ func usersHandler(w http.ResponseWriter, r *http.Request) {
 		u, logoutURL)
 }
 func dishHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	u := user.Current(c)
+	handler := newDataHandler(w, r, "Dish")
 	id := getID(r)
 	if len(id) == 0 {
 		switch r.Method {
 		case "GET":
-			query := datastore.NewQuery("Dish").Filter("User =", u.String()).Order("Name")
+			query := datastore.NewQuery("Dish").Filter("User =", handler.u.String()).Order("Name")
 			dishes := make([]Dish, 0, 100)
-			_, err := query.GetAll(c, &dishes)
+			keys, err := query.GetAll(handler.c, &dishes)
 			check(err)
-			sendJSON(w, dishes)
+			for index, d := range dishes {
+				d.Id = keys[index].Encode()
+			}
+			sendJSON(handler.w, dishes)
 		case "POST":
-			newDish := Dish{}
-			readJSON(r, &newDish)
-			newDish.User = u.String()
-			key := datastore.NewIncompleteKey("Dish")
-			key, err := datastore.Put(c, key, &newDish)
-			check(err)
-			newDish.Id = key.Encode()
-			_, err = datastore.Put(c, key, &newDish)
-			check(err)
-			sendJSON(w, newDish)
+			dish := Dish{}
+			handler.createEntry(&dish)
 		}
 		return
 	}
 	key, err := datastore.DecodeKey(id)
 	check(err)
-	checkDishUser(c, u, key)
+	dish := Dish{}
+	handler.checkUser(key, &dish)
 	switch r.Method {
 	case "GET":
-		w.Header().Set("Content-Type", "application/json")
-		dish := Dish{}
-		err = datastore.Get(c, key, &dish)
-		check(err)
-		sendJSON(w, dish)
+		handler.get(id, &dish)
 	case "PUT":
-		dish := Dish{}
-		readJSON(r, &dish)
-		dish.User = u.String()
-		_, err = datastore.Put(c, key, &dish)
-		check(err)
-		sendJSON(w, dish)
+		handler.update(key, id, &dish)
 	case "DELETE":
-		err = datastore.Delete(c, key)
-		check(err)
+		handler.delete(key)
+	}
+}
+
+func ingredientHandler(w http.ResponseWriter, r *http.Request) {
+	handler := newDataHandler(w, r, "Ingredient")
+	id := getID(r)
+	if len(id) == 0 {
+		switch r.Method {
+		case "GET":
+			query := datastore.NewQuery("Ingredient").Filter("User =", handler.u.String()).Order("Name")
+			ingredients := make([]Ingredient, 0, 100)
+			keys, err := query.GetAll(handler.c, &ingredients)
+			check(err)
+			for index, i := range ingredients {
+				i.Id = keys[index].Encode()
+			}
+			sendJSON(handler.w, ingredients)
+		case "POST":
+			ingredient := Ingredient{}
+			handler.createEntry(&ingredient)
+		}
+		return
+	}
+	key, err := datastore.DecodeKey(id)
+	check(err)
+	ingredient := Ingredient{}
+	handler.checkUser(key, &ingredient)
+	switch r.Method {
+	case "GET":
+		handler.get(id, &ingredient)
+	case "PUT":
+		handler.update(key, id, &ingredient)
+	case "DELETE":
+		handler.delete(key)
 	}
 }
 
@@ -121,11 +141,79 @@ func getID(r *http.Request) string {
 var (
 	ErrUnknownDish = os.NewError("Unknown dish")
 )
-func checkDishUser(c appengine.Context, u *user.User, key *datastore.Key) {
-	dish := Dish{}
-	err := datastore.Get(c, key, &dish)
+type Owned interface {
+	Owner() string
+	SetOwner(string)
+	ID() string
+	SetID(string)
+}
+
+type dataHandler struct {
+	w http.ResponseWriter
+	r *http.Request
+	kind string
+	c appengine.Context
+	u *user.User
+}
+
+func newDataHandler( w http.ResponseWriter, r *http.Request, kind string) *dataHandler {
+	c := appengine.NewContext(r)
+	u := user.Current(c)
+	return &dataHandler{w, r, kind, c, u}
+}
+
+func (self *dataHandler) checkUser(key *datastore.Key, object interface{}) {
+	owned, ok := object.(Owned)
+	if !ok {
+		check(os.NewError(fmt.Sprint(object) + fmt.Sprint(ok)))
+		check(datastore.ErrInvalidEntityType)
+	}
+	err := datastore.Get(self.c, key, object)
 	check(err)
-	if dish.User != u.String() {
+	if owned.Owner() != self.u.String() {
 		check(ErrUnknownDish);
 	}
+}
+
+func (self *dataHandler) createEntry(newObject interface{}) {
+	r := self.r
+	c := self.c
+	owned, ok := newObject.(Owned)
+	if !ok {
+		check(datastore.ErrInvalidEntityType)
+	}
+	readJSON(r, newObject)
+	owned.SetOwner( self.u.String())
+	key := datastore.NewIncompleteKey(self.kind)
+	key, err := datastore.Put(c, key, newObject)
+	check(err)
+	owned.SetID(key.Encode())
+	sendJSON(self.w, newObject)
+}
+func (self *dataHandler) get(id string, object interface{}) {
+	self.w.Header().Set("Content-Type", "application/json")
+	owned, ok := object.(Owned)
+	if !ok {
+		check(datastore.ErrInvalidEntityType)
+	}
+	owned.SetID(id)
+	sendJSON(self.w, object)
+}
+func (self *dataHandler) update(key *datastore.Key, id string, object interface{}) {
+	readJSON(self.r, object)
+	// don't let user change the USER or ID
+	owned, ok := object.(Owned)
+	if !ok {
+		check(datastore.ErrInvalidEntityType)
+	}
+	owned.SetID(id)
+	owned.SetOwner(self.u.String())
+	_, err := datastore.Put(self.c, key, object)
+	check(err)
+	sendJSON(self.w, object)
+}
+
+func (self *dataHandler) delete(key *datastore.Key) {
+	err := datastore.Delete(self.c, key)
+	check(err)
 }

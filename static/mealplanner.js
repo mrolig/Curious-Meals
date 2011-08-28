@@ -78,6 +78,7 @@ jQuery(function() {
          this.el = $(this.el);
          _.bindAll(this, "render");
          _.bindAll(this, "save");
+         _.bindAll(this, "del");
          _.bindAll(this, "saveSuccess");
          _.bindAll(this, "saveError");
          this.model.bind('all', this.render);
@@ -92,6 +93,10 @@ jQuery(function() {
          this.$save = $("<input class='save' type='button' value='Save'></input>")
             .button({disabled: true, label: "Saved"})
             .click(this.save)
+            .appendTo(this.el);
+         this.$delete = $("<input class='delete' type='button' value='Delete'></input>")
+            .button()
+            .click(this.del)
             .appendTo(this.el);
          this.el.append("<br/>");
          this.$error = $("<div class='error'></div>")
@@ -125,6 +130,10 @@ jQuery(function() {
          this.$name.focus();
       },
       render : function() {
+         if (this.model.hasChanged())
+         {
+            this.onChange();
+         }
          //this.$id.val(this.model.id);
          this.$name.val(this.model.get("Name"));
          this.$type.val(this.model.get("DishType"));
@@ -160,6 +169,10 @@ jQuery(function() {
       saveSuccess : function(model, response) {
          this.$error.hide();
          this.$save.button({disabled : true, label : "Saved"}); 
+      },
+      del : function() {
+         this.model.destroy();
+         this.remove();
       },
       onChange : function() {
          this.$save.button({disabled : false, label: "Save"}); 
