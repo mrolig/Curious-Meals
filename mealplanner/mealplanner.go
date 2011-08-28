@@ -59,8 +59,8 @@ func dishHandler(w http.ResponseWriter, r *http.Request) {
 			dishes := make([]Dish, 0, 100)
 			keys, err := query.GetAll(handler.c, &dishes)
 			check(err)
-			for index, d := range dishes {
-				d.Id = keys[index].Encode()
+			for index, _ := range dishes {
+				dishes[index].Id = keys[index].Encode()
 			}
 			sendJSON(handler.w, dishes)
 		case "POST":
@@ -71,6 +71,9 @@ func dishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	key, err := datastore.DecodeKey(id)
 	check(err)
+	if (key.Incomplete()) {
+		check(ErrUnknownItem);
+	}
 	dish := Dish{}
 	handler.checkUser(key, &dish)
 	switch r.Method {
@@ -93,8 +96,8 @@ func ingredientHandler(w http.ResponseWriter, r *http.Request) {
 			ingredients := make([]Ingredient, 0, 100)
 			keys, err := query.GetAll(handler.c, &ingredients)
 			check(err)
-			for index, i := range ingredients {
-				i.Id = keys[index].Encode()
+			for index, _ := range ingredients {
+				ingredients[index].Id = keys[index].Encode()
 			}
 			sendJSON(handler.w, ingredients)
 		case "POST":
@@ -139,7 +142,7 @@ func getID(r *http.Request) string {
 	return parts[len(parts)-1]
 }
 var (
-	ErrUnknownDish = os.NewError("Unknown dish")
+	ErrUnknownItem = os.NewError("Unknown item")
 )
 type Owned interface {
 	Owner() string
@@ -171,7 +174,7 @@ func (self *dataHandler) checkUser(key *datastore.Key, object interface{}) {
 	err := datastore.Get(self.c, key, object)
 	check(err)
 	if owned.Owner() != self.u.String() {
-		check(ErrUnknownDish);
+		check(ErrUnknownItem);
 	}
 }
 

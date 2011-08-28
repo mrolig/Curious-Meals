@@ -14,3 +14,8 @@ indexes:
   properties:
   - name: User
   - name: Name
+
+- kind: Ingredient
+  properties:
+  - name: User
+  - name: Name

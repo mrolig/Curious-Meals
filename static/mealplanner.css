@@ -27,3 +27,6 @@ body, #app {
    background-image: url(images/ui-icons_cd0a0a_256x240.png); 
 }
 
+input.name {
+   font-size: 1.5em;
+}

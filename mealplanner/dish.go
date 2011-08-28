@@ -26,6 +26,6 @@ func (self *Dish) SetOwner(o string) {
 func (self *Dish) ID() string {
 	return self.Id
 }
-func (self *Dish) SetID(o string) {
-	self.Id = o
+func (self *Dish) SetID(id string) {
+	self.Id = id
 }

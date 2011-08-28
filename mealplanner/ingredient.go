@@ -22,7 +22,7 @@ func (self *Ingredient) SetOwner(o string) {
 func (self *Ingredient) ID() string {
 	return self.Id
 }
-func (self *Ingredient) SetID(o string) {
-	self.Id = o
+func (self *Ingredient) SetID(id string) {
+	self.Id = id
 }
 
