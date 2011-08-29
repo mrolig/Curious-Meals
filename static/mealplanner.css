@@ -26,7 +26,18 @@ body, #app {
    display: inline-block;
    background-image: url(images/ui-icons_cd0a0a_256x240.png); 
 }
+.remove.ui-icon {
+   background-image: url(images/ui-icons_454545_256x240.png); 
+   vertical-align: text-top;
+   display: inline-block;
+}
+.remove.ui-icon:hover {
+   background-image: url(images/ui-icons_cd0a0a_256x240.png); 
+}
 
 input.name {
    font-size: 1.5em;
+}
+div.tag {
+   display: inline-block;
 }
