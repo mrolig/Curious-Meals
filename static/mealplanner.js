@@ -131,6 +131,7 @@ jQuery(function() {
       },
       initialize: function() {
          this.el = $(this.el);
+         this.dirty = 0;
          _.bindAll(this, "render");
          _.bindAll(this, "save");
          _.bindAll(this, "del");
@@ -193,7 +194,7 @@ jQuery(function() {
          this.$name.focus();
       },
       render : function() {
-         if (this.model.hasChanged()) {
+         if (this.dirty) {
             this.$save.button({disabled : false, label: "Save"}); 
          }
          this.$name.val(this.model.get("Name"));
@@ -240,12 +241,20 @@ jQuery(function() {
          return this;
       },
       save : function() {
-         this.$save.button({disabled : true, text : "Saving"}); 
-         this.model.save( {},
-            {
-               error : this.saveError,
-               success : this.saveSuccess
-            });
+         if (this.dirty) {
+            this.dirty = 1;
+            this.$save.button({disabled : true, text : "Saving"}); 
+            this.model.save( {},
+               {
+                  error : this.saveError,
+                  success : this.saveSuccess
+               });
+         }
+         else if (this.$error.is(":hidden"))
+         {
+            this.dirty = 1;
+            this.saveSuccess()
+         }
       },
       saveError : function(model, response) {
          this.$save.button({disabled : true, label : "Save Failed"}); 
@@ -253,6 +262,7 @@ jQuery(function() {
          this.$error.show();
       },
       saveSuccess : function(model, response) {
+         this.dirty--;
          this.$error.hide();
          this.$save.button({disabled : true, label : "Saved"}); 
       },
@@ -261,6 +271,7 @@ jQuery(function() {
          this.remove();
       },
       onChange : function() {
+         this.dirty++;
          this.model.set({"Name": this.$name.val(),
             "DishType": this.$type.val(),
             "PrepTimeMinutes": parseInt(this.$prepTime.val()),
@@ -287,7 +298,9 @@ jQuery(function() {
                {
                   if (nextTag.length > 0)
                   {
-                     tags.push(nextTag);
+                     if (tags.indexOf(nextTag) == -1 ) {
+                        tags.push(nextTag);
+                     }
                      nextTag = "";
                   }
                   quote = -1;
@@ -301,7 +314,9 @@ jQuery(function() {
             {
                if (nextTag.length > 0)
                {
-                  tags.push(nextTag);
+                  if (tags.indexOf(nextTag) == -1 ) {
+                     tags.push(nextTag);
+                  }
                   nextTag = "";
                }
             }
@@ -319,7 +334,10 @@ jQuery(function() {
             c++;
          }
          if (nextTag.length > 0)
-            tags.push(nextTag);
+            if (tags.indexOf(nextTag) == -1 ) {
+               tags.push(nextTag);
+            }
+         this.dirty++;
          this.model.set({Tags:tags});
          this.model.change();
          if (!fromChangeHandler)
@@ -364,6 +382,7 @@ jQuery(function() {
       initialize: function() {
          var self = this;
          this.el = $(this.el);
+         this.dirty = 0;
          _.bindAll(this, "render");
          _.bindAll(this, "save");
          _.bindAll(this, "del");
@@ -411,7 +430,7 @@ jQuery(function() {
          this.$name.focus();
       },
       render : function() {
-         if (this.model.hasChanged()) {
+         if (this.dirty) {
             this.$save.button({disabled : false, label: "Save"}); 
          }
          this.$name.val(this.model.get("Name"));
@@ -449,12 +468,20 @@ jQuery(function() {
          return this;
       },
       save : function() {
-         this.$save.button({disabled : true, text : "Saving"}); 
-         this.model.save( {},
-            {
-               error : this.saveError,
-               success : this.saveSuccess
-            });
+         if (this.dirty) {
+            this.dirty = 1;
+            this.$save.button({disabled : true, text : "Saving"}); 
+            this.model.save( {},
+               {
+                  error : this.saveError,
+                  success : this.saveSuccess
+               });
+         }
+         else if (this.$error.is(":hidden"))
+         {
+            this.dirty = 1;
+            this.saveSuccess()
+         }
       },
       saveError : function(model, response) {
          this.$save.button({disabled : true, label : "Save Failed"}); 
@@ -462,6 +489,7 @@ jQuery(function() {
          this.$error.show();
       },
       saveSuccess : function(model, response) {
+         this.dirty--;
          this.$error.hide();
          this.$save.button({disabled : true, label : "Saved"}); 
       },
@@ -495,7 +523,9 @@ jQuery(function() {
                {
                   if (nextTag.length > 0)
                   {
-                     tags.push(nextTag);
+                     if (tags.indexOf(nextTag) == -1 ) {
+                        tags.push(nextTag);
+                     }
                      nextTag = "";
                   }
                   quote = -1;
@@ -509,7 +539,9 @@ jQuery(function() {
             {
                if (nextTag.length > 0)
                {
-                  tags.push(nextTag);
+                  if (tags.indexOf(nextTag) == -1 ) {
+                     tags.push(nextTag);
+                  }
                   nextTag = "";
                }
             }
@@ -527,7 +559,9 @@ jQuery(function() {
             c++;
          }
          if (nextTag.length > 0)
-            tags.push(nextTag);
+            if (tags.indexOf(nextTag) == -1 ) {
+               tags.push(nextTag);
+            }
          this.model.set({Tags:tags});
          this.model.change();
          if (!fromChangeHandler)
