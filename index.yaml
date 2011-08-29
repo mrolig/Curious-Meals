@@ -19,3 +19,8 @@ indexes:
   properties:
   - name: User
   - name: Name
+
+- kind: MeasuredIngredient
+  ancestor: yes
+  properties:
+  - name: Order

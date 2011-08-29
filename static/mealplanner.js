@@ -3,6 +3,7 @@ jQuery(function() {
    function makeCombo($autocomplete) {
       $autocomplete
          .addClass("ui-widget")
+         .addClass("ui-combo")
          .css("margin-right", 0);
       $("<div></div>")
          .insertAfter($autocomplete)
@@ -21,7 +22,40 @@ jQuery(function() {
             $autocomplete.focus();
             });
    }
+   window.MeasuredIngredient = Backbone.Model.extend({
+      defaults : {
+         Ingredient : "",
+         Amount : "",
+         Instruction : "",
+         Order : 0
+      },
+      parse : function(response) {
+         var attrs = Backbone.Model.prototype.parse.call(this, response);
+         attrs.id = attrs.Id;
+         return attrs;
+      }
+   });
+   window.MeasuredIngredientList = Backbone.Collection.extend({
+      model: MeasuredIngredient,
+      comparator : function(mi) {
+         return mi.get("Order");
+      },
+      parse : function(response) {
+         var models = Backbone.Model.prototype.parse.call(this, response);
+         
+         for (var m in models)
+         {
+            models[m].id = models[m].Id;
+         }
+         return models;
+      }
+   })
    window.Dish = Backbone.Model.extend({
+      initialize: function() {
+         this.ingredients = new MeasuredIngredientList;
+         if (this.id)
+            this.ingredients.url = "/dish/" + this.id + "/mi/";
+      },
       validate: function(attrs) {
          if (attrs.Name && attrs.Name.length == 0)
             return "Must give your dish a name";
@@ -33,7 +67,6 @@ jQuery(function() {
       defaults : {
          Name : "<New Dish>",
          DishType : "",
-         Ingredients : [],
          Tags : [],
          PrepTimeMinutes : 0,
          CookTimeMinutes : 0,
@@ -42,6 +75,8 @@ jQuery(function() {
       parse : function(response) {
          var attrs = Backbone.Model.prototype.parse.call(this, response);
          attrs.id = attrs.Id;
+         if (attrs.id)
+            this.ingredients.url = "/dish/" + attrs.id + "/mi/";
          return attrs;
       }
    });
@@ -127,7 +162,7 @@ jQuery(function() {
       className : "dish-edit",
       events : {
         "change input" : "onChange",
-        "autocompleteselect input" : "onChange"
+        "autocompletechange input" : "onChange"
       },
       initialize: function() {
          this.el = $(this.el);
@@ -138,6 +173,9 @@ jQuery(function() {
          _.bindAll(this, "saveSuccess");
          _.bindAll(this, "saveError");
          this.model.bind('all', this.render);
+         this.model.ingredients.bind('all', this.render);
+         if (this.model.ingredients.url)
+            this.model.ingredients.fetch();
          this.$name = $("<input class='name ui-widget' type='text'></input>")
             .appendTo(this.el);
          this.el.append(" ");
@@ -190,10 +228,28 @@ jQuery(function() {
                }
             })
             .appendTo(this.el);
-         this.el.append("<br/>Ingredients:<br/>(TODO)");
+         this.el.append("<br/>Ingredients:");
+         this.$mi = $("<div></div>")
+            .appendTo(this.el);
+         var allIngredients = Ingredients.map(
+               function(i) { return i.get("Name"); });
+         this.$addIngredient = $("<input class='ui-widget' type='text'></input>")
+            .appendTo(this.el)
+            .autocomplete({source: allIngredients, minLength:0})
+            .bind('keypress', function (evt) {
+               if (evt.which == 13) {
+                  evt.preventDefault();
+                  self.addIngredient(false)
+               }
+            })
+         makeCombo(this.$addIngredient);
+            
          this.$name.focus();
+         if (!this.model.id)
+            this.save();
       },
       render : function() {
+         var self = this;
          if (this.dirty) {
             this.$save.button({disabled : false, label: "Save"}); 
          }
@@ -217,7 +273,6 @@ jQuery(function() {
          {
             if (t > 0)
                this.$tags.append(", ");
-            var self = this;
             var $tag = $("<div class='tag'></div>")
                .text(tags[t])
                .appendTo(this.$tags);
@@ -238,6 +293,10 @@ jQuery(function() {
                   });
             }) (tags[t]);
          }
+         this.$mi.html("");
+         this.model.ingredients.each(function(i) {
+            self.$mi.append(document.createTextNode(Ingredients.get(i.get("Ingredient")).get("Name")), "<br/>");
+         });
          return this;
       },
       save : function() {
@@ -277,7 +336,8 @@ jQuery(function() {
             "PrepTimeMinutes": parseInt(this.$prepTime.val()),
             "CookTimeMinutes": parseInt(this.$cookTime.val())
             });
-         this.parseTags(true)
+         this.parseTags(true);
+         this.addIngredient(true);
          this.$save.button({disabled : false, label: "Save"}); 
          setTimeout(this.save, 5000);
       },
@@ -342,6 +402,26 @@ jQuery(function() {
          this.model.change();
          if (!fromChangeHandler)
             this.onChange();
+      },
+      addIngredient : function(fromChangeHandler) {
+         if (this.$addIngredient.val()) {
+            var newName = this.$addIngredient.val();
+            var key = null;
+            Ingredients.each(function(i) {
+               if (i.get("Name") == newName) {
+                  key = i.id;
+               }
+            });
+            if (key) {
+               this.$addIngredient.val("");
+               this.model.ingredients.create({
+                     Ingredient : key,
+                     Order : this.model.ingredients.length
+                  });
+            }
+            if (!fromChangeHandler)
+               this.onChange();
+         }
       }
    })
    window.IngredientListView = Backbone.View.extend({
@@ -377,7 +457,7 @@ jQuery(function() {
       className : "ingredient-edit",
       events : {
         "change input" : "onChange",
-        "autocompleteselect input" : "onChange"
+        "autocompletechange input" : "onChange"
       },
       initialize: function() {
          var self = this;
@@ -476,6 +556,12 @@ jQuery(function() {
                   error : this.saveError,
                   success : this.saveSuccess
                });
+            if (this.model.ingredients.url)
+               this.ingredients.save( {},
+                  {
+                     error : this.saveError,
+                     success : this.saveSuccess
+                  });
          }
          else if (this.$error.is(":hidden"))
          {

@@ -10,7 +10,7 @@ import (
 	"os"
 	"io"
 	"json"
-	"bytes"
+	//"bytes"
 )
 
 func init() {
@@ -50,6 +50,10 @@ func usersHandler(w http.ResponseWriter, r *http.Request) {
 		u, logoutURL)
 }
 func dishHandler(w http.ResponseWriter, r *http.Request) {
+	if strings.Contains(r.URL.Path, "/mi/") {
+		measuredIngredientsHandler(w, r)
+		return
+	}
 	handler := newDataHandler(w, r, "Dish")
 	id := getID(r)
 	if len(id) == 0 {
@@ -65,7 +69,7 @@ func dishHandler(w http.ResponseWriter, r *http.Request) {
 			sendJSON(handler.w, dishes)
 		case "POST":
 			dish := Dish{}
-			handler.createEntry(&dish)
+			handler.createEntry(&dish, nil)
 		}
 		return
 	}
@@ -81,6 +85,45 @@ func dishHandler(w http.ResponseWriter, r *http.Request) {
 		handler.get(id, &dish)
 	case "PUT":
 		handler.update(key, id, &dish)
+	case "DELETE":
+		handler.delete(key)
+	}
+}
+
+func measuredIngredientsHandler(w http.ResponseWriter, r *http.Request) {
+	handler := newDataHandler(w, r, "MeasuredIngredient")
+	id := getID(r)
+	parent, err := datastore.DecodeKey(getParentID(r))
+	check(err)
+	if len(id) == 0 {
+		switch r.Method {
+		case "GET":
+			query := datastore.NewQuery(handler.kind).Ancestor(parent).Order("Order")
+			ingredients := make([]MeasuredIngredient, 0, 100)
+			keys, err := query.GetAll(handler.c, &ingredients)
+			check(err)
+			for index, _ := range ingredients{
+				ingredients[index].Id = keys[index].Encode()
+			}
+			sendJSON(handler.w, ingredients)
+		case "POST":
+			mi := MeasuredIngredient{}
+			handler.createEntry(&mi, parent)
+		}
+		return
+	}
+	key, err := datastore.DecodeKey(id)
+	check(err)
+	if (key.Incomplete()) {
+		check(ErrUnknownItem);
+	}
+	mi := MeasuredIngredient{}
+	handler.checkUser(key, &mi)
+	switch r.Method {
+	case "GET":
+		handler.get(id, &mi)
+	case "PUT":
+		handler.update(key, id, &mi)
 	case "DELETE":
 		handler.delete(key)
 	}
@@ -102,7 +145,7 @@ func ingredientHandler(w http.ResponseWriter, r *http.Request) {
 			sendJSON(handler.w, ingredients)
 		case "POST":
 			ingredient := Ingredient{}
-			handler.createEntry(&ingredient)
+			handler.createEntry(&ingredient, nil)
 		}
 		return
 	}
@@ -128,9 +171,7 @@ func sendJSON(w http.ResponseWriter, object interface{}) {
 }
 
 func readJSON(r *http.Request, object interface{}) {
-	var bout bytes.Buffer
-	io.Copy(&bout, r.Body)
-	err := json.Unmarshal(bout.Bytes(), object)
+	err := json.NewDecoder(r.Body).Decode(object)
 	check(err)
 }
 
@@ -140,6 +181,14 @@ func getID(r *http.Request) string {
 		return ""
 	}
 	return parts[len(parts)-1]
+}
+
+func getParentID(r *http.Request) string {
+	parts := strings.Split(r.URL.Path, "/", -1)
+	if len(parts) < 5 {
+		return ""
+	}
+	return parts[len(parts)-3]
 }
 var (
 	ErrUnknownItem = os.NewError("Unknown item")
@@ -178,7 +227,7 @@ func (self *dataHandler) checkUser(key *datastore.Key, object interface{}) {
 	}
 }
 
-func (self *dataHandler) createEntry(newObject interface{}) {
+func (self *dataHandler) createEntry(newObject interface{}, parent *datastore.Key) {
 	r := self.r
 	c := self.c
 	owned, ok := newObject.(Owned)
@@ -187,7 +236,7 @@ func (self *dataHandler) createEntry(newObject interface{}) {
 	}
 	readJSON(r, newObject)
 	owned.SetOwner( self.u.String())
-	key := datastore.NewIncompleteKey(self.kind)
+	key := datastore.NewKey(self.kind, "", 0, parent)
 	key, err := datastore.Put(c, key, newObject)
 	check(err)
 	owned.SetID(key.Encode())
