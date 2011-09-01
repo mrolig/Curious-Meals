@@ -172,6 +172,7 @@ jQuery(function() {
          _.bindAll(this, "del");
          _.bindAll(this, "saveSuccess");
          _.bindAll(this, "saveError");
+         _.bindAll(this, "onChange");
          this.model.bind('all', this.render);
          this.model.ingredients.bind('all', this.render);
          if (this.model.ingredients.url)
@@ -228,13 +229,15 @@ jQuery(function() {
                }
             })
             .appendTo(this.el);
-         this.el.append("<br/>Ingredients:");
-         this.$mi = $("<div></div>")
+         this.el.append("<br/>Ingredients [Amount, extra instructions (chopped, peeled, etc.)]:");
+         this.$mi = $("<table class='ingredients'><tr><th>Ingredient</th><th>Amount</th><th>Notes</th><th></th></tr></table>")
             .appendTo(this.el);
          var allIngredients = Ingredients.map(
                function(i) { return i.get("Name"); });
+         var $lastRow = $("<tr></tr>")
+            .appendTo(this.$mi);
          this.$addIngredient = $("<input class='ui-widget' type='text'></input>")
-            .appendTo(this.el)
+            .appendTo($lastRow)
             .autocomplete({source: allIngredients, minLength:0})
             .bind('keypress', function (evt) {
                if (evt.which == 13) {
@@ -293,9 +296,30 @@ jQuery(function() {
                   });
             }) (tags[t]);
          }
-         this.$mi.html("");
+         this.$mi.find("tr.ingredient").remove();
          this.model.ingredients.each(function(i) {
-            self.$mi.append(document.createTextNode(Ingredients.get(i.get("Ingredient")).get("Name")), "<br/>");
+            var $tr = $("<tr class='ingredient'></tr>");
+            self.$mi.find("tr").last().before($tr);
+            $tr[0].id = i.id;
+            $("<td></td>")
+               .appendTo($tr)
+               .text(Ingredients.get(i.get("Ingredient")).get("Name"));
+            var $amount = $("<td><input type='text' class='ui-widget'></input></td>")
+               .appendTo($tr)
+               .find("input")
+               .val(i.get("Amount"));
+            var $instruction = $("<td><input type='text' class='ui-widget'></input></td>")
+               .appendTo($tr)
+               .find("input")
+               .val(i.get("Instruction"));
+            var $del = $("<td><span class='remove ui-icon ui-icon-close'></span></td>")
+               .appendTo($tr)
+               .click(function() {
+                  var $tr = $(this).closest("tr");
+                  var mi  = self.model.ingredients.get($tr[0].id);
+                  mi.destroy();
+                  //self.model.ingredients.remove(mi);
+                  });
          });
          return this;
       },
@@ -308,6 +332,17 @@ jQuery(function() {
                   error : this.saveError,
                   success : this.saveSuccess
                });
+            if (this.model.ingredients.url)
+            {
+               var self = this;
+               this.model.ingredients.each(function(mi) {
+                  mi.save( {},
+                     {
+                        error : self.saveError,
+                        success : self.saveSuccess
+                     });
+                  });
+            }
          }
          else if (this.$error.is(":hidden"))
          {
@@ -336,6 +371,17 @@ jQuery(function() {
             "PrepTimeMinutes": parseInt(this.$prepTime.val()),
             "CookTimeMinutes": parseInt(this.$cookTime.val())
             });
+         var $trs = this.$mi.find("tr.ingredient");
+         for (var i = 0; i < $trs.length; i++)
+         {
+            var $tr = $($trs[i]);
+            var id = $tr[0].id;
+            var model = this.model.ingredients.get(id);
+            var $amount = $tr.find("input").eq(0);
+            var $instruction = $tr.find("input").eq(1);
+            model.set({"Amount" : $amount.val(),
+                        "Instruction" : $instruction.val()});
+         }
          this.parseTags(true);
          this.addIngredient(true);
          this.$save.button({disabled : false, label: "Save"}); 
@@ -556,12 +602,6 @@ jQuery(function() {
                   error : this.saveError,
                   success : this.saveSuccess
                });
-            if (this.model.ingredients.url)
-               this.ingredients.save( {},
-                  {
-                     error : this.saveError,
-                     success : this.saveSuccess
-                  });
          }
          else if (this.$error.is(":hidden"))
          {
