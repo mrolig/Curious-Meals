@@ -151,6 +151,10 @@ jQuery(function() {
                .text(dish.get("Name"));
             $li[0].model = dish;
          });
+         if (this.model.length == 0) {
+            var $li = $("<li>[No dishes]</li>")
+               .appendTo(this.el)
+         }
          return this;
       },
       selectDish : function(ev) {
@@ -492,6 +496,10 @@ jQuery(function() {
                .text(ingredient.get("Name"));
             $li[0].model = ingredient;
          });
+         if (this.model.length == 0) {
+            var $li = $("<li>[No ingredients]</li>")
+               .appendTo(this.el)
+         }
          return this;
       },
       selectIngredient : function(ev) {
@@ -726,11 +734,59 @@ jQuery(function() {
       }
    })
 
+   window.Search = Backbone.Model.extend({
+      
+   });
+   window.SearchView = Backbone.View.extend({
+      tagName : "div",
+      className : "search-view",
+      initialize : function() {
+         this.el = $(this.el);
+         _.bindAll(this, "startSearch");
+         _.bindAll(this, "render");
+         _.bindAll(this, "searchComplete");
+         _.bindAll(this, "dishSelected");
+         _.bindAll(this, "ingredientSelected");
+         this.model.bind('change', this.startSearch);
+         this.startSearch();
+         this.dishes = [];
+         this.ingredients= [];
+      },
+      startSearch : function() {
+         jQuery.post("/search", JSON.stringify(this.model.attributes), this.searchComplete);
+      },
+      searchComplete :  function(results) {
+         this.dishes = results.Dishes;
+         this.ingredients = results.Ingredients;
+         this.dishListView = new DishListView({model : new DishList(this.dishes)});
+         this.dishListView.bind("selected", this.dishSelected)
+         this.ingredientListView = new IngredientListView({model : new IngredientList(this.ingredients)});
+         this.ingredientListView.bind("selected", this.ingredientSelected)
+         this.render();
+      },
+      render : function() {
+         if (this.dishListView)
+            this.el.append(this.dishListView.render().el);
+         if (this.ingredientListView)
+            this.el.append(this.ingredientListView.render().el);
+         return this;
+      },
+      dishSelected : function(dish) {
+         this.trigger('selecteddish', dish);
+      },
+      ingredientSelected : function(dish) {
+         this.trigger('selectedingredient', dish);
+      }
+   })
+
    window.Users = new UserList
    window.Dishes = new DishList
    window.Ingredients = new IngredientList
    window.AppView = Backbone.View.extend({
       el : $("#app"),
+      events : {
+         "click li.tag": "onTagClick"
+      },
       initialize : function() {
          _.bindAll(this, "render");
          _.bindAll(this, "newDish");
@@ -738,10 +794,12 @@ jQuery(function() {
          _.bindAll(this, "newIngredient");
          _.bindAll(this, "editIngredient");
          _.bindAll(this, "onResize");
+         _.bindAll(this, "renderTags");
          this.userView = new UserView({model : Users});
          this.dishListView = new DishListView({model : Dishes});
          this.dishListView.bind("selected", this.editDish);
          this.dishEditView = null;
+         this.searchView = null;
          $("#dishes").append(this.dishListView.render().el);
          this.el.find(".add-dish")
                   .button()
@@ -758,11 +816,37 @@ jQuery(function() {
          Users.fetch();
          Dishes.fetch();
          Ingredients.fetch();
+         jQuery.getJSON("/tags", this.renderTags);
       },
       render : function() {
          this.userView.render();
          this.onResize();
          return this
+      },
+      renderTags : function(tags) {
+         var $tags = $("#tags");
+         for (var tag in tags)
+         {
+            var $li = $("<li class='tag'></li>")
+               .appendTo($tags)
+               .text(tag);
+            $li[0].tag = tag;
+         }
+      },
+      onTagClick : function(evt) {
+         if (this.dishEditView)
+            this.dishEditView.remove();
+         if (this.ingredientEditView)
+            this.ingredientEditView.remove();
+         if (this.searchView)
+            this.searchView.remove();
+         var search = new Search({
+            Tags : [evt.target.tag]
+            });
+         this.searchView = new SearchView({ model: search });
+         this.searchView.bind("selecteddish", this.editDish);
+         this.searchView.bind("selectedingredient", this.editIngredient);
+         this.el.find(".edit").append(this.searchView.render().el);
       },
       newDish : function() {
          var nd = Dishes.create({});
@@ -773,6 +857,8 @@ jQuery(function() {
             this.dishEditView.remove();
          if (this.ingredientEditView)
             this.ingredientEditView.remove();
+         if (this.searchView)
+            this.searchView.remove();
          this.dishEditView = new DishEditView({model : dish})
          this.el.find(".edit").append(this.dishEditView.render().el);
       },
@@ -785,6 +871,8 @@ jQuery(function() {
             this.dishEditView.remove();
          if (this.ingredientEditView)
             this.ingredientEditView.remove();
+         if (this.searchView)
+            this.searchView.remove();
          this.ingredientEditView = new IngredientEditView({model : ingredient})
          this.el.find(".edit").append(this.ingredientEditView.render().el);
       },

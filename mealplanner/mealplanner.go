@@ -19,6 +19,8 @@ func init() {
 	http.HandleFunc("/dish/", errorHandler(dishHandler))
 	http.HandleFunc("/users", errorHandler(usersHandler))
 	http.HandleFunc("/ingredient/", errorHandler(ingredientHandler))
+	http.HandleFunc("/search", errorHandler(searchHandler))
+	http.HandleFunc("/tags", errorHandler(tagsHandler))
 }
 
 // errorHandler catches errors and prints an HTTP 500 error 
@@ -268,4 +270,75 @@ func (self *dataHandler) update(key *datastore.Key, id string, object interface{
 func (self *dataHandler) delete(key *datastore.Key) {
 	err := datastore.Delete(self.c, key)
 	check(err)
+}
+
+type searchParams struct {
+	Tags []string
+	Rating int
+	Name string
+}
+
+type searchResult struct {
+	Dishes []Dish
+	Ingredients []Ingredient
+}
+
+
+func searchHandler(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	u := user.Current(c)
+	result := searchResult{}
+	sp := searchParams{}
+	readJSON(r, &sp)
+
+	query := datastore.NewQuery("Dish").Filter("User =", u.String()).Order("Name")
+	dishes := make([]Dish, 0, 100)
+	keys, err := query.GetAll(c, &dishes)
+	check(err)
+	for index, dish := range dishes {
+		match := true
+      for _, target := range sp.Tags {
+			found := false
+			Inner: for _, tag := range dish.Tags {
+				if target == tag  {
+					found = true
+					break Inner
+				}
+			}
+			if !found {
+				match = false
+				break
+			}
+		}
+		if match {
+			dish.Id = keys[index].Encode()
+			result.Dishes = append(result.Dishes, dish)
+		}
+	}
+	sendJSON(w, result)
+}
+
+func tagsHandler(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	u := user.Current(c)
+	tags := make(map[string] string)
+	query := datastore.NewQuery("Dish").Filter("User =", u.String())
+	dishes := make([]Dish, 0, 100)
+	_, err := query.GetAll(c, &dishes)
+	check(err)
+	for _, dish := range dishes {
+		for _, tag := range dish.Tags {
+			tags[tag] = tag
+		}
+	}
+	query = datastore.NewQuery("Ingredient").Filter("User =", u.String())
+	ingredients := make([]Ingredient, 0, 100)
+	_, err = query.GetAll(c, &ingredients)
+	check(err)
+	for _, ingredient := range ingredients {
+		for _, tag := range ingredient.Tags {
+			tags[tag] = tag
+		}
+	}
+	sendJSON(w, tags)
 }

@@ -12,6 +12,12 @@ indexes:
 
 - kind: Dish
   properties:
+  - name: Label
+  - name: User
+  - name: Name
+
+- kind: Dish
+  properties:
   - name: User
   - name: Name
 
