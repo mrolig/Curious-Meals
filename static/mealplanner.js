@@ -795,6 +795,7 @@ jQuery(function() {
          _.bindAll(this, "editIngredient");
          _.bindAll(this, "onResize");
          _.bindAll(this, "renderTags");
+         _.bindAll(this, "restore");
          this.userView = new UserView({model : Users});
          this.dishListView = new DishListView({model : Dishes});
          this.dishListView.bind("selected", this.editDish);
@@ -812,6 +813,7 @@ jQuery(function() {
                   .button()
                   .click(this.newIngredient);
          $(window).resize(this.onResize);
+			$("#restore-file").change(this.restore);
          this.onResize();
          Users.fetch();
          Dishes.fetch();
@@ -884,7 +886,10 @@ jQuery(function() {
          if (height > 0) {
             this.el.find(".sidebar").height(height);
          }
-      }
+      },
+		restore : function() {
+			$("#restore-form").submit();
+		}
    })
 
    window.App = new AppView;

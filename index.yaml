@@ -18,6 +18,12 @@ indexes:
 
 - kind: Dish
   properties:
+  - name: Tag
+  - name: User
+  - name: Name
+
+- kind: Dish
+  properties:
   - name: User
   - name: Name
 

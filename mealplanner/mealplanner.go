@@ -21,6 +21,8 @@ func init() {
 	http.HandleFunc("/ingredient/", errorHandler(ingredientHandler))
 	http.HandleFunc("/search", errorHandler(searchHandler))
 	http.HandleFunc("/tags", errorHandler(tagsHandler))
+	http.HandleFunc("/backup", errorHandler(backupHandler))
+	http.HandleFunc("/restore", errorHandler(restoreHandler))
 }
 
 // errorHandler catches errors and prints an HTTP 500 error 
@@ -344,4 +346,86 @@ func tagsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	sendJSON(w, tags)
+}
+
+type backup struct {
+	Dishes []Dish
+	MeasuredIngredients map[string] []MeasuredIngredient
+	Ingredients []Ingredient
+}
+
+func backupHandler(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	u := user.Current(c)
+	b := backup{}
+	b.MeasuredIngredients = map[string] []MeasuredIngredient {}
+
+	query := datastore.NewQuery("Dish").Filter("User =", u.String())
+	keys, err := query.GetAll(c, &b.Dishes)
+	check(err)
+	for index, _:= range b.Dishes {
+		key := keys[index].Encode()
+		b.Dishes[index].Id = key
+		ingredients := make([]MeasuredIngredient, 0, 100)
+		query = datastore.NewQuery("MeasuredIngredient").Ancestor(keys[index]).Order("Order")
+		ikeys, err := query.GetAll(c, &ingredients)
+		check(err)
+		for iindex, _ := range ingredients {
+			ingredients[iindex].Id = ikeys[iindex].Encode()
+		}
+		b.MeasuredIngredients[key] = ingredients
+	}
+	query = datastore.NewQuery("Ingredient").Filter("User =", u.String())
+	keys, err = query.GetAll(c, &b.Ingredients)
+	check(err)
+	for index, _ := range b.Ingredients {
+		key := keys[index].Encode()
+		b.Ingredients[index].Id = key
+	}
+	sendJSON(w, b)
+}
+
+
+func restoreHandler(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	u := user.Current(c)
+	owner := u.String()
+	file, _, err := r.FormFile("restore-file")
+	check(err)
+	decoder := json.NewDecoder(file)
+	data := backup{}
+	err = decoder.Decode(&data)
+	check(err)
+	// add all the ingredients
+	for _, i := range data.Ingredients {
+		key, err := datastore.DecodeKey(i.Id)
+		check(err)
+		i.SetOwner(owner)
+		_, err = datastore.Put(c, key, &i)
+		check(err)
+	}
+	// add all the dishes
+	for _, d := range data.Dishes {
+		key, err := datastore.DecodeKey(d.Id)
+		check(err)
+		d.SetOwner(owner)
+		_, err = datastore.Put(c, key, &d)
+		check(err)
+	}
+	// add all the dishes' ingredients
+	for d, ingredients := range data.MeasuredIngredients {
+		parent, err := datastore.DecodeKey(d)
+		check(err)
+		for _, i := range ingredients {
+			ikey, err := datastore.DecodeKey(i.Id)
+			check(err)
+			if ikey.Parent() == nil {
+				ikey = datastore.NewKey(c, "MeasuredIngredient", "", ikey.IntID(), parent)
+			}
+			i.SetOwner(owner)
+			_, err = datastore.Put(c, ikey, &i)
+			check(err)
+		}
+	}
+	indexHandler(w, r)
 }
