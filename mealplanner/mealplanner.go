@@ -77,8 +77,8 @@ func dishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	key, err := datastore.DecodeKey(id)
 	check(err)
-	if (key.Incomplete()) {
-		check(ErrUnknownItem);
+	if key.Incomplete() {
+		check(ErrUnknownItem)
 	}
 	dish := Dish{}
 	handler.checkUser(key, &dish)
@@ -104,7 +104,7 @@ func measuredIngredientsHandler(w http.ResponseWriter, r *http.Request) {
 			ingredients := make([]MeasuredIngredient, 0, 100)
 			keys, err := query.GetAll(handler.c, &ingredients)
 			check(err)
-			for index, _ := range ingredients{
+			for index, _ := range ingredients {
 				ingredients[index].Id = keys[index].Encode()
 			}
 			sendJSON(handler.w, ingredients)
@@ -116,8 +116,8 @@ func measuredIngredientsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	key, err := datastore.DecodeKey(id)
 	check(err)
-	if (key.Incomplete()) {
-		check(ErrUnknownItem);
+	if key.Incomplete() {
+		check(ErrUnknownItem)
 	}
 	mi := MeasuredIngredient{}
 	handler.checkUser(key, &mi)
@@ -178,7 +178,7 @@ func readJSON(r *http.Request, object interface{}) {
 }
 
 func getID(r *http.Request) string {
-	parts := strings.Split(r.URL.Path, "/", -1)
+	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 3 {
 		return ""
 	}
@@ -186,15 +186,17 @@ func getID(r *http.Request) string {
 }
 
 func getParentID(r *http.Request) string {
-	parts := strings.Split(r.URL.Path, "/", -1)
+	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 5 {
 		return ""
 	}
 	return parts[len(parts)-3]
 }
+
 var (
 	ErrUnknownItem = os.NewError("Unknown item")
 )
+
 type Owned interface {
 	Owner() string
 	SetOwner(string)
@@ -203,14 +205,14 @@ type Owned interface {
 }
 
 type dataHandler struct {
-	w http.ResponseWriter
-	r *http.Request
+	w    http.ResponseWriter
+	r    *http.Request
 	kind string
-	c appengine.Context
-	u *user.User
+	c    appengine.Context
+	u    *user.User
 }
 
-func newDataHandler( w http.ResponseWriter, r *http.Request, kind string) *dataHandler {
+func newDataHandler(w http.ResponseWriter, r *http.Request, kind string) *dataHandler {
 	c := appengine.NewContext(r)
 	u := user.Current(c)
 	return &dataHandler{w, r, kind, c, u}
@@ -225,7 +227,7 @@ func (self *dataHandler) checkUser(key *datastore.Key, object interface{}) {
 	err := datastore.Get(self.c, key, object)
 	check(err)
 	if owned.Owner() != self.u.String() {
-		check(ErrUnknownItem);
+		check(ErrUnknownItem)
 	}
 }
 
@@ -237,8 +239,8 @@ func (self *dataHandler) createEntry(newObject interface{}, parent *datastore.Ke
 		check(datastore.ErrInvalidEntityType)
 	}
 	readJSON(r, newObject)
-	owned.SetOwner( self.u.String())
-	key := datastore.NewKey(self.kind, "", 0, parent)
+	owned.SetOwner(self.u.String())
+	key := datastore.NewKey(c, self.kind, "", 0, parent)
 	key, err := datastore.Put(c, key, newObject)
 	check(err)
 	owned.SetID(key.Encode())
@@ -273,13 +275,13 @@ func (self *dataHandler) delete(key *datastore.Key) {
 }
 
 type searchParams struct {
-	Tags []string
+	Tags   []string
 	Rating int
-	Name string
+	Name   string
 }
 
 type searchResult struct {
-	Dishes []Dish
+	Dishes      []Dish
 	Ingredients []Ingredient
 }
 
@@ -297,10 +299,11 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 	check(err)
 	for index, dish := range dishes {
 		match := true
-      for _, target := range sp.Tags {
+		for _, target := range sp.Tags {
 			found := false
-			Inner: for _, tag := range dish.Tags {
-				if target == tag  {
+		Inner:
+			for _, tag := range dish.Tags {
+				if target == tag {
 					found = true
 					break Inner
 				}
@@ -321,7 +324,7 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 func tagsHandler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	u := user.Current(c)
-	tags := make(map[string] string)
+	tags := make(map[string]string)
 	query := datastore.NewQuery("Dish").Filter("User =", u.String())
 	dishes := make([]Dish, 0, 100)
 	_, err := query.GetAll(c, &dishes)
