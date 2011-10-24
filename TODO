@@ -1,3 +1,5 @@
 - list dishes per ingredient
 - list ingredients with tag
 - have 'view' widget default (vs edit)
+- Source - reference recipe source
+- list dishes that go well with a dish
