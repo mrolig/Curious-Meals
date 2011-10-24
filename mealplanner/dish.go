@@ -5,23 +5,23 @@ import (
 )
 
 type Dish struct {
-	Id string
-	User string
-	Name string
-	DishType string
-	Tags []string
+	Id              string
+	User            string
+	Name            string
+	DishType        string
+	Tags            []string
 	PrepTimeMinutes int
 	CookTimeMinutes int
-	Rating int
+	Rating          int
 }
 
 type MeasuredIngredient struct {
-	Id string
-	User string
-	Ingredient *datastore.Key
-	Amount string
+	Id          string
+	User        string
+	Ingredient  *datastore.Key
+	Amount      string
 	Instruction string
-	Order int
+	Order       int
 }
 
 func (self *Dish) Owner() string {

@@ -349,21 +349,21 @@ func tagsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type backup struct {
-	Dishes []Dish
-	MeasuredIngredients map[string] []MeasuredIngredient
-	Ingredients []Ingredient
+	Dishes              []Dish
+	MeasuredIngredients map[string][]MeasuredIngredient
+	Ingredients         []Ingredient
 }
 
 func backupHandler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	u := user.Current(c)
 	b := backup{}
-	b.MeasuredIngredients = map[string] []MeasuredIngredient {}
+	b.MeasuredIngredients = map[string][]MeasuredIngredient{}
 
 	query := datastore.NewQuery("Dish").Filter("User =", u.String())
 	keys, err := query.GetAll(c, &b.Dishes)
 	check(err)
-	for index, _:= range b.Dishes {
+	for index, _ := range b.Dishes {
 		key := keys[index].Encode()
 		b.Dishes[index].Id = key
 		ingredients := make([]MeasuredIngredient, 0, 100)

@@ -1,15 +1,14 @@
 package mealplanner
 
-import (
-)
+import ()
 
 type Ingredient struct {
-	Id string
-	User string
-	Name string
+	Id       string
+	User     string
+	Name     string
 	Category string
-	Tags []string
-	Source string // vegan, vegetarian, animal
+	Tags     []string
+	Source   string // vegan, vegetarian, animal
 }
 
 func (self *Ingredient) Owner() string {
@@ -25,4 +24,3 @@ func (self *Ingredient) ID() string {
 func (self *Ingredient) SetID(id string) {
 	self.Id = id
 }
-
