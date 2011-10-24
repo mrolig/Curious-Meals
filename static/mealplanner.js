@@ -181,6 +181,7 @@ jQuery(function() {
          this.model.ingredients.bind('all', this.render);
          if (this.model.ingredients.url)
             this.model.ingredients.fetch();
+         this.ingredients = { gen : 0};
          this.$name = $("<input class='name ui-widget' type='text'></input>")
             .appendTo(this.el);
          this.el.append(" ");
@@ -299,65 +300,67 @@ jQuery(function() {
                   });
             }) (tags[t]);
          }
-         var newIngredient = false;
-         var ingredientsChanged = false;
+         this.ingredients.gen++;
          var self = this;
-         if (!("prevIngredients" in this))
-         {
-            this.prevIngredients = {};
-         }
-         if (ingredientsChanged.length != this.model.ingredients.length)
-            ingredientsChanged = true;
          var nextIngredients = {};
          this.model.ingredients.each(function(i) {
-            if (i.id in self.prevIngredients)
+            var changed = false;
+            var ing;
+            if (i.id in self.ingredients)
             {
-               if (self.prevIngredients[i.id].Amount != i.get("Amount")
-                    || self.prevIngredients[i.id].Instruction != i.get("Instruction"))
+               ing =  self.ingredients[i.id];
+               if (ing.Amount != i.get("Amount")
+                    || ing.Instruction != i.get("Instruction"))
                {
-                  ingredientsChanged = true;
+                  changed = true;
                }
+               ing.gen = self.ingredients.gen;
             }
             else
             {
-               ingredientsChanged = true;
-               newIngredient = true;
-            }
-            nextIngredients[i.id] = { Amount : i.get("Amount"), Instruction : i.get("Instruction") };
-         });
-         this.prevIngredients = nextIngredients;
-         
-         if (ingredientsChanged)
-         {
-            this.$mi.find("tr.ingredient").remove();
-            this.model.ingredients.each(function(i) {
+               changed = true;
+      
+               ing = { Amount : i.get("Amount"), Instruction : i.get("Instruction"), gen : self.ingredients.gen};
                var $tr = $("<tr class='ingredient'></tr>");
+               ing.$tr = $tr;
                self.$mi.find("tr").last().before($tr);
                $tr[0].id = i.id;
-               $("<td></td>")
+               ing.$name = $("<td></td>").appendTo($tr);
+               ing.$amount = $("<td><input type='text' class='ui-widget'></input></td>")
                   .appendTo($tr)
-                  .text(Ingredients.get(i.get("Ingredient")).get("Name"));
-               var $amount = $("<td><input type='text' class='ui-widget'></input></td>")
+                  .find("input");
+               ing.$instruction = $("<td><input type='text' class='ui-widget'></input></td>")
                   .appendTo($tr)
-                  .find("input")
-                  .val(i.get("Amount"));
-               var $instruction = $("<td><input type='text' class='ui-widget'></input></td>")
-                  .appendTo($tr)
-                  .find("input")
-                  .val(i.get("Instruction"));
-               var $del = $("<td><span class='remove ui-icon ui-icon-close'></span></td>")
+                  .find("input");
+               ing.$del = $("<td><span class='remove ui-icon ui-icon-close'></span></td>")
                   .appendTo($tr)
                   .click(function() {
                      var $tr = $(this).closest("tr");
                      var mi  = self.model.ingredients.get($tr[0].id);
                      mi.destroy();
-                     //self.model.ingredients.remove(mi);
                      });
-               // TODO, why doesn't this focus?
-               if (newIngredient) {
-                  $amount.find("input").focus();
+               if (self.addedIngredient) {
+                  self.addedIngredient = false;
+                  ing.$amount.focus();
                }
-            });
+               self.ingredients[i.id] = ing;
+            }
+            if (changed) {
+               ing.$amount.val(i.get("Amount"));
+               ing.$instruction.val(i.get("Instruction"));
+               ing.$name.text(Ingredients.get(i.get("Ingredient")).get("Name"));
+            }
+         });
+         var remove = [];
+         for (var i in this.ingredients) {
+            if ( i != "gen" && this.ingredients[i].gen != this.ingredients.gen)
+            {
+               this.ingredients[i].$tr.remove();
+               remove.push(i);
+            }
+         }
+         for (var r in remove) {
+            delete this.ingredients[remove[r]];
          }
          return this;
       },
@@ -501,6 +504,7 @@ jQuery(function() {
             });
             if (key) {
                this.$addIngredient.val("");
+               this.addedIngredient = true;
                this.model.ingredients.create({
                      Ingredient : key,
                      Order : this.model.ingredients.length
