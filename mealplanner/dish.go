@@ -13,6 +13,7 @@ type Dish struct {
 	PrepTimeMinutes int
 	CookTimeMinutes int
 	Rating          int
+	Source          string
 }
 
 type MeasuredIngredient struct {

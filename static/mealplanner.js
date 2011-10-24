@@ -70,7 +70,8 @@ jQuery(function() {
          Tags : [],
          PrepTimeMinutes : 0,
          CookTimeMinutes : 0,
-         Rating : 0 };
+         Rating : 0,
+         Source : "" };
       },
       parse : function(response) {
          var attrs = Backbone.Model.prototype.parse.call(this, response);
@@ -211,6 +212,9 @@ jQuery(function() {
             }) (i+1);
          }
          this.$stars = this.el.find(".ui-icon-star");
+         this.el.append("<br/>Source: ");
+         this.$source = $("<input type='text' size='75' class='ui-widget'></input>")
+            .appendTo(this.el);
          this.el.append("<br/>Dish type: ");
          this.$type = $("<input type='text'></input>")
             .appendTo(this.el)
@@ -264,6 +268,7 @@ jQuery(function() {
          this.$type.val(this.model.get("DishType"));
          this.$prepTime.val(this.model.get("PrepTimeMinutes"));
          this.$cookTime.val(this.model.get("CookTimeMinutes"));
+         this.$source.val(this.model.get("Source"));
          var rating = this.model.get("Rating");
          for (var i = 0; i < 5; i ++)
          {
@@ -413,7 +418,8 @@ jQuery(function() {
          this.model.set({"Name": this.$name.val(),
             "DishType": this.$type.val(),
             "PrepTimeMinutes": parseInt(this.$prepTime.val()),
-            "CookTimeMinutes": parseInt(this.$cookTime.val())
+            "CookTimeMinutes": parseInt(this.$cookTime.val()),
+            "Source": this.$source.val()
             });
          var $trs = this.$mi.find("tr.ingredient");
          for (var i = 0; i < $trs.length; i++)
