@@ -1,5 +1,9 @@
 - list dishes per ingredient
 - list ingredients with tag
 - have 'view' widget default (vs edit)
-- Source - reference recipe source
-- list dishes that go well with a dish
+- Source - create hyper link if source is http...
+- list dishes that go well with a dish (pairing)
+- list alternative dishes 
+- bookmarks
+- gather menu/possible menu
+- open in new tab?
