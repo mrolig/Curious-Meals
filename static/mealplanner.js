@@ -64,13 +64,13 @@ jQuery(function() {
          if (attrs.CookTimeMin && attrs.CookTimeMin == NaN)
             return "Must give cook time in minutes";
       },
-      defaults : {
+      defaults : function() { return {
          Name : "<New Dish>",
          DishType : "",
          Tags : [],
          PrepTimeMinutes : 0,
          CookTimeMinutes : 0,
-         Rating : 0
+         Rating : 0 };
       },
       parse : function(response) {
          var attrs = Backbone.Model.prototype.parse.call(this, response);
@@ -101,11 +101,11 @@ jQuery(function() {
          if (attrs.Name && attrs.Name.length == 0)
             return "Must give your ingredient a name";
       },
-      defaults : {
+      defaults : function() { return {
          Name : "<New Ingredient>",
          Category : "",
-         Source : "Animal",
-         Tags : []
+         Source : "Vegan",
+         Tags : [] };
       },
       parse : function(response) {
          var attrs = Backbone.Model.prototype.parse.call(this, response);
@@ -542,7 +542,7 @@ jQuery(function() {
          this.el.append("<br/>Category: ");
          this.$category = $("<input class='ui-widget' type='text'></input>")
             .appendTo(this.el)
-            .autocomplete({source:["Carbohydrate", "Protein", "Veggetable", "Fruit", "Sweet", "Spice", "Fat"], minLength:0});
+            .autocomplete({source:["Carbohydrate", "Protein", "Vegetable", "Fruit", "Sweet", "Spice", "Fat", "Herb"], minLength:0});
          makeCombo(this.$category);
          this.el.append("<br/>Source: ");
          this.$source= $("<input ></input>")
@@ -632,6 +632,7 @@ jQuery(function() {
          this.remove();
       },
       onChange : function() {
+         this.dirty++;
          this.model.set({"Name": this.$name.val(),
             "Category": this.$category.val(),
             "Source": this.$source.val()
@@ -756,6 +757,12 @@ jQuery(function() {
          jQuery.post("/search", JSON.stringify(this.model.attributes), this.searchComplete);
       },
       searchComplete :  function(results) {
+         _.each(results.Dishes, function(d) {
+               d.id = d.Id;
+            })
+         _.each(results.Ingredients, function(d) {
+               d.id = d.Id;
+            })
          this.dishes = results.Dishes;
          this.ingredients = results.Ingredients;
          this.dishListView = new DishListView({model : new DishList(this.dishes)});
