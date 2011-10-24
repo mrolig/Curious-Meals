@@ -174,6 +174,13 @@ func sendJSON(w http.ResponseWriter, object interface{}) {
 	w.(io.Writer).Write(j)
 }
 
+func sendJSONIndent(w http.ResponseWriter, object interface{}) {
+	j, err := json.MarshalIndent(object, "", "\t")
+	check(err)
+	w.Header().Set("Content-Type", "application/json")
+	w.(io.Writer).Write(j)
+}
+
 func readJSON(r *http.Request, object interface{}) {
 	err := json.NewDecoder(r.Body).Decode(object)
 	check(err)
@@ -382,7 +389,7 @@ func backupHandler(w http.ResponseWriter, r *http.Request) {
 		key := keys[index].Encode()
 		b.Ingredients[index].Id = key
 	}
-	sendJSON(w, b)
+	sendJSONIndent(w, b)
 }
 
 
