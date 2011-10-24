@@ -251,7 +251,6 @@ jQuery(function() {
             })
          makeCombo(this.$addIngredient);
             
-         this.$name.focus();
          if (!this.model.id)
             this.save();
       },
@@ -300,32 +299,70 @@ jQuery(function() {
                   });
             }) (tags[t]);
          }
-         this.$mi.find("tr.ingredient").remove();
+         var newIngredient = false;
+         var ingredientsChanged = false;
+         var self = this;
+         if (!("prevIngredients" in this))
+         {
+            this.prevIngredients = {};
+         }
+         if (ingredientsChanged.length != this.model.ingredients.length)
+            ingredientsChanged = true;
+         var nextIngredients = {};
          this.model.ingredients.each(function(i) {
-            var $tr = $("<tr class='ingredient'></tr>");
-            self.$mi.find("tr").last().before($tr);
-            $tr[0].id = i.id;
-            $("<td></td>")
-               .appendTo($tr)
-               .text(Ingredients.get(i.get("Ingredient")).get("Name"));
-            var $amount = $("<td><input type='text' class='ui-widget'></input></td>")
-               .appendTo($tr)
-               .find("input")
-               .val(i.get("Amount"));
-            var $instruction = $("<td><input type='text' class='ui-widget'></input></td>")
-               .appendTo($tr)
-               .find("input")
-               .val(i.get("Instruction"));
-            var $del = $("<td><span class='remove ui-icon ui-icon-close'></span></td>")
-               .appendTo($tr)
-               .click(function() {
-                  var $tr = $(this).closest("tr");
-                  var mi  = self.model.ingredients.get($tr[0].id);
-                  mi.destroy();
-                  //self.model.ingredients.remove(mi);
-                  });
+            if (i.id in self.prevIngredients)
+            {
+               if (self.prevIngredients[i.id].Amount != i.get("Amount")
+                    || self.prevIngredients[i.id].Instruction != i.get("Instruction"))
+               {
+                  ingredientsChanged = true;
+               }
+            }
+            else
+            {
+               ingredientsChanged = true;
+               newIngredient = true;
+            }
+            nextIngredients[i.id] = { Amount : i.get("Amount"), Instruction : i.get("Instruction") };
          });
+         this.prevIngredients = nextIngredients;
+         
+         if (ingredientsChanged)
+         {
+            this.$mi.find("tr.ingredient").remove();
+            this.model.ingredients.each(function(i) {
+               var $tr = $("<tr class='ingredient'></tr>");
+               self.$mi.find("tr").last().before($tr);
+               $tr[0].id = i.id;
+               $("<td></td>")
+                  .appendTo($tr)
+                  .text(Ingredients.get(i.get("Ingredient")).get("Name"));
+               var $amount = $("<td><input type='text' class='ui-widget'></input></td>")
+                  .appendTo($tr)
+                  .find("input")
+                  .val(i.get("Amount"));
+               var $instruction = $("<td><input type='text' class='ui-widget'></input></td>")
+                  .appendTo($tr)
+                  .find("input")
+                  .val(i.get("Instruction"));
+               var $del = $("<td><span class='remove ui-icon ui-icon-close'></span></td>")
+                  .appendTo($tr)
+                  .click(function() {
+                     var $tr = $(this).closest("tr");
+                     var mi  = self.model.ingredients.get($tr[0].id);
+                     mi.destroy();
+                     //self.model.ingredients.remove(mi);
+                     });
+               // TODO, why doesn't this focus?
+               if (newIngredient) {
+                  $amount.find("input").focus();
+               }
+            });
+         }
          return this;
+      },
+      focus : function() {
+         this.$name.focus();
       },
       save : function() {
          if (this.dirty) {
@@ -601,6 +638,9 @@ jQuery(function() {
          }
          return this;
       },
+      focus : function() {
+         this.$name.focus();
+      },
       save : function() {
          if (this.dirty) {
             this.dirty = 1;
@@ -806,15 +846,13 @@ jQuery(function() {
          this.userView = new UserView({model : Users});
          this.dishListView = new DishListView({model : Dishes});
          this.dishListView.bind("selected", this.editDish);
-         this.dishEditView = null;
-         this.searchView = null;
+         this.mainView = null;
          $("#dishes").append(this.dishListView.render().el);
          this.el.find(".add-dish")
                   .button()
                   .click(this.newDish);
          this.ingredientListView = new IngredientListView({model : Ingredients});
          this.ingredientListView.bind("selected", this.editIngredient);
-         this.ingredeintEditView = null;
          $("#ingredients").append(this.ingredientListView.render().el);
          this.el.find(".add-ingredient")
                   .button()
@@ -842,48 +880,39 @@ jQuery(function() {
             $li[0].tag = tag;
          }
       },
+      show : function(widget) {
+         if (this.mainView)
+            this.mainView.remove();
+         this.mainView = widget;
+         $(window).scrollTop(0);
+         this.el.find(".edit").append(widget.render().el);
+         if (widget.focus)
+            widget.focus();
+      },
       onTagClick : function(evt) {
-         if (this.dishEditView)
-            this.dishEditView.remove();
-         if (this.ingredientEditView)
-            this.ingredientEditView.remove();
-         if (this.searchView)
-            this.searchView.remove();
          var search = new Search({
             Tags : [evt.target.tag]
             });
-         this.searchView = new SearchView({ model: search });
-         this.searchView.bind("selecteddish", this.editDish);
-         this.searchView.bind("selectedingredient", this.editIngredient);
-         this.el.find(".edit").append(this.searchView.render().el);
+         var searchView = new SearchView({ model: search });
+         searchView.bind("selecteddish", this.editDish);
+         searchView.bind("selectedingredient", this.editIngredient);
+         this.show(searchView);
       },
       newDish : function() {
          var nd = Dishes.create({});
          this.editDish(nd)
       },
       editDish : function(dish) {
-         if (this.dishEditView)
-            this.dishEditView.remove();
-         if (this.ingredientEditView)
-            this.ingredientEditView.remove();
-         if (this.searchView)
-            this.searchView.remove();
-         this.dishEditView = new DishEditView({model : dish})
-         this.el.find(".edit").append(this.dishEditView.render().el);
+         var dishEditView = new DishEditView({model : dish})
+         this.show(dishEditView);
       },
       newIngredient : function() {
          var nd = Ingredients.create({});
          this.editIngredient(nd)
       },
       editIngredient : function(ingredient) {
-         if (this.dishEditView)
-            this.dishEditView.remove();
-         if (this.ingredientEditView)
-            this.ingredientEditView.remove();
-         if (this.searchView)
-            this.searchView.remove();
-         this.ingredientEditView = new IngredientEditView({model : ingredient})
-         this.el.find(".edit").append(this.ingredientEditView.render().el);
+         var ingredientEditView = new IngredientEditView({model : ingredient})
+         this.show(ingredientEditView);
       },
       onResize : function() {
          var height = $(document.body).height();
