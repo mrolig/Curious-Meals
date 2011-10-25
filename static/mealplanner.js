@@ -938,7 +938,7 @@ jQuery(function() {
          this.el.append("<br/><span class='field-head'>Tags</span>:");
          this.$tags = $("<div></div>")
             .appendTo(this.el);
-         this.el.append("<span class='field-head'>Dishes with this ingredient</span>:");
+         this.el.append("<br/><span class='field-head'>Dishes with this ingredient</span>:");
          this.$dishes = $("<div class='dishes'>Loading...</div>").appendTo(this.el);
          jQuery.getJSON(this.model.url() + "/in/", this.dishesReceived);
       },
@@ -1185,9 +1185,9 @@ jQuery(function() {
          var winHeight = $(window).height();
          if (winHeight > height)
             height = winHeight;
-         if (height > 0) {
+         /*if (height > 0) {
             this.el.find(".sidebar").height(height);
-         }
+         }*/
       },
 		restore : function() {
 			$("#restore-form").submit();
