@@ -1064,7 +1064,7 @@ jQuery(function() {
             })
          this.dishes = results.Dishes;
          this.ingredients = results.Ingredients;
-         this.dishListView = new DishListView({model : new DishList(this.dishes)});
+         this.dishListView = new DishListView({model : window.Dishes, list: this.dishes});
          this.dishListView.bind("selected", this.dishSelected)
          this.ingredientListView = new IngredientListView({model : new IngredientList(this.ingredients)});
          this.ingredientListView.bind("selected", this.ingredientSelected)

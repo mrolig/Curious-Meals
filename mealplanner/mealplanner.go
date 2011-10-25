@@ -316,8 +316,8 @@ type searchParams struct {
 }
 
 type searchResult struct {
-	Dishes      []Dish
-	Ingredients []Ingredient
+	Dishes      []*datastore.Key
+	Ingredients []*datastore.Key
 }
 
 
@@ -349,8 +349,7 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if match {
-			dish.Id = keys[index].Encode()
-			result.Dishes = append(result.Dishes, dish)
+			result.Dishes = append(result.Dishes, keys[index])
 		}
 	}
 	sendJSON(w, result)
