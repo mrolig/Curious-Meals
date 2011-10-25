@@ -146,11 +146,18 @@ jQuery(function() {
          this.el.children().remove();
          var self = this;
          this.model.each(function(dish, idx) {
-            var $li = $("<li></li>")
-               .appendTo(self.el)
-               .addClass("dish")
-               .text(dish.get("Name"));
-            $li[0].model = dish;
+            var show = true;
+            var list = self.options.list;
+            if (list && list.length > 0) {
+               show = $.inArray(dish.id, list) >= 0;
+            }
+            if (show) {
+               var $li = $("<li></li>")
+                  .appendTo(self.el)
+                  .addClass("dish")
+                  .text(dish.get("Name"));
+               $li[0].model = dish;
+            }
          });
          if (this.model.length == 0) {
             var $li = $("<li>[No dishes]</li>")
@@ -907,6 +914,8 @@ jQuery(function() {
          _.bindAll(this, "render");
          _.bindAll(this, "del");
          _.bindAll(this, "edit");
+         _.bindAll(this, "dishesReceived");
+         _.bindAll(this, "viewDish");
          this.model.bind('all', this.render);
          this.$name = $("<span class='dish-name'></span>")
             .appendTo(this.el);
@@ -929,6 +938,9 @@ jQuery(function() {
          this.el.append("<br/><span class='field-head'>Tags</span>:");
          this.$tags = $("<div></div>")
             .appendTo(this.el);
+         this.el.append("<span class='field-head'>Dishes with this ingredient</span>:");
+         this.$dishes = $("<div class='dishes'>Loading...</div>").appendTo(this.el);
+         jQuery.getJSON(this.model.url() + "/in/", this.dishesReceived);
       },
       render : function() {
          this.$name.text(this.model.get("Name"));
@@ -970,6 +982,15 @@ jQuery(function() {
       },
       edit: function(ev) {
          this.trigger("editIngredient", this.model);
+      },
+      dishesReceived : function(dishIds) {
+         this.$dishes.html("");
+         this.dishListView = new DishListView({model : window.Dishes, list : dishIds });
+         this.dishListView.bind("selected", this.viewDish);
+         this.$dishes.append(this.dishListView.render().el);
+      },
+      viewDish: function(ev) {
+         this.trigger("viewDish", ev);
       },
    })
    window.User = Backbone.Model.extend({

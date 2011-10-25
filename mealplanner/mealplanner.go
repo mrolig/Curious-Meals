@@ -18,6 +18,7 @@ func init() {
 	http.HandleFunc("/dish", errorHandler(dishHandler))
 	http.HandleFunc("/dish/", errorHandler(dishHandler))
 	http.HandleFunc("/users", errorHandler(usersHandler))
+	http.HandleFunc("/ingredient", errorHandler(ingredientHandler))
 	http.HandleFunc("/ingredient/", errorHandler(ingredientHandler))
 	http.HandleFunc("/search", errorHandler(searchHandler))
 	http.HandleFunc("/tags", errorHandler(tagsHandler))
@@ -133,7 +134,32 @@ func measuredIngredientsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func dishesForIngredientHandler(w http.ResponseWriter, r *http.Request) {
+	handler := newDataHandler(w, r, "Dish")
+	id := getID(r)
+	ingKey,err := datastore.DecodeKey(getParentID(r))
+	check(err)
+	if len(id) == 0 {
+		switch r.Method {
+		case "GET":
+			query := datastore.NewQuery("MeasuredIngredient").Filter("User =", handler.u.String()).Filter("Ingredient =", ingKey).KeysOnly()
+			dishes := make([]string, 0, 100)
+			keys, err := query.GetAll(handler.c, nil)
+			check(err)
+			for _, key := range keys {
+				dishes = append(dishes, key.Parent().Encode())
+			}
+			sendJSON(handler.w, dishes)
+		}
+		return
+	}
+}
+
 func ingredientHandler(w http.ResponseWriter, r *http.Request) {
+	if strings.Contains(r.URL.Path, "/in/") {
+		dishesForIngredientHandler(w, r)
+		return
+	}
 	handler := newDataHandler(w, r, "Ingredient")
 	id := getID(r)
 	if len(id) == 0 {
