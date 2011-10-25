@@ -134,12 +134,10 @@ jQuery(function() {
       tagName : "ul",
       className : "dish-list",
       events : {
-         "click .dish" : "selectDish"
       },
       initialize: function() {
          this.el = $(this.el);
          _.bindAll(this, "render");
-         _.bindAll(this, "selectDish");
          this.model.bind('all', this.render);
       },
       render : function() {
@@ -154,9 +152,11 @@ jQuery(function() {
             if (show) {
                var $li = $("<li></li>")
                   .appendTo(self.el)
-                  .addClass("dish")
-                  .text(dish.get("Name"));
-               $li[0].model = dish;
+                  .addClass("dish");
+               $("<a></a>")
+                     .appendTo($li)
+                     .text(dish.get("Name"))
+                     [0].href = "#viewDish/" + dish.id;
             }
          });
          if (this.model.length == 0) {
@@ -164,9 +164,6 @@ jQuery(function() {
                .appendTo(this.el)
          }
          return this;
-      },
-      selectDish : function(ev) {
-         this.trigger('selected', ev.currentTarget.model);
       }
    })
    window.DishEditView = Backbone.View.extend({
@@ -598,7 +595,7 @@ jQuery(function() {
          if (source.indexOf("http://") == 0 ||
             source.indexOf("https://") == 0)
          {
-            this.$source.html("<a target='_blank' href='" + source + "'>" + source + "</a>");
+            this.$source.html("<a class='external' target='_blank' href='" + source + "'>" + source + "</a>");
          }
          else
          {
@@ -654,11 +651,11 @@ jQuery(function() {
                $amount.text(i.get("Amount"));
                $instruction.text(i.get("Instruction"));
                var ingredient = Ingredients.get(i.get("Ingredient"));
-               $name.text(ingredient.get("Name"));
+               $("<a></a>")
+                     .appendTo($name)
+                     .text(ingredient.get("Name"))
+                     [0].href = "#viewIngredient/" + ingredient.id;
                self.$mi.append($tr);
-               $tr.click(function() {
-                  self.trigger("viewIngredient", ingredient);
-               });
          });
          return this;
       },
@@ -673,13 +670,9 @@ jQuery(function() {
    window.IngredientListView = Backbone.View.extend({
       tagName : "ul",
       className : "ingredient-list",
-      events : {
-         "click .ingredient" : "selectIngredient"
-      },
       initialize: function() {
          this.el = $(this.el);
          _.bindAll(this, "render");
-         _.bindAll(this, "selectIngredient");
          this.model.bind('all', this.render);
       },
       render : function() {
@@ -688,9 +681,11 @@ jQuery(function() {
          this.model.each(function(ingredient, idx) {
             var $li = $("<li></li>")
                .appendTo(self.el)
-               .addClass("ingredient")
-               .text(ingredient.get("Name"));
-            $li[0].model = ingredient;
+               .addClass("ingredient");
+            $("<a></a>")
+                  .appendTo($li)
+                  .text(ingredient.get("Name"))
+                  [0].href = "#viewIngredient/" + ingredient.id;
          });
          if (this.model.length == 0) {
             var $li = $("<li>[No ingredients]</li>")
@@ -698,9 +693,6 @@ jQuery(function() {
          }
          return this;
       },
-      selectIngredient : function(ev) {
-         this.trigger('selected', ev.currentTarget.model);
-      }
    })
    window.IngredientEditView = Backbone.View.extend({
       tagName : "div",
@@ -1024,6 +1016,17 @@ jQuery(function() {
          return this;
       }
    })
+   window.LoadingView = Backbone.View.extend({
+      tagName : "div",
+      className : "search-view",
+      initialize : function() {
+         this.el = $(this.el);
+         this.el.text("Loading...");
+      },
+      render : function() {
+         return this;
+      }
+      });
 
    window.Search = Backbone.Model.extend({
       
@@ -1115,7 +1118,6 @@ jQuery(function() {
    window.AppView = Backbone.View.extend({
       el : $("#app"),
       events : {
-         "click li.tag": "onTagClick"
       },
       initialize : function() {
          _.bindAll(this, "render");
@@ -1128,6 +1130,7 @@ jQuery(function() {
          _.bindAll(this, "onResize");
          _.bindAll(this, "renderTags");
          _.bindAll(this, "restore");
+         _.bindAll(this, "onFetched");
          this.userView = new UserView({model : Users});
          this.dishListView = new DishListView({model : Dishes});
          this.dishListView.bind("selected", this.viewDish);
@@ -1145,10 +1148,20 @@ jQuery(function() {
          $(window).resize(this.onResize);
 			$("#restore-file").change(this.restore);
          this.onResize();
-         Users.fetch();
-         Dishes.fetch();
-         Ingredients.fetch();
+         this.fetched = 0;
+         this.show(new LoadingView());
+         Users.fetch({success:this.onFetched, error:this.onFetched});
+         Dishes.fetch({success:this.onFetched, error:this.onFetched});
+         Ingredients.fetch({success:this.onFetched, error:this.onFetched});
          jQuery.getJSON("/tags", this.renderTags);
+      },
+      onFetched : function() {
+         this.fetched++;
+         if (this.fetched == 3) {
+            this.show(null);
+            Backbone.history || (Backbone.history = new Backbone.History);
+            Backbone.history.start();
+         }
       },
       render : function() {
          this.userView.render();
@@ -1160,29 +1173,30 @@ jQuery(function() {
          for (var tag in tags)
          {
             var $li = $("<li class='tag'></li>")
-               .appendTo($tags)
-               .text(tag);
-            $li[0].tag = tag;
+               .appendTo($tags);
+            $("<a></a>")
+               .appendTo($li)
+               .text(tag)
+               [0].href = "#search/" + tag + "//";
          }
       },
-      show : function(widget) {
+      show : function(view) {
          if (this.mainView)
             this.mainView.remove();
-         widget.bind("viewDish", this.viewDish);
-         widget.bind("viewIngredient", this.viewIngredient);
-         widget.bind("editDish", this.editDish);
-         widget.bind("editIngredient", this.editIngredient);
-         this.mainView = widget;
+         if (view == null)
+         {
+            this.mainView = null;
+            return;
+         }
+         view.bind("viewDish", this.viewDish);
+         view.bind("viewIngredient", this.viewIngredient);
+         view.bind("editDish", this.editDish);
+         view.bind("editIngredient", this.editIngredient);
+         this.mainView = view;
          $(window).scrollTop(0);
-         this.el.find(".edit").append(widget.render().el);
-         if (widget.focus)
-            widget.focus();
-      },
-      onTagClick : function(evt) {
-         var search = new Search({
-            Tags : [evt.target.tag]
-            });
-         this.search(search);
+         this.el.find(".edit").append(view.render().el);
+         if (view.focus)
+            view.focus();
       },
       search : function (search) {
          var searchView = new SearchView({ model: search });
@@ -1245,7 +1259,5 @@ jQuery(function() {
    })
 
    window.App = new AppView;
-   Backbone.history || (Backbone.history = new Backbone.History);
-   Backbone.history.start();
 })
 

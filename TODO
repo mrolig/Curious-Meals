@@ -1,8 +1,7 @@
 - change search to only return keys and filter the list view
-- if editing dish, add new ingredients rather than forcing separate add ingredient
 - list ingredients with tag
 - list dishes that go well with a dish (pairing)
 - list alternative dishes 
 - bookmarks
 - gather menu/possible menu
-- open in new tab?
+- if editing dish, add new ingredients rather than forcing separate add ingredient
