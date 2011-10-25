@@ -10,6 +10,7 @@ import (
 	"os"
 	"io"
 	"json"
+	"unicode"
 	//"bytes"
 )
 
@@ -61,7 +62,11 @@ func dishHandler(c *context) {
 		return
 	}
 	if strings.Contains(c.r.URL.Path, "/tags/") {
-		tagsHandler(c, "Dish")
+		wordHandler(c, "Tags")
+		return
+	}
+	if strings.Contains(c.r.URL.Path, "/keywords/") {
+		wordHandler(c, "Keyword")
 		return
 	}
 	handler := newDataHandler(c, "Dish")
@@ -79,7 +84,15 @@ func dishHandler(c *context) {
 			sendJSON(handler.w, dishes)
 		case "POST":
 			dish := Dish{}
-			handler.createEntry(&dish, nil)
+			savedContext := handler.c
+			datastore.RunInTransaction(handler.c,
+				func (tc appengine.Context) os.Error {
+					handler.c = tc
+					newKey := handler.createEntry(&dish, nil)
+					updateDishKeywords(tc, newKey, &dish)
+					return nil
+				}, nil)
+			handler.c = savedContext
 		}
 		return
 	}
@@ -94,9 +107,72 @@ func dishHandler(c *context) {
 	case "GET":
 		handler.get(key, &dish)
 	case "PUT":
-		handler.update(key, &dish)
+		savedContext := handler.c
+		datastore.RunInTransaction(handler.c,
+			func (tc appengine.Context) os.Error {
+				handler.c = tc
+				handler.update(key, &dish)
+				updateDishKeywords(tc, key, &dish)
+				return nil
+			}, nil)
+		handler.c = savedContext
 	case "DELETE":
 		handler.delete(key)
+	}
+}
+
+// break up the text into words and add/remove keywords
+//  for the dish
+func updateDishKeywords(tc appengine.Context, key *datastore.Key,
+	dish *Dish) {
+	words := make(map[string]bool)
+	addWords(dish.Name, words)
+	addWords(dish.Source, words)
+	updateKeywords(tc, key, words)
+}
+func updateIngredientKeywords(tc appengine.Context, key *datastore.Key,
+	ing *Ingredient) {
+	words := make(map[string]bool)
+	addWords(ing.Name, words)
+	addWords(ing.Category, words)
+	updateKeywords(tc, key, words)
+}
+
+func addWords(text string, words map[string]bool) {
+	spaced := strings.Map(func(rune int) int {
+		if (unicode.IsPunct(rune)) {
+			return ' '
+		}
+		return rune
+	}, text)
+	pieces := strings.Split(spaced, " ")
+	for _, word := range pieces {
+		if (len(word) > 1) {
+			words[word] = false;
+		}
+	}
+}
+
+func updateKeywords(tc appengine.Context, key *datastore.Key, words map[string]bool) {
+	query := datastore.NewQuery("Keyword").Ancestor(key)
+	existingWords := make([]Word,0, 25)
+	keys, err := query.GetAll(tc, &existingWords)
+	check(err)
+	for i, word := range existingWords {
+		if _, ok := words[word.Word] ; ok {
+			words[word.Word] = true
+		} else {
+			// this keyword isn't here any more
+			datastore.Delete(tc, keys[i])
+		}
+	}
+	for word, exists := range words {
+		if !exists {
+			newWord := Word{nil, word}
+			newKey := datastore.NewKey(tc, "Keyword", "", 0, key)
+			_, err := datastore.Put(tc, newKey, &newWord)
+			check(err)
+		}
 	}
 }
 
@@ -162,8 +238,8 @@ func dishesForIngredientHandler(c *context) {
 	}
 }
 
-func tagsHandler(c *context, parentKind string) {
-	handler := newDataHandler(c, "Tags")
+func wordHandler(c *context, kind string) {
+	handler := newDataHandler(c, kind)
 	id := getID(c.r)
 	parentKey,err := datastore.DecodeKey(getParentID(c.r))
 	check(err)
@@ -171,7 +247,7 @@ func tagsHandler(c *context, parentKind string) {
 	if len(id) == 0 {
 		switch c.r.Method {
 		case "GET":
-			query := c.NewQuery("Tags").Ancestor(parentKey)
+			query := c.NewQuery(kind).Ancestor(parentKey)
 			words := make([]Word, 0, 100)
 			keys, err := query.GetAll(handler.c, &words)
 			check(err)
@@ -205,7 +281,11 @@ func ingredientHandler(c *context) {
 		return
 	}
 	if strings.Contains(c.r.URL.Path, "/tags/") {
-		tagsHandler(c, "Ingredient")
+		wordHandler(c, "Tags")
+		return
+	}
+	if strings.Contains(c.r.URL.Path, "/keywords/") {
+		wordHandler(c, "Keyword")
 		return
 	}
 	handler := newDataHandler(c, "Ingredient")
@@ -223,7 +303,15 @@ func ingredientHandler(c *context) {
 			sendJSON(handler.w, ingredients)
 		case "POST":
 			ingredient := Ingredient{}
-			handler.createEntry(&ingredient, nil)
+			savedContext := handler.c
+			datastore.RunInTransaction(handler.c,
+				func (tc appengine.Context) os.Error {
+					handler.c = tc
+					newKey := handler.createEntry(&ingredient, nil)
+					updateIngredientKeywords(tc, newKey, &ingredient)
+					return nil
+				}, nil)
+			handler.c = savedContext
 		}
 		return
 	}
@@ -235,7 +323,15 @@ func ingredientHandler(c *context) {
 	case "GET":
 		handler.get(key, &ingredient)
 	case "PUT":
-		handler.update(key, &ingredient)
+		savedContext := handler.c
+		datastore.RunInTransaction(handler.c,
+			func (tc appengine.Context) os.Error {
+				handler.c = tc
+				handler.update(key, &ingredient)
+				updateIngredientKeywords(tc, key, &ingredient)
+				return nil
+			}, nil)
+		handler.c = savedContext
 	case "DELETE":
 		handler.delete(key)
 	}
@@ -344,7 +440,7 @@ func newDataHandler(c *context, kind string) *dataHandler {
 	return &dataHandler{*c, kind}
 }
 
-func (self *dataHandler) createEntry(newObject interface{}, parent *datastore.Key) {
+func (self *dataHandler) createEntry(newObject interface{}, parent *datastore.Key) *datastore.Key {
 	// use the library as parent if we don't have an immediate
 	// parent
 	if (parent == nil) {
@@ -362,6 +458,7 @@ func (self *dataHandler) createEntry(newObject interface{}, parent *datastore.Ke
 	check(err)
 	ided.SetID(key)
 	sendJSON(self.w, newObject)
+	return key
 }
 func (self *dataHandler) get(key *datastore.Key, object interface{}) {
 	err := datastore.Get(self.c, key, object)
