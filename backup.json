@@ -48,12 +48,12 @@
 			"Name": "Cucumber Rounds with Hummus and Yogurt",
 			"DishType": "Appetizer",
 			"Tags": [
-				"Shannon",
-				"Middle Eastern"
+				"Middle Eastern",
+				"Shannon"
 			],
 			"PrepTimeMinutes": 20,
 			"CookTimeMinutes": 0,
-			"Rating": 0,
+			"Rating": 3,
 			"Source": "Shannon -- Blue Binder"
 		},
 		{
@@ -315,7 +315,7 @@
 			],
 			"PrepTimeMinutes": 70,
 			"CookTimeMinutes": 10,
-			"Rating": 0,
+			"Rating": 5,
 			"Source": "http://frenchfood.about.com/od/breadandpastry/r/waffles.htm"
 		},
 		{
@@ -2593,7 +2593,7 @@
 				"User": "test@example.com",
 				"Ingredient": "ag9kZXZ-bWVhbHBsYW5uZXJyEQsSCkluZ3JlZGllbnQYoAMM",
 				"Amount": "1 lb",
-				"Instruction": "",
+				"Instruction": "sub. other veggies, like green beans",
 				"Order": 0
 			},
 			{
@@ -3723,7 +3723,8 @@
 			"Name": "Chicken",
 			"Category": "Protein",
 			"Tags": [
-				"Poultry"
+				"Poultry",
+				"Meat"
 			],
 			"Source": "Animal"
 		},
