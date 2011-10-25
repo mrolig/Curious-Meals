@@ -1079,6 +1079,39 @@ jQuery(function() {
    window.Users = new UserList
    window.Dishes = new DishList
    window.Ingredients = new IngredientList
+   var Router = Backbone.Router.extend({
+      routes: {
+         "viewDish/:id": "viewDish",
+         "editDish/:id": "editDish",
+         "viewIngredient/:id": "viewIngredient",
+         "editIngredient/:id": "editIngredient",
+         "search/:tag/:name/:rating": "search",
+      },
+      viewDish : function(id) {
+         window.App.viewDish(window.Dishes.get(id));
+      },
+      editDish : function(id) {
+         window.App.editDish(window.Dishes.get(id));
+      },
+      viewIngredient : function(id) {
+         window.App.viewIngredient(window.Ingredients.get(id));
+      },
+      editIngredient : function(id) {
+         window.App.editIngredient(window.Ingredients.get(id));
+      },
+      search : function(tag,name,rating) {
+         var attrs = {};
+         if (tag)
+            attrs.Tags = [tag];
+         if (name)
+            attrs.Name = name;
+         if (rating)
+            attrs.Rating = parseInt(rating);
+         var search = new Search(attrs);
+         window.App.search(search);
+      }
+   });
+   window.Workspace = new Router();
    window.AppView = Backbone.View.extend({
       el : $("#app"),
       events : {
@@ -1149,36 +1182,53 @@ jQuery(function() {
          var search = new Search({
             Tags : [evt.target.tag]
             });
+         this.search(search);
+      },
+      search : function (search) {
          var searchView = new SearchView({ model: search });
          searchView.bind("selecteddish", this.viewDish);
          searchView.bind("selectedingredient", this.viewIngredient);
          this.show(searchView);
+         var tags = "";
+         if (search.get("Tags") && search.get("Tags").length > 0)
+            tags = search.get("Tags")[0];
+         var name = "";
+         if (search.get("Name"))
+            name = search.get("Name");
+         var rating = "";
+         if (search.get("Rating"))
+            name = search.get("Rating");
+         window.Workspace.navigate("search/" + tags + "/" + name + "/" + rating);
       },
       newDish : function() {
          var nd = Dishes.create({});
          this.editDish(nd)
       },
       viewDish : function(dish) {
-         var dishView = new DishView({model : dish})
-         dishView.bind("edit", this.editDish);
-         this.show(dishView);
+         var viewDish = new DishView({model : dish})
+         viewDish.bind("edit", this.editDish);
+         this.show(viewDish);
+         window.Workspace.navigate("viewDish/" + dish.id);
       },
       editDish : function(dish) {
-         var dishEditView = new DishEditView({model : dish})
-         this.show(dishEditView);
+         var editDishView = new DishEditView({model : dish})
+         this.show(editDishView);
+         window.Workspace.navigate("editDish/" + dish.id);
       },
       newIngredient : function() {
          var nd = Ingredients.create({});
          this.editIngredient(nd)
       },
       viewIngredient : function(ingredient) {
-         var ingredientView = new IngredientView({model : ingredient})
-         ingredientView.bind("edit", this.editIngredient);
-         this.show(ingredientView);
+         var viewIngredient = new IngredientView({model : ingredient})
+         viewIngredient.bind("edit", this.editIngredient);
+         this.show(viewIngredient);
+         window.Workspace.navigate("viewIngredient/" + ingredient.id);
       },
       editIngredient : function(ingredient) {
-         var ingredientEditView = new IngredientEditView({model : ingredient})
-         this.show(ingredientEditView);
+         var editIngredientView = new IngredientEditView({model : ingredient})
+         this.show(editIngredientView);
+         window.Workspace.navigate("editIngredient/" + ingredient.id);
       },
       onResize : function() {
          var height = $(document.body).height();
@@ -1195,5 +1245,7 @@ jQuery(function() {
    })
 
    window.App = new AppView;
+   Backbone.history || (Backbone.history = new Backbone.History);
+   Backbone.history.start();
 })
 
