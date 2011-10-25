@@ -618,8 +618,11 @@ jQuery(function() {
             if (t > 0)
                this.$tags.append(", ");
             var $tag = $("<div class='tag'></div>")
-               .text(tags[t])
                .appendTo(this.$tags);
+            $("<a></a>")
+               .text(tags[t])
+               .appendTo($tag)
+               [0].href = "#search/" + tags[t] + "//";
             (function (tag) {
             var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
                .appendTo($tag)
@@ -948,8 +951,11 @@ jQuery(function() {
                this.$tags.append(", ");
             var self = this;
             var $tag = $("<div class='tag'></div>")
-               .text(tags[t])
                .appendTo(this.$tags);
+            $("<a></a>")
+               .text(tags[t])
+               .appendTo($tag)
+               [0].href = "#search/" + tags[t] + "//";
             (function (tag) {
             var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
                .appendTo($tag)
