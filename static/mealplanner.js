@@ -1058,6 +1058,7 @@ jQuery(function() {
          this.dishListView = new DishListView({model : Dishes});
          this.dishListView.bind("selected", this.viewDish);
          this.mainView = null;
+         $("#doSearch").button();
          $("#dishes").append(this.dishListView.render().el);
          this.el.find(".add-dish")
                   .button()
