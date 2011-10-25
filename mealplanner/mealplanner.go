@@ -21,7 +21,7 @@ func init() {
 	http.HandleFunc("/ingredient", errorHandler(ingredientHandler))
 	http.HandleFunc("/ingredient/", errorHandler(ingredientHandler))
 	http.HandleFunc("/search", errorHandler(searchHandler))
-	http.HandleFunc("/tags", errorHandler(tagsHandler))
+	http.HandleFunc("/tags", errorHandler(allTagsHandler))
 	http.HandleFunc("/backup", errorHandler(backupHandler))
 	http.HandleFunc("/restore", errorHandler(restoreHandler))
 }
@@ -58,6 +58,10 @@ func usersHandler(c *context) {
 func dishHandler(c *context) {
 	if strings.Contains(c.r.URL.Path, "/mi/") {
 		measuredIngredientsHandler(c)
+		return
+	}
+	if strings.Contains(c.r.URL.Path, "/tags/") {
+		tagsHandler(c, "Dish")
 		return
 	}
 	handler := newDataHandler(c, "Dish")
@@ -158,9 +162,50 @@ func dishesForIngredientHandler(c *context) {
 	}
 }
 
+func tagsHandler(c *context, parentKind string) {
+	handler := newDataHandler(c, "Tags")
+	id := getID(c.r)
+	parentKey,err := datastore.DecodeKey(getParentID(c.r))
+	check(err)
+	c.checkUser(parentKey)
+	if len(id) == 0 {
+		switch c.r.Method {
+		case "GET":
+			query := c.NewQuery("Tags").Ancestor(parentKey)
+			words := make([]Word, 0, 100)
+			keys, err := query.GetAll(handler.c, &words)
+			check(err)
+			for index, _ := range words {
+				words[index].SetID(keys[index])
+			}
+			sendJSON(handler.w, words)
+		case "POST":
+			word := Word{}
+			handler.createEntry(&word, parentKey)
+		}
+		return
+	}
+	key, err := datastore.DecodeKey(id)
+	check(err)
+	handler.checkUser(key)
+	word := Word{}
+	switch c.r.Method {
+	case "GET":
+		handler.get(key, &word)
+	case "PUT":
+		handler.update(key, &word)
+	case "DELETE":
+		handler.delete(key)
+	}
+}
+
 func ingredientHandler(c *context) {
 	if strings.Contains(c.r.URL.Path, "/in/") {
 		dishesForIngredientHandler(c)
+		return
+	}
+	if strings.Contains(c.r.URL.Path, "/tags/") {
+		tagsHandler(c, "Ingredient")
 		return
 	}
 	handler := newDataHandler(c, "Ingredient")
@@ -261,7 +306,7 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 	if (len(uid) == 0) {
 		uid = u.Email
 	}
-	query := datastore.NewQuery("Library").Filter("Owner =", uid)
+	query := datastore.NewQuery("Library").Filter("OwnerId =", uid)
 	libs := make([]Library, 0, 1)
 	keys, err := query.GetAll(c, &libs)
 	check(err)
@@ -269,8 +314,9 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 	if (len(libs) == 0) {
 		key := datastore.NewKey(c, "Library", "", 0, nil)
 		l = &Library{nil, uid}
-		datastore.Put(c, key, l)
-		l.Id = key
+		newKey, err := datastore.Put(c, key, l)
+		check(err)
+		l.Id = newKey
 	} else {
 		l = &libs[0]
 		l.Id = keys[0]
@@ -281,6 +327,7 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 func (self *context) checkUser(key *datastore.Key) {
 	// check if the library is an ancestor of this key
 	for key != nil {
+		//fmt.Fprintf(self.w, "Check %v%v %v<br/>", key.Kind(),key.Encode(), self.l.Id.Encode())
 		if (self.l.Id.Eq(key)) {
 			return
 		}
@@ -288,6 +335,7 @@ func (self *context) checkUser(key *datastore.Key) {
 	}
 	check(ErrUnknownItem)
 }
+// create a new query always filtering on the library in use
 func (self *context) NewQuery(kind string) *datastore.Query {
 	return datastore.NewQuery(kind).Ancestor(self.l.Id)
 }
@@ -361,6 +409,8 @@ func searchHandler(c *context) {
 	sp := searchParams{}
 	readJSON(c.r, &sp)
 
+	// TODO redo Tags
+	/*
 	query := c.NewQuery("Dish").Order("Name")
 	dishes := make([]Dish, 0, 100)
 	keys, err := query.GetAll(c.c, &dishes)
@@ -384,28 +434,22 @@ func searchHandler(c *context) {
 		if match {
 			result.Dishes = append(result.Dishes, keys[index])
 		}
-	}
+	}*/
 	sendJSON(c.w, result)
 }
 
-func tagsHandler(c *context) {
-	tags := make(map[string]string)
-	query := c.NewQuery("Dish")
-	dishes := make([]Dish, 0, 100)
-	_, err := query.GetAll(c.c, &dishes)
+func allTagsHandler(c *context) {
+	tags := make([]string, 0, 100)
+	// order by the tag name, so we can skip duplicates
+	query := c.NewQuery("Tags").Order("Word")
+	results := make([]Word, 0, 100)
+	_, err := query.GetAll(c.c, &results)
 	check(err)
-	for _, dish := range dishes {
-		for _, tag := range dish.Tags {
-			tags[tag] = tag
-		}
-	}
-	query = c.NewQuery("Ingredient")
-	ingredients := make([]Ingredient, 0, 100)
-	_, err = query.GetAll(c.c, &ingredients)
-	check(err)
-	for _, ingredient := range ingredients {
-		for _, tag := range ingredient.Tags {
-			tags[tag] = tag
+	lastTag := ""
+	for _, tag := range results {
+		if (tag.Word != lastTag) {
+			tags = append(tags, tag.Word)
+			lastTag = tag.Word
 		}
 	}
 	sendJSON(c.w, tags)

@@ -8,7 +8,6 @@ type Dish struct {
 	Id              *datastore.Key
 	Name            string
 	DishType        string
-	Tags            []string
 	PrepTimeMinutes int
 	CookTimeMinutes int
 	Rating          int

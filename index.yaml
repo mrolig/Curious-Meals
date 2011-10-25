@@ -27,12 +27,32 @@ indexes:
   - name: User
   - name: Name
 
+- kind: Dish
+  ancestor: yes
+  properties:
+  - name: Name
+
 - kind: Ingredient
   properties:
   - name: User
+  - name: Name
+
+- kind: Ingredient
+  ancestor: yes
+  properties:
   - name: Name
 
 - kind: MeasuredIngredient
   ancestor: yes
   properties:
   - name: Order
+
+- kind: Tag
+  ancestor: yes
+  properties:
+  - name: Word
+
+- kind: Tags
+  ancestor: yes
+  properties:
+  - name: Word

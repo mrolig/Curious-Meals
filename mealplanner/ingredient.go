@@ -8,7 +8,6 @@ type Ingredient struct {
 	Id       *datastore.Key
 	Name     string
 	Category string
-	Tags     []string
 	Source   string // vegan, vegetarian, animal
 }
 

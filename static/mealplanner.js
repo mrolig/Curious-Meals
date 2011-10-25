@@ -22,6 +22,31 @@ jQuery(function() {
             $autocomplete.focus();
             });
    }
+   window.Word = Backbone.Model.extend({
+      defaults : {
+         Word : ""
+      },
+      parse : function(response) {
+         var attrs = Backbone.Model.prototype.parse.call(this, response);
+         attrs.id = attrs.Id;
+         return attrs;
+      }
+   });
+   window.WordList = Backbone.Collection.extend({
+      model: Word,
+      comparator : function(mi) {
+         return mi.get("Word");
+      },
+      parse : function(response) {
+         var models = Backbone.Model.prototype.parse.call(this, response);
+         
+         for (var m in models)
+         {
+            models[m].id = models[m].Id;
+         }
+         return models;
+      }
+   })
    window.MeasuredIngredient = Backbone.Model.extend({
       defaults : {
          Ingredient : "",
@@ -55,6 +80,9 @@ jQuery(function() {
          this.ingredients = new MeasuredIngredientList;
          if (this.id)
             this.ingredients.url = "/dish/" + this.id + "/mi/";
+         this.tags = new WordList;
+         if (this.id)
+            this.tags.url = "/dish/" + this.id + "/tags/";
       },
       validate: function(attrs) {
          if (attrs.Name && attrs.Name.length == 0)
@@ -77,7 +105,10 @@ jQuery(function() {
          var attrs = Backbone.Model.prototype.parse.call(this, response);
          attrs.id = attrs.Id;
          if (attrs.id)
+         {
             this.ingredients.url = "/dish/" + attrs.id + "/mi/";
+            this.tags.url = "/dish/" + attrs.id + "/tags/";
+         }
          return attrs;
       }
    });
@@ -98,6 +129,11 @@ jQuery(function() {
       }
    })
    window.Ingredient = Backbone.Model.extend({
+      initialize: function() {
+         this.tags = new WordList;
+         if (this.id)
+            this.tags.url = "/dish/" + this.id + "/tags/";
+      },
       validate: function(attrs) {
          if (attrs.Name && attrs.Name.length == 0)
             return "Must give your ingredient a name";
@@ -111,6 +147,10 @@ jQuery(function() {
       parse : function(response) {
          var attrs = Backbone.Model.prototype.parse.call(this, response);
          attrs.id = attrs.Id;
+         if (attrs.id)
+         {
+            this.tags.url = "/ingredient/" + attrs.id + "/tags/";
+         }
          return attrs;
       }
    });
@@ -146,7 +186,7 @@ jQuery(function() {
          this.model.each(function(dish, idx) {
             var show = true;
             var list = self.options.list;
-            if (list && list.length > 0) {
+            if (list != undefined) {
                show = $.inArray(dish.id, list) >= 0;
             }
             if (show) {
@@ -166,6 +206,84 @@ jQuery(function() {
          return this;
       }
    })
+   function parseTags() {
+         var newTags = this.$newTags.val();
+         if (newTags.length == 0)
+            return
+         this.$newTags.val("");
+         var quote = -1;
+         var c = 0;
+         var nextTag = ""
+         var curTags = {};
+         this.model.tags.each(function(tag) {
+            var w = tag.get("Word");
+            curTags[w] = w;
+         })
+         while (c < newTags.length)
+         {
+            if (quote >= 0)
+            {
+               if (newTags[c] == '"')
+               {
+                  if (nextTag.length > 0)
+                  {
+                     if (! (nextTag in curTags)) {
+                        var added = this.model.tags.create({Word:nextTag});
+                     }
+                     nextTag = "";
+                  }
+                  quote = -1;
+               }
+               else
+               {
+                  nextTag += newTags[c];
+               }
+            }
+            else if (newTags[c] == "," || newTags[c] == "\r" || newTags[c] == "\n" || newTags[c] == "\t")
+            {
+               if (nextTag.length > 0)
+               {
+                  if (! (nextTag in curTags)) {
+                     var added = this.model.tags.create({Word:nextTag});
+                  }
+                  nextTag = "";
+               }
+            }
+            else if (newTags[c] == '"') {
+               quote = c;
+            }
+            else if (newTags[c] == " ") {
+               if (nextTag.length > 0)
+                  nextTag += " ";
+            }
+            else
+            {
+               nextTag += newTags[c];
+            }
+            c++;
+         }
+         if (nextTag.length > 0)
+            if (! (nextTag in curTags)) {
+               var added = this.model.tags.create({Word:nextTag});
+            }
+   }
+   function renderTags($tags, tags) {
+      $tags.html("");
+      if ((!tags) || tags.length == 0)
+         $tags.append("[none]");
+      tags.each(function(tag, t) {
+         if (t > 0)
+            $tags.append(", ");
+         var $tag = $("<div class='tag'></div>")
+            .text(tag.get("Word"))
+            .appendTo($tags);
+         var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
+            .appendTo($tag)
+            .click(function () {
+                  tag.destroy();
+               });
+      });
+   }
    window.DishEditView = Backbone.View.extend({
       tagName : "div",
       className : "dish-edit",
@@ -184,8 +302,11 @@ jQuery(function() {
          _.bindAll(this, "onChange");
          this.model.bind('all', this.render);
          this.model.ingredients.bind('all', this.render);
-         if (this.model.ingredients.url)
+         this.model.tags.bind('all', this.render);
+         if (this.model.ingredients.url && this.model.ingredients.length == 0)
             this.model.ingredients.fetch();
+         if (this.model.tags.url && this.model.tags.length == 0)
+            this.model.tags.fetch();
          this.ingredients = { gen : 0};
          this.$name = $("<input class='name ui-widget' type='text'></input>")
             .appendTo(this.el);
@@ -231,14 +352,14 @@ jQuery(function() {
          this.$cookTime = $("<input class='ui-widget' type='text'></input>")
             .appendTo(this.el);
          this.el.append(" minutes<br/><span class='field-head'>Tags</span>:");
-         this.$tags = $("<div></div>")
+         this.$tags = $("<div class='tag-list'></div>")
             .appendTo(this.el);
-         this.el.append("Type new tags, separated by commas<br/>");
+         this.el.append("<br/>Type new tags, separated by commas<br/>");
          this.$newTags = $("<input type='text' class='ui-widget' width='40'></input>")
             .bind('keypress', function (evt) {
                if (evt.which == 13) {
                   evt.preventDefault();
-                  self.parseTags(false)
+                  self.parseTags()
                }
             })
             .appendTo(this.el);
@@ -281,36 +402,9 @@ jQuery(function() {
             else
                this.$stars.eq(i).addClass("disabled");
          }
-         this.$tags.html("");
-         var tags = this.model.get("Tags");
-         if ((!tags) || tags.length == 0)
-            this.$tags.append("[none]");
-         for (var t in tags)
-         {
-            if (t > 0)
-               this.$tags.append(", ");
-            var $tag = $("<div class='tag'></div>")
-               .text(tags[t])
-               .appendTo(this.$tags);
-            (function (tag) {
-            var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
-               .appendTo($tag)
-               .click(function () {
-                     var tags = self.model.get("Tags");
-                     var i = tags.indexOf(tag);
-                     if (i >= 0)
-                     {
-                        tags.splice(i, 1)
-                        self.model.set({Tags:tags});
-                        self.model.change();
-                        self.onChange();
-                     }
-                     
-                  });
-            }) (tags[t]);
-         }
-         this.ingredients.gen++;
          var self = this;
+         renderTags(this.$tags, this.model.tags);
+         this.ingredients.gen++;
          var nextIngredients = {};
          this.model.ingredients.each(function(i) {
             var changed = false;
@@ -396,6 +490,17 @@ jQuery(function() {
                      });
                   });
             }
+            if (this.model.tags.url)
+            {
+               var self = this;
+               this.model.tags.each(function(mi) {
+                  mi.save( {},
+                     {
+                        error : self.saveError,
+                        success : self.saveSuccess
+                     });
+                  });
+            }
          }
          else if (this.$error.is(":hidden"))
          {
@@ -436,73 +541,12 @@ jQuery(function() {
             model.set({"Amount" : $amount.val(),
                         "Instruction" : $instruction.val()});
          }
-         this.parseTags(true);
+         this.parseTags();
          this.addIngredient(true);
          this.$save.button({disabled : false, label: "Save"}); 
          setTimeout(this.save, 5000);
       },
-      parseTags : function(fromChangeHandler) {
-         var newTags = this.$newTags.val();
-         if (newTags.length == 0)
-            return
-         this.$newTags.val("");
-         var quote = -1;
-         var c = 0;
-         var nextTag = ""
-         var tags = this.model.get("Tags");
-         while (c < newTags.length)
-         {
-            if (quote >= 0)
-            {
-               if (newTags[c] == '"')
-               {
-                  if (nextTag.length > 0)
-                  {
-                     if (tags.indexOf(nextTag) == -1 ) {
-                        tags.push(nextTag);
-                     }
-                     nextTag = "";
-                  }
-                  quote = -1;
-               }
-               else
-               {
-                  nextTag += newTags[c];
-               }
-            }
-            else if (newTags[c] == "," || newTags[c] == "\r" || newTags[c] == "\n" || newTags[c] == "\t")
-            {
-               if (nextTag.length > 0)
-               {
-                  if (tags.indexOf(nextTag) == -1 ) {
-                     tags.push(nextTag);
-                  }
-                  nextTag = "";
-               }
-            }
-            else if (newTags[c] == '"') {
-               quote = c;
-            }
-            else if (newTags[c] == " ") {
-               if (nextTag.length > 0)
-                  nextTag += " ";
-            }
-            else
-            {
-               nextTag += newTags[c];
-            }
-            c++;
-         }
-         if (nextTag.length > 0)
-            if (tags.indexOf(nextTag) == -1 ) {
-               tags.push(nextTag);
-            }
-         this.dirty++;
-         this.model.set({Tags:tags});
-         this.model.change();
-         if (!fromChangeHandler)
-            this.onChange();
-      },
+      parseTags : parseTags,
       addIngredient : function(fromChangeHandler) {
          if (this.$addIngredient.val()) {
             var newName = this.$addIngredient.val();
@@ -535,9 +579,12 @@ jQuery(function() {
          _.bindAll(this, "del");
          _.bindAll(this, "edit");
          this.model.bind('all', this.render);
+         this.model.tags.bind('all', this.render);
          this.model.ingredients.bind('all', this.render);
-         if (this.model.ingredients.url)
+         if (this.model.ingredients.url && this.model.ingredients.length == 0)
             this.model.ingredients.fetch();
+         if (this.model.tags.url && this.model.tags.length == 0)
+            this.model.tags.fetch();
          this.$name = $("<span class='dish-name'></span>")
             .appendTo(this.el);
          this.el.append(" ");
@@ -576,7 +623,7 @@ jQuery(function() {
          this.$cookTime = $("<span class='dish-time'></span>")
             .appendTo(this.el);
          this.el.append(" minutes<br/><span class='field-head'>Tags</span>:");
-         this.$tags = $("<div></div>")
+         this.$tags = $("<div class='tag-list'></div>")
             .appendTo(this.el);
          this.$mi = $("<table class='ingredients'><tr><th>Ingredient</th><th>Amount</th><th>Notes</th><th></th></tr></table>")
             .appendTo(this.el);
@@ -609,36 +656,7 @@ jQuery(function() {
             else
                this.$stars.eq(i).addClass("disabled");
          }
-         this.$tags.html("");
-         var tags = this.model.get("Tags");
-         if ((!tags) || tags.length == 0)
-            this.$tags.append("[none]");
-         for (var t in tags)
-         {
-            if (t > 0)
-               this.$tags.append(", ");
-            var $tag = $("<div class='tag'></div>")
-               .appendTo(this.$tags);
-            $("<a></a>")
-               .text(tags[t])
-               .appendTo($tag)
-               [0].href = "#search/" + tags[t] + "//";
-            (function (tag) {
-            var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
-               .appendTo($tag)
-               .click(function () {
-                     var tags = self.model.get("Tags");
-                     var i = tags.indexOf(tag);
-                     if (i >= 0)
-                     {
-                        tags.splice(i, 1)
-                        self.model.save({Tags:tags});
-                        self.model.change();
-                     }
-                     
-                  });
-            }) (tags[t]);
-         }
+         renderTags(this.$tags, this.model.tags);
          var self = this;
          this.$mi.find("tr.ingredient").remove();
          this.model.ingredients.each(function(i) {
@@ -714,6 +732,9 @@ jQuery(function() {
          _.bindAll(this, "saveSuccess");
          _.bindAll(this, "saveError");
          this.model.bind('all', this.render);
+         this.model.tags.bind('all', this.render);
+         if (this.model.tags.url && this.model.tags.length == 0)
+            this.model.tags.fetch();
          this.$name = $("<input class='name ui-widget' type='text'></input>")
             .appendTo(this.el);
          this.el.append(" ");
@@ -741,9 +762,9 @@ jQuery(function() {
             .appendTo(this.el)
          makeCombo(this.$source);
          this.el.append("<br/><span class='field-head'>Tags</span>:");
-         this.$tags = $("<div></div>")
+         this.$tags = $("<div class='tag-list'></div>")
             .appendTo(this.el);
-         this.el.append("Type new tags, separated by commas<br/>");
+         this.el.append("<br/>Type new tags, separated by commas<br/>");
          this.$newTags = $("<input type='text' class='ui-widget' width='40'></input>")
             .bind('keypress', function (evt) {
                if (evt.which == 13) {
@@ -761,35 +782,7 @@ jQuery(function() {
          this.$name.val(this.model.get("Name"));
          this.$category.val(this.model.get("Category"));
          this.$source.val(this.model.get("Source"));
-         this.$tags.html("");
-         var tags = this.model.get("Tags");
-         if ((!tags) || tags.length == 0)
-            this.$tags.append("[none]");
-         for (var t in tags)
-         {
-            if (t > 0)
-               this.$tags.append(", ");
-            var self = this;
-            var $tag = $("<div class='tag'></div>")
-               .text(tags[t])
-               .appendTo(this.$tags);
-            (function (tag) {
-            var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
-               .appendTo($tag)
-               .click(function () {
-                     var tags = self.model.get("Tags");
-                     var i = tags.indexOf(tag);
-                     if (i >= 0)
-                     {
-                        tags.splice(i, 1)
-                        self.model.set({Tags:tags});
-                        self.model.change();
-                        self.onChange();
-                     }
-                     
-                  });
-            }) (tags[t]);
-         }
+         renderTags(this.$tags, this.model.tags);
          return this;
       },
       focus : function() {
@@ -835,67 +828,7 @@ jQuery(function() {
          this.$save.button({disabled : false, label: "Save"}); 
          setTimeout(this.save, 5000);
       },
-      parseTags : function(fromChangeHandler) {
-         var newTags = this.$newTags.val();
-         if (newTags.length == 0)
-            return
-         this.$newTags.val("");
-         var quote = -1;
-         var c = 0;
-         var nextTag = ""
-         var tags = this.model.get("Tags");
-         while (c < newTags.length)
-         {
-            if (quote >= 0)
-            {
-               if (newTags[c] == '"')
-               {
-                  if (nextTag.length > 0)
-                  {
-                     if (tags.indexOf(nextTag) == -1 ) {
-                        tags.push(nextTag);
-                     }
-                     nextTag = "";
-                  }
-                  quote = -1;
-               }
-               else
-               {
-                  nextTag += newTags[c];
-               }
-            }
-            else if (newTags[c] == "," || newTags[c] == "\r" || newTags[c] == "\n" || newTags[c] == "\t")
-            {
-               if (nextTag.length > 0)
-               {
-                  if (tags.indexOf(nextTag) == -1 ) {
-                     tags.push(nextTag);
-                  }
-                  nextTag = "";
-               }
-            }
-            else if (newTags[c] == '"') {
-               quote = c;
-            }
-            else if (newTags[c] == " ") {
-               if (nextTag.length > 0)
-                  nextTag += " ";
-            }
-            else
-            {
-               nextTag += newTags[c];
-            }
-            c++;
-         }
-         if (nextTag.length > 0)
-            if (tags.indexOf(nextTag) == -1 ) {
-               tags.push(nextTag);
-            }
-         this.model.set({Tags:tags});
-         this.model.change();
-         if (!fromChangeHandler)
-            this.onChange();
-      }
+      parseTags : parseTags
    })
    window.IngredientView = Backbone.View.extend({
       tagName : "div",
@@ -912,6 +845,9 @@ jQuery(function() {
          _.bindAll(this, "dishesReceived");
          _.bindAll(this, "viewDish");
          this.model.bind('all', this.render);
+         this.model.tags.bind('all', this.render);
+         if (this.model.tags.url && this.model.tags.length == 0)
+            this.model.tags.fetch();
          this.$name = $("<span class='dish-name'></span>")
             .appendTo(this.el);
          this.el.append(" ");
@@ -931,7 +867,7 @@ jQuery(function() {
          this.$source= $("<span></span>")
             .appendTo(this.el)
          this.el.append("<br/><span class='field-head'>Tags</span>:");
-         this.$tags = $("<div></div>")
+         this.$tags = $("<div class='tag-list'></div>")
             .appendTo(this.el);
          this.el.append("<br/><span class='field-head'>Dishes with this ingredient</span>:");
          this.$dishes = $("<div class='dishes'>Loading...</div>").appendTo(this.el);
@@ -941,37 +877,7 @@ jQuery(function() {
          this.$name.text(this.model.get("Name"));
          this.$category.text(this.model.get("Category"));
          this.$source.text(this.model.get("Source"));
-         this.$tags.html("");
-         var tags = this.model.get("Tags");
-         if ((!tags) || tags.length == 0)
-            this.$tags.append("[none]");
-         for (var t in tags)
-         {
-            if (t > 0)
-               this.$tags.append(", ");
-            var self = this;
-            var $tag = $("<div class='tag'></div>")
-               .appendTo(this.$tags);
-            $("<a></a>")
-               .text(tags[t])
-               .appendTo($tag)
-               [0].href = "#search/" + tags[t] + "//";
-            (function (tag) {
-            var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
-               .appendTo($tag)
-               .click(function () {
-                     var tags = self.model.get("Tags");
-                     var i = tags.indexOf(tag);
-                     if (i >= 0)
-                     {
-                        tags.splice(i, 1)
-                        self.model.save({Tags:tags});
-                        self.model.change();
-                     }
-                     
-                  });
-            }) (tags[t]);
-         }
+         renderTags(this.$tags, this.model.tags);
          return this;
       },
       del : function() {
@@ -1097,16 +1003,24 @@ jQuery(function() {
          "search/:tag/:name/:rating": "search",
       },
       viewDish : function(id) {
-         window.App.viewDish(window.Dishes.get(id));
+         var m = window.Dishes.get(id);
+         if (m)
+            window.App.viewDish(m);
       },
       editDish : function(id) {
-         window.App.editDish(window.Dishes.get(id));
+         var m = window.Dishes.get(id);
+         if (m)
+            window.App.editDish(m);
       },
       viewIngredient : function(id) {
-         window.App.viewIngredient(window.Ingredients.get(id));
+         var m = window.Ingredients.get(id);
+         if (m)
+            window.App.viewIngredient(m);
       },
       editIngredient : function(id) {
-         window.App.editIngredient(window.Ingredients.get(id));
+         var m = window.Ingredients.get(id);
+         if (m)
+            window.App.editIngredient(m);
       },
       search : function(tag,name,rating) {
          var attrs = {};
@@ -1182,8 +1096,8 @@ jQuery(function() {
                .appendTo($tags);
             $("<a></a>")
                .appendTo($li)
-               .text(tag)
-               [0].href = "#search/" + tag + "//";
+               .text(tags[tag])
+               [0].href = "#search/" + tags[tag] + "//";
          }
       },
       show : function(view) {

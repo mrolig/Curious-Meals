@@ -64,3 +64,7 @@ a.external {
 	text-decoration: underline;
 	font-weight: normal;
 }
+div.tag-list {
+	display: inline-block;
+	margin-left: 0.3em;
+}
