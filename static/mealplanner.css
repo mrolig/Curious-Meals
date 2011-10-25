@@ -41,3 +41,10 @@ input.name {
 div.tag {
    display: inline-block;
 }
+.dish-name {
+	font-size: 2em;
+	font-weight: bold;
+}
+.field-head {
+	font-weight: bold;
+}
