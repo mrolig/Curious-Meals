@@ -275,8 +275,11 @@ jQuery(function() {
          if (t > 0)
             $tags.append(", ");
          var $tag = $("<div class='tag'></div>")
-            .text(tag.get("Word"))
             .appendTo($tags);
+         $("<a></a>")
+            .appendTo($tag)
+            .text(tag.get("Word"))
+            [0].href = "#search/" + tag.get("Word") + "//";
          var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
             .appendTo($tag)
             .click(function () {
@@ -700,13 +703,20 @@ jQuery(function() {
          this.el.children().remove();
          var self = this;
          this.model.each(function(ingredient, idx) {
-            var $li = $("<li></li>")
-               .appendTo(self.el)
-               .addClass("ingredient");
-            $("<a></a>")
-                  .appendTo($li)
-                  .text(ingredient.get("Name"))
-                  [0].href = "#viewIngredient/" + ingredient.id;
+            var show = true;
+            var list = self.options.list;
+            if (list != undefined) {
+               show = $.inArray(ingredient.id, list) >= 0;
+            }
+            if (show) {
+               var $li = $("<li></li>")
+                  .appendTo(self.el)
+                  .addClass("ingredient");
+               $("<a></a>")
+                     .appendTo($li)
+                     .text(ingredient.get("Name"))
+                     [0].href = "#viewIngredient/" + ingredient.id;
+            }
          });
          if (this.model.length == 0) {
             var $li = $("<li>[No ingredients]</li>")
@@ -955,24 +965,16 @@ jQuery(function() {
          _.bindAll(this, "ingredientSelected");
          this.model.bind('change', this.startSearch);
          this.startSearch();
-         this.dishes = [];
-         this.ingredients= [];
       },
       startSearch : function() {
          jQuery.post("/search", JSON.stringify(this.model.attributes), this.searchComplete);
       },
       searchComplete :  function(results) {
-         _.each(results.Dishes, function(d) {
-               d.id = d.Id;
-            })
-         _.each(results.Ingredients, function(d) {
-               d.id = d.Id;
-            })
-         this.dishes = results.Dishes;
-         this.ingredients = results.Ingredients;
-         this.dishListView = new DishListView({model : window.Dishes, list: this.dishes});
+         var  dishes = results.Dishes;
+         var  ingredients = results.Ingredients;
+         this.dishListView = new DishListView({model : window.Dishes, list: dishes});
          this.dishListView.bind("selected", this.dishSelected)
-         this.ingredientListView = new IngredientListView({model : new IngredientList(this.ingredients)});
+         this.ingredientListView = new IngredientListView({model : window.Ingredients, list:ingredients});
          this.ingredientListView.bind("selected", this.ingredientSelected)
          this.render();
       },
@@ -1000,7 +1002,7 @@ jQuery(function() {
          "editDish/:id": "editDish",
          "viewIngredient/:id": "viewIngredient",
          "editIngredient/:id": "editIngredient",
-         "search/:tag/:name/:rating": "search",
+         "search/:tag/:word/:rating": "search",
       },
       viewDish : function(id) {
          var m = window.Dishes.get(id);
@@ -1022,12 +1024,12 @@ jQuery(function() {
          if (m)
             window.App.editIngredient(m);
       },
-      search : function(tag,name,rating) {
+      search : function(tag,word,rating) {
          var attrs = {};
          if (tag)
             attrs.Tags = [tag];
-         if (name)
-            attrs.Name = name;
+         if (word)
+            attrs.Word = word;
          if (rating)
             attrs.Rating = parseInt(rating);
          var search = new Search(attrs);
@@ -1126,13 +1128,13 @@ jQuery(function() {
          var tags = "";
          if (search.get("Tags") && search.get("Tags").length > 0)
             tags = search.get("Tags")[0];
-         var name = "";
-         if (search.get("Name"))
-            name = search.get("Name");
+         var word = "";
+         if (search.get("Word"))
+            word = search.get("Word");
          var rating = "";
          if (search.get("Rating"))
             name = search.get("Rating");
-         window.Workspace.navigate("search/" + tags + "/" + name + "/" + rating);
+         window.Workspace.navigate("search/" + tags + "/" + word + "/" + rating);
       },
       newDish : function() {
          var nd = Dishes.create({});

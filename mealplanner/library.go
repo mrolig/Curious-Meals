@@ -7,6 +7,7 @@ import (
 type Library struct {
 	Id              *datastore.Key
 	OwnerId         string
+	Version         int
 }
 
 

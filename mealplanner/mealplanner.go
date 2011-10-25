@@ -150,9 +150,9 @@ func dishesForIngredientHandler(c *context) {
 		switch c.r.Method {
 		case "GET":
 			query := c.NewQuery("MeasuredIngredient").Filter("Ingredient =", ingKey).KeysOnly()
-			dishes := make([]string, 0, 100)
 			keys, err := query.GetAll(handler.c, nil)
 			check(err)
+			dishes := make([]string, 0, 100)
 			for _, key := range keys {
 				dishes = append(dishes, key.Parent().Encode())
 			}
@@ -313,7 +313,7 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 	var l *Library
 	if (len(libs) == 0) {
 		key := datastore.NewKey(c, "Library", "", 0, nil)
-		l = &Library{nil, uid}
+		l = &Library{nil, uid, 0}
 		newKey, err := datastore.Put(c, key, l)
 		check(err)
 		l.Id = newKey
@@ -395,7 +395,7 @@ func (self *dataHandler) delete(key *datastore.Key) {
 type searchParams struct {
 	Tags   []string
 	Rating int
-	Name   string
+	Word   string
 }
 
 type searchResult struct {
@@ -405,36 +405,54 @@ type searchResult struct {
 
 
 func searchHandler(c *context) {
-	result := searchResult{}
 	sp := searchParams{}
 	readJSON(c.r, &sp)
+	dishes := make(map[*datastore.Key] *datastore.Key)
+	ings := make(map[*datastore.Key] *datastore.Key)
+	firstPass := true
 
-	// TODO redo Tags
-	/*
-	query := c.NewQuery("Dish").Order("Name")
-	dishes := make([]Dish, 0, 100)
-	keys, err := query.GetAll(c.c, &dishes)
-	check(err)
-	for index, dish := range dishes {
-		match := true
-		for _, target := range sp.Tags {
-			found := false
-		Inner:
-			for _, tag := range dish.Tags {
-				if target == tag {
-					found = true
-					break Inner
+	// TODO parallelize
+	for _, target :=range sp.Tags {
+		nextDishes := make(map[*datastore.Key] *datastore.Key)
+		nextIngs := make(map[*datastore.Key] *datastore.Key)
+		query := c.NewQuery("Tags").Filter("Word=", target).KeysOnly()
+		keys, err := query.GetAll(c.c, nil)
+		check(err)
+		for _, key := range keys {
+			parent := key.Parent()
+			if (parent.Kind() == "Dish") {
+				if _, ok := dishes[parent]; firstPass || ok {
+					nextDishes[parent] = parent
+				}
+			} else if (parent.Kind() == "Ingredient") {
+				if _, ok := ings[parent]; firstPass || ok {
+					nextIngs[parent] = parent
 				}
 			}
-			if !found {
-				match = false
-				break
-			}
 		}
-		if match {
-			result.Dishes = append(result.Dishes, keys[index])
+		firstPass = false
+		dishes = nextDishes
+		ings = nextIngs
+	}
+
+	result := searchResult{}
+	result.Ingredients = make([]*datastore.Key,0,len(ings))
+	for _, ing:= range ings {
+		result.Ingredients= append(result.Ingredients, ing)
+		// carry results forward to list dishes that have the ingredients that matched
+		query := c.NewQuery("MeasuredIngredient").Filter("Ingredient =", ing).KeysOnly()
+		keys, err := query.GetAll(c.c, nil)
+		check(err)
+		for _, key := range keys {
+			parent := key.Parent()
+			dishes[parent] = parent
 		}
-	}*/
+	}
+	result.Dishes = make([]*datastore.Key,0,len(dishes))
+	for _, dish := range dishes {
+		result.Dishes = append(result.Dishes, dish)
+	}
+
 	sendJSON(c.w, result)
 }
 
