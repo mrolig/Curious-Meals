@@ -1,17 +1,9 @@
-- search on keyword
+- FIX backup/restore
 - filter search on rating
 - list dishes that go well with a dish (pairing)
 - list alternative dishes 
 - gather menu/possible menu (flags)
 - if editing dish, add new ingredients rather than forcing separate add ingredient
 - create library, so we filter on library ancestor NOT user field
-- REFACTOR:
-  - create library, w/ owner 
-  - library is ancestor to each entry
-  - tag = new entity type
-  - tags are children of dish and ingredient
-  - add keywords
-    - turn punctuation into spaces
-    - split on space
-    - add keyword for each piece > 1
-  - add pairing w/ kind (alt. or rec. with)(table)
+- add pairing w/ kind (alt. or rec. with)(table)
+

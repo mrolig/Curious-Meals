@@ -635,8 +635,106 @@ func backupHandler(c *context) {
 	sendJSONIndent(c.w, b)
 }
 
+func restore(tc appengine.Context, c *context) os.Error {
+	file, _, err := c.r.FormFile("restore-file")
+	check(err)
+	decoder := json.NewDecoder(file)
+	data := make(map[string]interface{})
+	dishKeys := make(map[string]*datastore.Key)
+	ingKeys := make(map[string]*datastore.Key)
+	err = decoder.Decode(&data)
+	fmt.Fprintf(c.w, "Here1<br/>")
+	check(err)
+	fmt.Fprintf(c.w, "Here2<br/>")
+	// Dishes
+	dishList, _ := data["Dishes"].([]interface{})
+	for _, d := range dishList {
+		dish, _ := d.(map[string]interface{})
+		newDish := Dish{}
+		id, _ := dish["Id"].(string)
+		newDish.Name = dish["Name"].(string)
+		newDish.DishType = dish["DishType"].(string)
+		newDish.PrepTimeMinutes = int(dish["PrepTimeMinutes"].(float64))
+		newDish.CookTimeMinutes = int(dish["CookTimeMinutes"].(float64))
+		newDish.Rating = int(dish["Rating"].(float64))
+		newDish.Source = dish["Source"].(string)
+		newKey := datastore.NewKey(tc, "Dish", "", 0, c.l.Id)
+		newKey, err = datastore.Put(tc, newKey, &newDish)
+		check(err)
+		dishKeys[id] = newKey
+		updateDishKeywords(tc, newKey, &newDish)
+		tags, _ := dish["Tags"].([]interface{})
+		for _, tag := range tags {
+			tagKey := datastore.NewKey(tc, "Tags", "", 0, newKey)
+			tagStr, _ := tag.(string)
+			word := Word{nil, tagStr}
+			_, err := datastore.Put(tc, tagKey, &word)
+			check(err)
+		}
+	}
+	fmt.Fprintf(c.w, "Here Done Dish<br/>")
+	// Ingredients
+	ingList, _ := data["Ingredients"].([]interface{})
+	for _, d := range ingList {
+		ing, _ := d.(map[string]interface{})
+		id, _ := ing["Id"].(string)
+		newIng := Ingredient{}
+		newIng.Name = ing["Name"].(string)
+		newIng.Category = ing["Category"].(string)
+		newIng.Source = ing["Source"].(string)
+		newKey := datastore.NewKey(tc, "Ingredient", "", 0, c.l.Id)
+		newKey, err = datastore.Put(tc, newKey, &newIng)
+		check(err)
+		ingKeys[id] = newKey
+		updateIngredientKeywords(tc, newKey, &newIng)
+		tags, _ := ing["Tags"].([]interface{})
+		for _, tag := range tags {
+			tagKey := datastore.NewKey(tc, "Tags", "", 0, newKey)
+			tagStr, _ := tag.(string)
+			word := Word{nil, tagStr}
+			_, err := datastore.Put(tc, tagKey, &word)
+			check(err)
+		}
+	}
+	fmt.Fprintf(c.w, "Here Done Ing<br/>")
+	// Measured Ing
+	miMap, _ := data["MeasuredIngredients"].(map[string]interface{})
+	for dishId, miListPtr := range miMap {
+		dishKey, ok := dishKeys[dishId]
+		if (!ok) {
+			check(os.NewError("Missing dish id"))
+		}
+		miList, _ := miListPtr.([]interface{})
+		for _, d := range miList {
+			mi, _ := d.(map[string]interface{})
+			ingId, _ := mi["Ingredient"].(string)
+			ingKey, ok := ingKeys[ingId]
+			if (!ok) {
+				check(os.NewError("Missing ing id"))
+			}
+			newMi := MeasuredIngredient{}
+			newMi.Ingredient = ingKey
+			newMi.Amount = mi["Amount"].(string)
+			newMi.Instruction = mi["Instruction"].(string)
+			newMi.Order = int(mi["Order"].(float64))
+			newKey := datastore.NewKey(tc, "MeasuredIngredient", "", 0, dishKey)
+			newKey, err = datastore.Put(tc, newKey, &newMi)
+			check(err)
+		}
+	}
+	fmt.Fprintf(c.w, "Here Done MI<br/>")
+	indexHandler(c)
+	return nil
+}
 
 func restoreHandler(c *context) {
+	datastore.RunInTransaction(c.c,
+		func (tc appengine.Context) os.Error {
+			return restore(tc, c);
+	}, nil)
+	return
+	// TODO restore this to working condition with refactor
+/*
 	file, _, err := c.r.FormFile("restore-file")
 	check(err)
 	decoder := json.NewDecoder(file)
@@ -672,4 +770,5 @@ func restoreHandler(c *context) {
 		}
 	}
 	indexHandler(c)
+*/
 }
