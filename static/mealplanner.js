@@ -1040,6 +1040,7 @@ jQuery(function() {
    window.AppView = Backbone.View.extend({
       el : $("#app"),
       events : {
+         "click #doSearch":   "textSearch",
       },
       initialize : function() {
          _.bindAll(this, "render");
@@ -1049,10 +1050,10 @@ jQuery(function() {
          _.bindAll(this, "newIngredient");
          _.bindAll(this, "viewIngredient");
          _.bindAll(this, "editIngredient");
-         _.bindAll(this, "onResize");
          _.bindAll(this, "renderTags");
          _.bindAll(this, "restore");
          _.bindAll(this, "onFetched");
+         _.bindAll(this, "textSearch");
          this.userView = new UserView({model : Users});
          this.dishListView = new DishListView({model : Dishes});
          this.dishListView.bind("selected", this.viewDish);
@@ -1067,9 +1068,7 @@ jQuery(function() {
          this.el.find(".add-ingredient")
                   .button()
                   .click(this.newIngredient);
-         $(window).resize(this.onResize);
 			$("#restore-file").change(this.restore);
-         this.onResize();
          this.fetched = 0;
          this.show(new LoadingView());
          Users.fetch({success:this.onFetched, error:this.onFetched});
@@ -1087,7 +1086,6 @@ jQuery(function() {
       },
       render : function() {
          this.userView.render();
-         this.onResize();
          return this
       },
       renderTags : function(tags) {
@@ -1119,6 +1117,9 @@ jQuery(function() {
          this.el.find(".edit").append(view.render().el);
          if (view.focus)
             view.focus();
+      },
+      textSearch : function() {
+         this.search(new Search({Word: $("#search").val()}));
       },
       search : function (search) {
          var searchView = new SearchView({ model: search });
@@ -1165,15 +1166,6 @@ jQuery(function() {
          var editIngredientView = new IngredientEditView({model : ingredient})
          this.show(editIngredientView);
          window.Workspace.navigate("editIngredient/" + ingredient.id);
-      },
-      onResize : function() {
-         var height = $(document.body).height();
-         var winHeight = $(window).height();
-         if (winHeight > height)
-            height = winHeight;
-         /*if (height > 0) {
-            this.el.find(".sidebar").height(height);
-         }*/
       },
 		restore : function() {
 			$("#restore-form").submit();

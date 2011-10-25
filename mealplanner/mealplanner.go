@@ -148,7 +148,7 @@ func addWords(text string, words map[string]bool) {
 	pieces := strings.Split(spaced, " ")
 	for _, word := range pieces {
 		if (len(word) > 1) {
-			words[word] = false;
+			words[strings.ToLower(word)] = false;
 		}
 	}
 }
@@ -530,6 +530,36 @@ func searchHandler(c *context) {
 		firstPass = false
 		dishes = nextDishes
 		ings = nextIngs
+	}
+
+	// handle word search
+	if len(sp.Word) > 0 {
+		// break the query into words
+		terms := make(map[string]bool)
+		addWords(sp.Word, terms)
+		// search for each word
+		for target, _ :=range terms {
+			nextDishes := make(map[*datastore.Key] *datastore.Key)
+			nextIngs := make(map[*datastore.Key] *datastore.Key)
+			query := c.NewQuery("Keyword").Filter("Word=", target).KeysOnly()
+			keys, err := query.GetAll(c.c, nil)
+			check(err)
+			for _, key := range keys {
+				parent := key.Parent()
+				if (parent.Kind() == "Dish") {
+					if _, ok := dishes[parent]; firstPass || ok {
+						nextDishes[parent] = parent
+					}
+				} else if (parent.Kind() == "Ingredient") {
+					if _, ok := ings[parent]; firstPass || ok {
+						nextIngs[parent] = parent
+					}
+				}
+			}
+			firstPass = false
+			dishes = nextDishes
+			ings = nextIngs
+		}
 	}
 
 	result := searchResult{}
