@@ -26,8 +26,10 @@ func init() {
 	http.HandleFunc("/restore", errorHandler(restoreHandler))
 }
 
+type handlerFunc func(c *context)
+
 // errorHandler catches errors and prints an HTTP 500 error 
-func errorHandler(handler http.HandlerFunc) http.HandlerFunc {
+func errorHandler(handler handlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err, ok := recover().(os.Error); ok {
@@ -35,7 +37,8 @@ func errorHandler(handler http.HandlerFunc) http.HandlerFunc {
 				fmt.Fprintf(w, "%v", err)
 			}
 		}()
-		handler(w, r)
+		c := newContext(w, r)
+		handler(c)
 	}
 }
 func check(err os.Error) {
@@ -43,33 +46,31 @@ func check(err os.Error) {
 		panic(err)
 	}
 }
-func indexHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Location", "/index.html")
-	w.WriteHeader(http.StatusFound)
+func indexHandler(c *context) {
+	c.w.Header().Set("Location", "/index.html")
+	c.w.WriteHeader(http.StatusFound)
 }
-func usersHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	u := user.Current(c)
-	logoutURL, _ := user.LogoutURL(c, "/index.html")
-	fmt.Fprintf(w, `[{ "Name" : "%v", "logoutURL" : "%v"}]`,
-		u, logoutURL)
+func usersHandler(c *context) {
+	logoutURL, _ := user.LogoutURL(c.c, "/index.html")
+	fmt.Fprintf(c.w, `[{ "Name" : "%v", "logoutURL" : "%v"}]`,
+		c.u, logoutURL)
 }
-func dishHandler(w http.ResponseWriter, r *http.Request) {
-	if strings.Contains(r.URL.Path, "/mi/") {
-		measuredIngredientsHandler(w, r)
+func dishHandler(c *context) {
+	if strings.Contains(c.r.URL.Path, "/mi/") {
+		measuredIngredientsHandler(c)
 		return
 	}
-	handler := newDataHandler(w, r, "Dish")
-	id := getID(r)
+	handler := newDataHandler(c, "Dish")
+	id := getID(c.r)
 	if len(id) == 0 {
-		switch r.Method {
+		switch c.r.Method {
 		case "GET":
-			query := datastore.NewQuery("Dish").Filter("User =", handler.u.String()).Order("Name")
+			query := c.NewQuery("Dish").Order("Name")
 			dishes := make([]Dish, 0, 100)
 			keys, err := query.GetAll(handler.c, &dishes)
 			check(err)
 			for index, _ := range dishes {
-				dishes[index].Id = keys[index].Encode()
+				dishes[index].Id = keys[index]
 			}
 			sendJSON(handler.w, dishes)
 		case "POST":
@@ -83,32 +84,33 @@ func dishHandler(w http.ResponseWriter, r *http.Request) {
 	if key.Incomplete() {
 		check(ErrUnknownItem)
 	}
+	handler.checkUser(key)
 	dish := Dish{}
-	handler.checkUser(key, &dish)
-	switch r.Method {
+	switch c.r.Method {
 	case "GET":
-		handler.get(id, &dish)
+		handler.get(key, &dish)
 	case "PUT":
-		handler.update(key, id, &dish)
+		handler.update(key, &dish)
 	case "DELETE":
 		handler.delete(key)
 	}
 }
 
-func measuredIngredientsHandler(w http.ResponseWriter, r *http.Request) {
-	handler := newDataHandler(w, r, "MeasuredIngredient")
-	id := getID(r)
-	parent, err := datastore.DecodeKey(getParentID(r))
+func measuredIngredientsHandler(c *context) {
+	handler := newDataHandler(c, "MeasuredIngredient")
+	id := getID(c.r)
+	parent, err := datastore.DecodeKey(getParentID(c.r))
 	check(err)
+	c.checkUser(parent)
 	if len(id) == 0 {
-		switch r.Method {
+		switch c.r.Method {
 		case "GET":
-			query := datastore.NewQuery(handler.kind).Ancestor(parent).Order("Order")
+			query := c.NewQuery(handler.kind).Ancestor(parent).Order("Order")
 			ingredients := make([]MeasuredIngredient, 0, 100)
 			keys, err := query.GetAll(handler.c, &ingredients)
 			check(err)
 			for index, _ := range ingredients {
-				ingredients[index].Id = keys[index].Encode()
+				ingredients[index].Id = keys[index]
 			}
 			sendJSON(handler.w, ingredients)
 		case "POST":
@@ -122,27 +124,28 @@ func measuredIngredientsHandler(w http.ResponseWriter, r *http.Request) {
 	if key.Incomplete() {
 		check(ErrUnknownItem)
 	}
+	handler.checkUser(key)
 	mi := MeasuredIngredient{}
-	handler.checkUser(key, &mi)
-	switch r.Method {
+	switch c.r.Method {
 	case "GET":
-		handler.get(id, &mi)
+		handler.get(key, &mi)
 	case "PUT":
-		handler.update(key, id, &mi)
+		handler.update(key, &mi)
 	case "DELETE":
 		handler.delete(key)
 	}
 }
 
-func dishesForIngredientHandler(w http.ResponseWriter, r *http.Request) {
-	handler := newDataHandler(w, r, "Dish")
-	id := getID(r)
-	ingKey,err := datastore.DecodeKey(getParentID(r))
+func dishesForIngredientHandler(c *context) {
+	handler := newDataHandler(c, "Dish")
+	id := getID(c.r)
+	ingKey,err := datastore.DecodeKey(getParentID(c.r))
 	check(err)
+	c.checkUser(ingKey)
 	if len(id) == 0 {
-		switch r.Method {
+		switch c.r.Method {
 		case "GET":
-			query := datastore.NewQuery("MeasuredIngredient").Filter("User =", handler.u.String()).Filter("Ingredient =", ingKey).KeysOnly()
+			query := c.NewQuery("MeasuredIngredient").Filter("Ingredient =", ingKey).KeysOnly()
 			dishes := make([]string, 0, 100)
 			keys, err := query.GetAll(handler.c, nil)
 			check(err)
@@ -155,22 +158,22 @@ func dishesForIngredientHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func ingredientHandler(w http.ResponseWriter, r *http.Request) {
-	if strings.Contains(r.URL.Path, "/in/") {
-		dishesForIngredientHandler(w, r)
+func ingredientHandler(c *context) {
+	if strings.Contains(c.r.URL.Path, "/in/") {
+		dishesForIngredientHandler(c)
 		return
 	}
-	handler := newDataHandler(w, r, "Ingredient")
-	id := getID(r)
+	handler := newDataHandler(c, "Ingredient")
+	id := getID(c.r)
 	if len(id) == 0 {
-		switch r.Method {
+		switch c.r.Method {
 		case "GET":
-			query := datastore.NewQuery("Ingredient").Filter("User =", handler.u.String()).Order("Name")
+			query := c.NewQuery("Ingredient").Order("Name")
 			ingredients := make([]Ingredient, 0, 100)
 			keys, err := query.GetAll(handler.c, &ingredients)
 			check(err)
 			for index, _ := range ingredients {
-				ingredients[index].Id = keys[index].Encode()
+				ingredients[index].Id = keys[index]
 			}
 			sendJSON(handler.w, ingredients)
 		case "POST":
@@ -181,13 +184,13 @@ func ingredientHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	key, err := datastore.DecodeKey(id)
 	check(err)
+	handler.checkUser(key)
 	ingredient := Ingredient{}
-	handler.checkUser(key, &ingredient)
-	switch r.Method {
+	switch c.r.Method {
 	case "GET":
-		handler.get(id, &ingredient)
+		handler.get(key, &ingredient)
 	case "PUT":
-		handler.update(key, id, &ingredient)
+		handler.update(key, &ingredient)
 	case "DELETE":
 		handler.delete(key)
 	}
@@ -232,73 +235,105 @@ var (
 	ErrUnknownItem = os.NewError("Unknown item")
 )
 
-type Owned interface {
-	Owner() string
-	SetOwner(string)
-	ID() string
-	SetID(string)
+type Ided interface {
+	ID() *datastore.Key
+	SetID(*datastore.Key)
+}
+
+type context struct {
+	w    http.ResponseWriter
+	r    *http.Request
+	c    appengine.Context
+	u    *user.User
+	uid  string
+	l	  *Library
 }
 
 type dataHandler struct {
-	w    http.ResponseWriter
-	r    *http.Request
+	context
 	kind string
-	c    appengine.Context
-	u    *user.User
 }
 
-func newDataHandler(w http.ResponseWriter, r *http.Request, kind string) *dataHandler {
+func newContext(w http.ResponseWriter, r *http.Request) *context {
 	c := appengine.NewContext(r)
 	u := user.Current(c)
-	return &dataHandler{w, r, kind, c, u}
+	uid := u.Id
+	if (len(uid) == 0) {
+		uid = u.Email
+	}
+	query := datastore.NewQuery("Library").Filter("Owner =", uid)
+	libs := make([]Library, 0, 1)
+	keys, err := query.GetAll(c, &libs)
+	check(err)
+	var l *Library
+	if (len(libs) == 0) {
+		key := datastore.NewKey(c, "Library", "", 0, nil)
+		l = &Library{nil, uid}
+		datastore.Put(c, key, l)
+		l.Id = key
+	} else {
+		l = &libs[0]
+		l.Id = keys[0]
+	}
+	return &context{w, r, c, u, uid, l}
 }
 
-func (self *dataHandler) checkUser(key *datastore.Key, object interface{}) {
-	owned, ok := object.(Owned)
-	if !ok {
-		check(os.NewError(fmt.Sprint(object) + fmt.Sprint(ok)))
-		check(datastore.ErrInvalidEntityType)
+func (self *context) checkUser(key *datastore.Key) {
+	// check if the library is an ancestor of this key
+	for key != nil {
+		if (self.l.Id.Eq(key)) {
+			return
+		}
+		key = key.Parent()
 	}
-	err := datastore.Get(self.c, key, object)
-	check(err)
-	if owned.Owner() != self.u.String() {
-		check(ErrUnknownItem)
-	}
+	check(ErrUnknownItem)
+}
+func (self *context) NewQuery(kind string) *datastore.Query {
+	return datastore.NewQuery(kind).Ancestor(self.l.Id)
+}
+
+func newDataHandler(c *context, kind string) *dataHandler {
+	return &dataHandler{*c, kind}
 }
 
 func (self *dataHandler) createEntry(newObject interface{}, parent *datastore.Key) {
+	// use the library as parent if we don't have an immediate
+	// parent
+	if (parent == nil) {
+		parent = self.l.Id
+	}
 	r := self.r
 	c := self.c
-	owned, ok := newObject.(Owned)
+	ided, ok := newObject.(Ided)
 	if !ok {
 		check(datastore.ErrInvalidEntityType)
 	}
 	readJSON(r, newObject)
-	owned.SetOwner(self.u.String())
 	key := datastore.NewKey(c, self.kind, "", 0, parent)
 	key, err := datastore.Put(c, key, newObject)
 	check(err)
-	owned.SetID(key.Encode())
+	ided.SetID(key)
 	sendJSON(self.w, newObject)
 }
-func (self *dataHandler) get(id string, object interface{}) {
+func (self *dataHandler) get(key *datastore.Key, object interface{}) {
+	err := datastore.Get(self.c, key, object)
+	check(err)
 	self.w.Header().Set("Content-Type", "application/json")
-	owned, ok := object.(Owned)
+	ided, ok := object.(Ided)
 	if !ok {
 		check(datastore.ErrInvalidEntityType)
 	}
-	owned.SetID(id)
+	ided.SetID(key)
 	sendJSON(self.w, object)
 }
-func (self *dataHandler) update(key *datastore.Key, id string, object interface{}) {
+func (self *dataHandler) update(key *datastore.Key, object interface{}) {
 	readJSON(self.r, object)
 	// don't let user change the USER or ID
-	owned, ok := object.(Owned)
+	ided, ok := object.(Ided)
 	if !ok {
 		check(datastore.ErrInvalidEntityType)
 	}
-	owned.SetID(id)
-	owned.SetOwner(self.u.String())
+	ided.SetID(key)
 	_, err := datastore.Put(self.c, key, object)
 	check(err)
 	sendJSON(self.w, object)
@@ -321,16 +356,14 @@ type searchResult struct {
 }
 
 
-func searchHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	u := user.Current(c)
+func searchHandler(c *context) {
 	result := searchResult{}
 	sp := searchParams{}
-	readJSON(r, &sp)
+	readJSON(c.r, &sp)
 
-	query := datastore.NewQuery("Dish").Filter("User =", u.String()).Order("Name")
+	query := c.NewQuery("Dish").Order("Name")
 	dishes := make([]Dish, 0, 100)
-	keys, err := query.GetAll(c, &dishes)
+	keys, err := query.GetAll(c.c, &dishes)
 	check(err)
 	for index, dish := range dishes {
 		match := true
@@ -352,32 +385,30 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 			result.Dishes = append(result.Dishes, keys[index])
 		}
 	}
-	sendJSON(w, result)
+	sendJSON(c.w, result)
 }
 
-func tagsHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	u := user.Current(c)
+func tagsHandler(c *context) {
 	tags := make(map[string]string)
-	query := datastore.NewQuery("Dish").Filter("User =", u.String())
+	query := c.NewQuery("Dish")
 	dishes := make([]Dish, 0, 100)
-	_, err := query.GetAll(c, &dishes)
+	_, err := query.GetAll(c.c, &dishes)
 	check(err)
 	for _, dish := range dishes {
 		for _, tag := range dish.Tags {
 			tags[tag] = tag
 		}
 	}
-	query = datastore.NewQuery("Ingredient").Filter("User =", u.String())
+	query = c.NewQuery("Ingredient")
 	ingredients := make([]Ingredient, 0, 100)
-	_, err = query.GetAll(c, &ingredients)
+	_, err = query.GetAll(c.c, &ingredients)
 	check(err)
 	for _, ingredient := range ingredients {
 		for _, tag := range ingredient.Tags {
 			tags[tag] = tag
 		}
 	}
-	sendJSON(w, tags)
+	sendJSON(c.w, tags)
 }
 
 type backup struct {
@@ -386,62 +417,56 @@ type backup struct {
 	Ingredients         []Ingredient
 }
 
-func backupHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	u := user.Current(c)
+func backupHandler(c *context) {
 	b := backup{}
 	b.MeasuredIngredients = map[string][]MeasuredIngredient{}
 
-	query := datastore.NewQuery("Dish").Filter("User =", u.String())
-	keys, err := query.GetAll(c, &b.Dishes)
+	query := c.NewQuery("Dish")
+	keys, err := query.GetAll(c.c, &b.Dishes)
 	check(err)
 	for index, _ := range b.Dishes {
-		key := keys[index].Encode()
+		key := keys[index]
 		b.Dishes[index].Id = key
 		ingredients := make([]MeasuredIngredient, 0, 100)
-		query = datastore.NewQuery("MeasuredIngredient").Ancestor(keys[index]).Order("Order")
-		ikeys, err := query.GetAll(c, &ingredients)
+		query = c.NewQuery("MeasuredIngredient").Order("Order")
+		ikeys, err := query.GetAll(c.c, &ingredients)
 		check(err)
 		for iindex, _ := range ingredients {
-			ingredients[iindex].Id = ikeys[iindex].Encode()
+			ingredients[iindex].Id = ikeys[iindex]
 		}
-		b.MeasuredIngredients[key] = ingredients
+		b.MeasuredIngredients[key.Encode()] = ingredients
 	}
-	query = datastore.NewQuery("Ingredient").Filter("User =", u.String())
-	keys, err = query.GetAll(c, &b.Ingredients)
+	query = c.NewQuery("Ingredient")
+	keys, err = query.GetAll(c.c, &b.Ingredients)
 	check(err)
 	for index, _ := range b.Ingredients {
-		key := keys[index].Encode()
+		key := keys[index]
 		b.Ingredients[index].Id = key
 	}
-	sendJSONIndent(w, b)
+	sendJSONIndent(c.w, b)
 }
 
 
-func restoreHandler(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	u := user.Current(c)
-	owner := u.String()
-	file, _, err := r.FormFile("restore-file")
+func restoreHandler(c *context) {
+	file, _, err := c.r.FormFile("restore-file")
 	check(err)
 	decoder := json.NewDecoder(file)
 	data := backup{}
 	err = decoder.Decode(&data)
 	check(err)
+	// TODO need to verify keys either don't exit or belong to this library
 	// add all the ingredients
 	for _, i := range data.Ingredients {
-		key, err := datastore.DecodeKey(i.Id)
+		key := i.Id
 		check(err)
-		i.SetOwner(owner)
-		_, err = datastore.Put(c, key, &i)
+		_, err := datastore.Put(c.c, key, &i)
 		check(err)
 	}
 	// add all the dishes
 	for _, d := range data.Dishes {
-		key, err := datastore.DecodeKey(d.Id)
+		key := d.Id
 		check(err)
-		d.SetOwner(owner)
-		_, err = datastore.Put(c, key, &d)
+		_, err := datastore.Put(c.c, key, &d)
 		check(err)
 	}
 	// add all the dishes' ingredients
@@ -449,15 +474,13 @@ func restoreHandler(w http.ResponseWriter, r *http.Request) {
 		parent, err := datastore.DecodeKey(d)
 		check(err)
 		for _, i := range ingredients {
-			ikey, err := datastore.DecodeKey(i.Id)
-			check(err)
+			ikey := i.Id
 			if ikey.Parent() == nil {
-				ikey = datastore.NewKey(c, "MeasuredIngredient", "", ikey.IntID(), parent)
+				ikey = datastore.NewKey(c.c, "MeasuredIngredient", "", ikey.IntID(), parent)
 			}
-			i.SetOwner(owner)
-			_, err = datastore.Put(c, ikey, &i)
+			_, err = datastore.Put(c.c, ikey, &i)
 			check(err)
 		}
 	}
-	indexHandler(w, r)
+	indexHandler(c)
 }

@@ -5,8 +5,7 @@ import (
 )
 
 type Dish struct {
-	Id              string
-	User            string
+	Id              *datastore.Key
 	Name            string
 	DishType        string
 	Tags            []string
@@ -17,38 +16,23 @@ type Dish struct {
 }
 
 type MeasuredIngredient struct {
-	Id          string
-	User        string
+	Id          *datastore.Key
 	Ingredient  *datastore.Key
 	Amount      string
 	Instruction string
 	Order       int
 }
 
-func (self *Dish) Owner() string {
-	return self.User
-}
-func (self *Dish) SetOwner(o string) {
-	self.User = o
-}
-
-func (self *Dish) ID() string {
+func (self *Dish) ID() *datastore.Key {
 	return self.Id
 }
-func (self *Dish) SetID(id string) {
+func (self *Dish) SetID(id *datastore.Key ) {
 	self.Id = id
 }
 
-func (self *MeasuredIngredient) Owner() string {
-	return self.User
-}
-func (self *MeasuredIngredient) SetOwner(o string) {
-	self.User = o
-}
-
-func (self *MeasuredIngredient) ID() string {
+func (self *MeasuredIngredient) ID() *datastore.Key {
 	return self.Id
 }
-func (self *MeasuredIngredient) SetID(id string) {
+func (self *MeasuredIngredient) SetID(id *datastore.Key) {
 	self.Id = id
 }
