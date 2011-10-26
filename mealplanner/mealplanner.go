@@ -421,15 +421,19 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 }
 
 func (self *context) checkUser(key *datastore.Key) {
+	if !self.isInLibrary(key) {
+		check(ErrUnknownItem)
+	}
+}
+func (self *context) isInLibrary(key *datastore.Key) bool {
 	// check if the library is an ancestor of this key
 	for key != nil {
-		//fmt.Fprintf(self.w, "Check %v%v %v<br/>", key.Kind(),key.Encode(), self.l.Id.Encode())
 		if (self.l.Id.Eq(key)) {
-			return
+			return true
 		}
 		key = key.Parent()
 	}
-	check(ErrUnknownItem)
+	return false
 }
 // create a new query always filtering on the library in use
 func (self *context) NewQuery(kind string) *datastore.Query {
@@ -504,26 +508,27 @@ type searchResult struct {
 func searchHandler(c *context) {
 	sp := searchParams{}
 	readJSON(c.r, &sp)
-	dishes := make(map[*datastore.Key] *datastore.Key)
-	ings := make(map[*datastore.Key] *datastore.Key)
+	dishes := make(map[string] *datastore.Key)
+	ings := make(map[string] *datastore.Key)
 	firstPass := true
 
 	// TODO parallelize
 	for _, target :=range sp.Tags {
-		nextDishes := make(map[*datastore.Key] *datastore.Key)
-		nextIngs := make(map[*datastore.Key] *datastore.Key)
+		nextDishes := make(map[string] *datastore.Key)
+		nextIngs := make(map[string] *datastore.Key)
 		query := c.NewQuery("Tags").Filter("Word=", target).KeysOnly()
 		keys, err := query.GetAll(c.c, nil)
 		check(err)
 		for _, key := range keys {
 			parent := key.Parent()
+			parentEnc := parent.Encode()
 			if (parent.Kind() == "Dish") {
-				if _, ok := dishes[parent]; firstPass || ok {
-					nextDishes[parent] = parent
+				if _, ok := dishes[parentEnc]; firstPass || ok {
+					nextDishes[parentEnc] = parent
 				}
 			} else if (parent.Kind() == "Ingredient") {
-				if _, ok := ings[parent]; firstPass || ok {
-					nextIngs[parent] = parent
+				if _, ok := ings[parentEnc]; firstPass || ok {
+					nextIngs[parentEnc] = parent
 				}
 			}
 		}
@@ -539,20 +544,21 @@ func searchHandler(c *context) {
 		addWords(sp.Word, terms)
 		// search for each word
 		for target, _ :=range terms {
-			nextDishes := make(map[*datastore.Key] *datastore.Key)
-			nextIngs := make(map[*datastore.Key] *datastore.Key)
+			nextDishes := make(map[string] *datastore.Key)
+			nextIngs := make(map[string] *datastore.Key)
 			query := c.NewQuery("Keyword").Filter("Word=", target).KeysOnly()
 			keys, err := query.GetAll(c.c, nil)
 			check(err)
 			for _, key := range keys {
 				parent := key.Parent()
+				parentEnc := parent.Encode()
 				if (parent.Kind() == "Dish") {
-					if _, ok := dishes[parent]; firstPass || ok {
-						nextDishes[parent] = parent
+					if _, ok := dishes[parentEnc]; firstPass || ok {
+						nextDishes[parentEnc] = parent
 					}
 				} else if (parent.Kind() == "Ingredient") {
-					if _, ok := ings[parent]; firstPass || ok {
-						nextIngs[parent] = parent
+					if _, ok := ings[parentEnc]; firstPass || ok {
+						nextIngs[parentEnc] = parent
 					}
 				}
 			}
@@ -572,7 +578,7 @@ func searchHandler(c *context) {
 		check(err)
 		for _, key := range keys {
 			parent := key.Parent()
-			dishes[parent] = parent
+			dishes[parent.Encode()] = parent
 		}
 	}
 	result.Dishes = make([]*datastore.Key,0,len(dishes))
@@ -602,13 +608,15 @@ func allTagsHandler(c *context) {
 
 type backup struct {
 	Dishes              []Dish
-	MeasuredIngredients map[string][]MeasuredIngredient
 	Ingredients         []Ingredient
+	MeasuredIngredients map[string][]MeasuredIngredient
+	Tags map[string][]Word
 }
 
 func backupHandler(c *context) {
 	b := backup{}
 	b.MeasuredIngredients = map[string][]MeasuredIngredient{}
+	b.Tags = map[string][]Word{}
 
 	query := c.NewQuery("Dish")
 	keys, err := query.GetAll(c.c, &b.Dishes)
@@ -617,13 +625,25 @@ func backupHandler(c *context) {
 		key := keys[index]
 		b.Dishes[index].Id = key
 		ingredients := make([]MeasuredIngredient, 0, 100)
-		query = c.NewQuery("MeasuredIngredient").Order("Order")
+		query = c.NewQuery("MeasuredIngredient").Ancestor(key).Order("Order")
 		ikeys, err := query.GetAll(c.c, &ingredients)
 		check(err)
 		for iindex, _ := range ingredients {
 			ingredients[iindex].Id = ikeys[iindex]
 		}
-		b.MeasuredIngredients[key.Encode()] = ingredients
+		if len(ingredients) > 0 {
+			b.MeasuredIngredients[key.Encode()] = ingredients
+		}
+		tags := make([]Word, 0, 10)
+		query = c.NewQuery("Tags").Ancestor(key)
+		tkeys, err := query.GetAll(c.c, &tags)
+		check(err)
+		for tindex, _ := range tags {
+			tags[tindex].Id = tkeys[tindex]
+		}
+		if len(tags) > 0 {
+			b.Tags[key.Encode()] = tags
+		}
 	}
 	query = c.NewQuery("Ingredient")
 	keys, err = query.GetAll(c.c, &b.Ingredients)
@@ -631,98 +651,90 @@ func backupHandler(c *context) {
 	for index, _ := range b.Ingredients {
 		key := keys[index]
 		b.Ingredients[index].Id = key
+		tags := make([]Word, 0, 10)
+		query = c.NewQuery("Tags").Ancestor(key)
+		tkeys, err := query.GetAll(c.c, &tags)
+		check(err)
+		for tindex, _ := range tags {
+			tags[tindex].Id = tkeys[tindex]
+		}
+		if len(tags) > 0 {
+			b.Tags[key.Encode()] = tags
+		}
 	}
 	sendJSONIndent(c.w, b)
+}
+
+func restoreKey(tc appengine.Context, c *context,
+               key *datastore.Key,
+					fixUpKeys map[string]*datastore.Key) *datastore.Key {
+	encoded := key.Encode()
+	if newKey, found := fixUpKeys[encoded]; found {
+		return newKey
+	}
+	if !c.isInLibrary(key) {
+		newKey := datastore.NewKey(tc, key.Kind(), "", 0, c.l.Id)
+		fixUpKeys[encoded] = newKey
+		return newKey
+	}
+	return key
 }
 
 func restore(tc appengine.Context, c *context) os.Error {
 	file, _, err := c.r.FormFile("restore-file")
 	check(err)
 	decoder := json.NewDecoder(file)
-	data := make(map[string]interface{})
-	dishKeys := make(map[string]*datastore.Key)
-	ingKeys := make(map[string]*datastore.Key)
+	data := backup{}
 	err = decoder.Decode(&data)
-	fmt.Fprintf(c.w, "Here1<br/>")
 	check(err)
-	fmt.Fprintf(c.w, "Here2<br/>")
-	// Dishes
-	dishList, _ := data["Dishes"].([]interface{})
-	for _, d := range dishList {
-		dish, _ := d.(map[string]interface{})
-		newDish := Dish{}
-		id, _ := dish["Id"].(string)
-		newDish.Name = dish["Name"].(string)
-		newDish.DishType = dish["DishType"].(string)
-		newDish.PrepTimeMinutes = int(dish["PrepTimeMinutes"].(float64))
-		newDish.CookTimeMinutes = int(dish["CookTimeMinutes"].(float64))
-		newDish.Rating = int(dish["Rating"].(float64))
-		newDish.Source = dish["Source"].(string)
-		newKey := datastore.NewKey(tc, "Dish", "", 0, c.l.Id)
-		newKey, err = datastore.Put(tc, newKey, &newDish)
+	fixUpKeys := make(map[string]*datastore.Key)
+	// add all the ingredients
+	for _, i := range data.Ingredients {
+		key := restoreKey(tc, c, i.Id, fixUpKeys)
+		newKey, err := datastore.Put(tc, key, &i)
 		check(err)
-		dishKeys[id] = newKey
-		updateDishKeywords(tc, newKey, &newDish)
-		tags, _ := dish["Tags"].([]interface{})
-		for _, tag := range tags {
-			tagKey := datastore.NewKey(tc, "Tags", "", 0, newKey)
-			tagStr, _ := tag.(string)
-			word := Word{nil, tagStr}
-			_, err := datastore.Put(tc, tagKey, &word)
-			check(err)
+		if !i.Id.Eq(newKey) {
+			fixUpKeys[i.Id.Encode()] = newKey
 		}
+		updateIngredientKeywords(tc, newKey, &i)
 	}
-	fmt.Fprintf(c.w, "Here Done Dish<br/>")
-	// Ingredients
-	ingList, _ := data["Ingredients"].([]interface{})
-	for _, d := range ingList {
-		ing, _ := d.(map[string]interface{})
-		id, _ := ing["Id"].(string)
-		newIng := Ingredient{}
-		newIng.Name = ing["Name"].(string)
-		newIng.Category = ing["Category"].(string)
-		newIng.Source = ing["Source"].(string)
-		newKey := datastore.NewKey(tc, "Ingredient", "", 0, c.l.Id)
-		newKey, err = datastore.Put(tc, newKey, &newIng)
+	// add all the dishes
+	for _, d := range data.Dishes {
+		key := restoreKey(tc, c, d.Id, fixUpKeys)
+		newKey, err := datastore.Put(tc, key, &d)
 		check(err)
-		ingKeys[id] = newKey
-		updateIngredientKeywords(tc, newKey, &newIng)
-		tags, _ := ing["Tags"].([]interface{})
-		for _, tag := range tags {
-			tagKey := datastore.NewKey(tc, "Tags", "", 0, newKey)
-			tagStr, _ := tag.(string)
-			word := Word{nil, tagStr}
-			_, err := datastore.Put(tc, tagKey, &word)
-			check(err)
+		if !d.Id.Eq(newKey) {
+			fixUpKeys[d.Id.Encode()] = newKey
 		}
+		updateDishKeywords(tc, newKey, &d)
 	}
-	fmt.Fprintf(c.w, "Here Done Ing<br/>")
-	// Measured Ing
-	miMap, _ := data["MeasuredIngredients"].(map[string]interface{})
-	for dishId, miListPtr := range miMap {
-		dishKey, ok := dishKeys[dishId]
-		if (!ok) {
-			check(os.NewError("Missing dish id"))
-		}
-		miList, _ := miListPtr.([]interface{})
-		for _, d := range miList {
-			mi, _ := d.(map[string]interface{})
-			ingId, _ := mi["Ingredient"].(string)
-			ingKey, ok := ingKeys[ingId]
-			if (!ok) {
-				check(os.NewError("Missing ing id"))
+	// add all the dishes' ingredients
+	for d, ingredients := range data.MeasuredIngredients {
+		temp, err := datastore.DecodeKey(d)
+		check(err)
+		parent := restoreKey(tc, c, temp, fixUpKeys)
+		for _, i := range ingredients {
+			i.Ingredient = restoreKey(tc, c, i.Ingredient, fixUpKeys)
+			if !c.isInLibrary(i.Id) {
+				i.Id = datastore.NewKey(tc, "MeasuredIngredient", "", 0, parent)
 			}
-			newMi := MeasuredIngredient{}
-			newMi.Ingredient = ingKey
-			newMi.Amount = mi["Amount"].(string)
-			newMi.Instruction = mi["Instruction"].(string)
-			newMi.Order = int(mi["Order"].(float64))
-			newKey := datastore.NewKey(tc, "MeasuredIngredient", "", 0, dishKey)
-			newKey, err = datastore.Put(tc, newKey, &newMi)
+			_, err = datastore.Put(tc, i.Id, &i)
 			check(err)
 		}
 	}
-	fmt.Fprintf(c.w, "Here Done MI<br/>")
+	// add all the tags
+	for id, tags := range data.Tags {
+		temp, err := datastore.DecodeKey(id)
+		check(err)
+		parent := restoreKey(tc, c, temp, fixUpKeys)
+		for _, t := range tags {
+			if !c.isInLibrary(t.Id) {
+				t.Id = datastore.NewKey(tc, "Tags", "", 0, parent)
+			}
+			_, err = datastore.Put(tc, t.Id, &t)
+			check(err)
+		}
+	}
 	indexHandler(c)
 	return nil
 }
@@ -733,42 +745,4 @@ func restoreHandler(c *context) {
 			return restore(tc, c);
 	}, nil)
 	return
-	// TODO restore this to working condition with refactor
-/*
-	file, _, err := c.r.FormFile("restore-file")
-	check(err)
-	decoder := json.NewDecoder(file)
-	data := backup{}
-	err = decoder.Decode(&data)
-	check(err)
-	// TODO need to verify keys either don't exit or belong to this library
-	// add all the ingredients
-	for _, i := range data.Ingredients {
-		key := i.Id
-		check(err)
-		_, err := datastore.Put(c.c, key, &i)
-		check(err)
-	}
-	// add all the dishes
-	for _, d := range data.Dishes {
-		key := d.Id
-		check(err)
-		_, err := datastore.Put(c.c, key, &d)
-		check(err)
-	}
-	// add all the dishes' ingredients
-	for d, ingredients := range data.MeasuredIngredients {
-		parent, err := datastore.DecodeKey(d)
-		check(err)
-		for _, i := range ingredients {
-			ikey := i.Id
-			if ikey.Parent() == nil {
-				ikey = datastore.NewKey(c.c, "MeasuredIngredient", "", ikey.IntID(), parent)
-			}
-			_, err = datastore.Put(c.c, ikey, &i)
-			check(err)
-		}
-	}
-	indexHandler(c)
-*/
 }
