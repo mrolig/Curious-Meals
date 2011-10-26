@@ -1090,6 +1090,8 @@ jQuery(function() {
                   .button()
                   .click(this.newIngredient);
 			$("#restore-file").change(this.restore);
+         $("#side-tabs").tabs({
+         });
          this.fetched = 0;
          this.show(new LoadingView());
          Users.fetch({success:this.onFetched, error:this.onFetched});

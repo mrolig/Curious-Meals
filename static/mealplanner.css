@@ -1,11 +1,12 @@
 body, #app {
    margin: 0px;
    padding: 0px;
+   font-size: 12pt;
 }
 .sidebar {
-   float: left;
-   margin: 6px;
-   padding: 6px;
+   float:left;
+   margin-right:6px;
+   width: 20em;
    background: #EEE;
 }
 #user {
@@ -67,4 +68,7 @@ a.external {
 div.tag-list {
 	display: inline-block;
 	margin-left: 0.3em;
+}
+#side-accordion {
+   height: 90%;
 }
