@@ -1,8 +1,5 @@
+- add pairing w/ kind (alt. or rec. with)(new kind)
 - filter search on rating
-- list dishes that go well with a dish (pairing)
-- list alternative dishes 
 - gather menu/possible menu (flags)
 - if editing dish, add new ingredients rather than forcing separate add ingredient
-- create library, so we filter on library ancestor NOT user field
-- add pairing w/ kind (alt. or rec. with)(table)
 
