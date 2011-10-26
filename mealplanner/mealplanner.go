@@ -59,10 +59,26 @@ func usersHandler(c *context) {
 func dishHandler(c *context) {
 	if strings.Contains(c.r.URL.Path, "/mi/") {
 		measuredIngredientsHandler(c)
+		if c.r.Method != "GET" {
+			key,err := datastore.DecodeKey(getParentID(c.r))
+			check(err)
+			dish := Dish{}
+			err = datastore.Get(c.c, key, &dish)
+			check(err)
+			updateDishKeywords(c.c, key, &dish)
+		}
 		return
 	}
 	if strings.Contains(c.r.URL.Path, "/tags/") {
 		wordHandler(c, "Tags")
+		if c.r.Method != "GET" {
+			key,err := datastore.DecodeKey(getParentID(c.r))
+			check(err)
+			dish := Dish{}
+			err = datastore.Get(c.c, key, &dish)
+			check(err)
+			updateDishKeywords(c.c, key, &dish)
+		}
 		return
 	}
 	if strings.Contains(c.r.URL.Path, "/keywords/") {
@@ -121,6 +137,17 @@ func dishHandler(c *context) {
 	}
 }
 
+func addTags(tc appengine.Context, key *datastore.Key,
+	words map[string]bool) {
+	query := datastore.NewQuery("Tags").Ancestor(key)
+	tags := make([]Word, 0, 20)
+	_, err := query.GetAll(tc, &tags)
+	check(err)
+	for _, tag := range tags {
+		addWords(tag.Word, words)
+	}
+}
+
 // break up the text into words and add/remove keywords
 //  for the dish
 func updateDishKeywords(tc appengine.Context, key *datastore.Key,
@@ -128,6 +155,7 @@ func updateDishKeywords(tc appengine.Context, key *datastore.Key,
 	words := make(map[string]bool)
 	addWords(dish.Name, words)
 	addWords(dish.Source, words)
+	addTags(tc, key, words)
 	updateKeywords(tc, key, words)
 }
 func updateIngredientKeywords(tc appengine.Context, key *datastore.Key,
@@ -135,6 +163,7 @@ func updateIngredientKeywords(tc appengine.Context, key *datastore.Key,
 	words := make(map[string]bool)
 	addWords(ing.Name, words)
 	addWords(ing.Category, words)
+	addTags(tc, key, words)
 	updateKeywords(tc, key, words)
 }
 
@@ -289,6 +318,14 @@ func ingredientHandler(c *context) {
 	}
 	if strings.Contains(c.r.URL.Path, "/tags/") {
 		wordHandler(c, "Tags")
+		if c.r.Method != "GET" {
+			key,err := datastore.DecodeKey(getParentID(c.r))
+			check(err)
+			ingredient := Ingredient{}
+			err = datastore.Get(c.c, key, &ingredient)
+			check(err)
+			updateIngredientKeywords(c.c, key, &ingredient)
+		}
 		return
 	}
 	if strings.Contains(c.r.URL.Path, "/keywords/") {
@@ -548,10 +585,6 @@ func searchHandler(c *context) {
 		for target, _ :=range terms {
 			query := c.NewQuery("Keyword").Filter("Word=", target).KeysOnly()
 			keys, err := query.GetAll(c.c, nil)
-			check(err)
-			addResults(keys, results)
-			query = c.NewQuery("Tags").Filter("Word=", target).KeysOnly()
-			keys, err = query.GetAll(c.c, nil)
 			check(err)
 			addResults(keys, results)
 		}
