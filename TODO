@@ -1,5 +1,14 @@
+- keywords remove "s" and "es" from end, indexing both w/ and w/o
+- word searches search tags too
+- labels on search result
 - add pairing w/ kind (alt. or rec. with)(new kind)
 - filter search on rating
 - gather menu/possible menu (flags)
+- add servings of carb/protien/veg to each dish
 - if editing dish, add new ingredients rather than forcing separate add ingredient
+- accordian for dishes/ingredients/tags
 
+- add ACL to library
+- create method to share a library
+
+- build a "starter" library when newly created

@@ -1058,7 +1058,15 @@ jQuery(function() {
          this.dishListView = new DishListView({model : Dishes});
          this.dishListView.bind("selected", this.viewDish);
          this.mainView = null;
+         var self = this;
          $("#doSearch").button();
+         $("#search")
+            .bind('keypress', function (evt) {
+               if (evt.which == 13) {
+                  evt.preventDefault();
+                  self.textSearch();
+               }
+            });
          $("#dishes").append(this.dishListView.render().el);
          this.el.find(".add-dish")
                   .button()
