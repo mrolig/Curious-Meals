@@ -145,10 +145,17 @@ func addWords(text string, words map[string]bool) {
 		}
 		return rune
 	}, text)
-	pieces := strings.Split(spaced, " ")
+	pieces := strings.Fields(spaced)
 	for _, word := range pieces {
 		if (len(word) > 1) {
-			words[strings.ToLower(word)] = false;
+			word = strings.ToLower(word)
+			words[word] = false;
+			if strings.HasSuffix(word, "s") {
+				words[word[0:len(word)-1]] = false
+				if strings.HasSuffix(word, "es") {
+					words[word[0:len(word)-2]] = false
+				}
+			}
 		}
 	}
 }
@@ -499,42 +506,37 @@ type searchParams struct {
 	Word   string
 }
 
-type searchResult struct {
-	Dishes      []*datastore.Key
-	Ingredients []*datastore.Key
+func addResult(key *datastore.Key, results map[string]map[string] uint) {
+	parent := key.Parent()
+	parentEnc := parent.Encode()
+	if kind, ok := results[parent.Kind()]; ok {
+		if _, ok := kind[parentEnc]; ok {
+			kind[parentEnc] += 1
+		} else {
+			kind[parentEnc] = 1
+		}
+	} else {
+		results[parent.Kind()] = make(map[string] uint)
+		results[parent.Kind()][parentEnc] = 1
+	}
 }
-
+func addResults(keys []*datastore.Key, results map[string]map[string] uint) {
+	for _, key := range keys {
+		addResult(key, results)
+	}
+}
 
 func searchHandler(c *context) {
 	sp := searchParams{}
 	readJSON(c.r, &sp)
-	dishes := make(map[string] *datastore.Key)
-	ings := make(map[string] *datastore.Key)
-	firstPass := true
+	results := make(map[string]map[string] uint)
 
 	// TODO parallelize
 	for _, target :=range sp.Tags {
-		nextDishes := make(map[string] *datastore.Key)
-		nextIngs := make(map[string] *datastore.Key)
 		query := c.NewQuery("Tags").Filter("Word=", target).KeysOnly()
 		keys, err := query.GetAll(c.c, nil)
 		check(err)
-		for _, key := range keys {
-			parent := key.Parent()
-			parentEnc := parent.Encode()
-			if (parent.Kind() == "Dish") {
-				if _, ok := dishes[parentEnc]; firstPass || ok {
-					nextDishes[parentEnc] = parent
-				}
-			} else if (parent.Kind() == "Ingredient") {
-				if _, ok := ings[parentEnc]; firstPass || ok {
-					nextIngs[parentEnc] = parent
-				}
-			}
-		}
-		firstPass = false
-		dishes = nextDishes
-		ings = nextIngs
+		addResults(keys, results)
 	}
 
 	// handle word search
@@ -544,49 +546,30 @@ func searchHandler(c *context) {
 		addWords(sp.Word, terms)
 		// search for each word
 		for target, _ :=range terms {
-			nextDishes := make(map[string] *datastore.Key)
-			nextIngs := make(map[string] *datastore.Key)
 			query := c.NewQuery("Keyword").Filter("Word=", target).KeysOnly()
 			keys, err := query.GetAll(c.c, nil)
 			check(err)
-			for _, key := range keys {
-				parent := key.Parent()
-				parentEnc := parent.Encode()
-				if (parent.Kind() == "Dish") {
-					if _, ok := dishes[parentEnc]; firstPass || ok {
-						nextDishes[parentEnc] = parent
-					}
-				} else if (parent.Kind() == "Ingredient") {
-					if _, ok := ings[parentEnc]; firstPass || ok {
-						nextIngs[parentEnc] = parent
-					}
-				}
-			}
-			firstPass = false
-			dishes = nextDishes
-			ings = nextIngs
+			addResults(keys, results)
+			query = c.NewQuery("Tags").Filter("Word=", target).KeysOnly()
+			keys, err = query.GetAll(c.c, nil)
+			check(err)
+			addResults(keys, results)
 		}
 	}
 
-	result := searchResult{}
-	result.Ingredients = make([]*datastore.Key,0,len(ings))
-	for _, ing:= range ings {
-		result.Ingredients= append(result.Ingredients, ing)
-		// carry results forward to list dishes that have the ingredients that matched
-		query := c.NewQuery("MeasuredIngredient").Filter("Ingredient =", ing).KeysOnly()
-		keys, err := query.GetAll(c.c, nil)
-		check(err)
-		for _, key := range keys {
-			parent := key.Parent()
-			dishes[parent.Encode()] = parent
+	if ings, ok := results["Ingredient"]; ok {
+		for ing, _ := range ings {
+			ingKey, err := datastore.DecodeKey(ing)
+			check(err)
+			// carry results forward to list dishes that have the ingredients that matched
+			query := c.NewQuery("MeasuredIngredient").Filter("Ingredient =", ingKey).KeysOnly()
+			keys, err := query.GetAll(c.c, nil)
+			check(err)
+			addResults(keys, results)
 		}
 	}
-	result.Dishes = make([]*datastore.Key,0,len(dishes))
-	for _, dish := range dishes {
-		result.Dishes = append(result.Dishes, dish)
-	}
 
-	sendJSON(c.w, result)
+	sendJSON(c.w, results)
 }
 
 func allTagsHandler(c *context) {

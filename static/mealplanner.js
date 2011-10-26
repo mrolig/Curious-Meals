@@ -170,6 +170,45 @@ jQuery(function() {
          return models;
       }
    })
+   function zfill(str, count) {
+      var zeros = count - str.toString().length;
+      if (zeros <= 0) return str;
+      var ret = Array(zeros+1).join("0") + str;
+      return ret;
+   }
+   function renderItemNameList(cssclass, viewLink, englishPlural) {
+      this.el.children().remove();
+      var self = this;
+      var filtered;
+      if (this.options.searchResults != undefined) {
+         var results = this.options.searchResults;
+         filtered = this.model.filter(function(item) {
+               return item.id in results;
+            });
+         filtered = _.sortBy(filtered, function(item) {
+               var key = zfill(9999 - results[item.id], 4);
+               return key + item.get("Name");
+            });
+      } else {
+         filtered = this.model.toArray();
+      }
+         
+      _.each(filtered, function(dish, idx) {
+         var $li = $("<li></li>")
+            .appendTo(self.el)
+            .addClass(cssclass);
+         var name = dish.get("Name");
+         $("<a></a>")
+               .appendTo($li)
+               .text(name)
+               [0].href = "#" + viewLink + "/" + dish.id;
+      });
+      if (filtered.length == 0) {
+         var $li = $("<li>[No "+englishPlural+"]</li>")
+            .appendTo(this.el)
+      }
+      return this;
+   }
    window.DishListView = Backbone.View.extend({
       tagName : "ul",
       className : "dish-list",
@@ -181,28 +220,7 @@ jQuery(function() {
          this.model.bind('all', this.render);
       },
       render : function() {
-         this.el.children().remove();
-         var self = this;
-         this.model.each(function(dish, idx) {
-            var show = true;
-            var list = self.options.list;
-            if (list != undefined) {
-               show = $.inArray(dish.id, list) >= 0;
-            }
-            if (show) {
-               var $li = $("<li></li>")
-                  .appendTo(self.el)
-                  .addClass("dish");
-               $("<a></a>")
-                     .appendTo($li)
-                     .text(dish.get("Name"))
-                     [0].href = "#viewDish/" + dish.id;
-            }
-         });
-         if (this.model.length == 0) {
-            var $li = $("<li>[No dishes]</li>")
-               .appendTo(this.el)
-         }
+         renderItemNameList.call(this, "dish", "viewDish", "dishes");
          return this;
       }
    })
@@ -700,28 +718,7 @@ jQuery(function() {
          this.model.bind('all', this.render);
       },
       render : function() {
-         this.el.children().remove();
-         var self = this;
-         this.model.each(function(ingredient, idx) {
-            var show = true;
-            var list = self.options.list;
-            if (list != undefined) {
-               show = $.inArray(ingredient.id, list) >= 0;
-            }
-            if (show) {
-               var $li = $("<li></li>")
-                  .appendTo(self.el)
-                  .addClass("ingredient");
-               $("<a></a>")
-                     .appendTo($li)
-                     .text(ingredient.get("Name"))
-                     [0].href = "#viewIngredient/" + ingredient.id;
-            }
-         });
-         if (this.model.length == 0) {
-            var $li = $("<li>[No ingredients]</li>")
-               .appendTo(this.el)
-         }
+         renderItemNameList.call(this, "ingredient", "viewIngredient", "ingredients");
          return this;
       },
    })
@@ -899,7 +896,11 @@ jQuery(function() {
       },
       dishesReceived : function(dishIds) {
          this.$dishes.html("");
-         this.dishListView = new DishListView({model : window.Dishes, list : dishIds });
+         var searchResults = {};
+         _.each(dishIds, function(id) {
+            searchResults[id] = 1;
+         });
+         this.dishListView = new DishListView({model : window.Dishes, searchResults : searchResults});
          this.dishListView.bind("selected", this.viewDish);
          this.$dishes.append(this.dishListView.render().el);
       },
@@ -970,19 +971,30 @@ jQuery(function() {
          jQuery.post("/search", JSON.stringify(this.model.attributes), this.searchComplete);
       },
       searchComplete :  function(results) {
-         var  dishes = results.Dishes;
-         var  ingredients = results.Ingredients;
-         this.dishListView = new DishListView({model : window.Dishes, list: dishes});
+         if (! ("Dish" in results)) {
+            results.Dish = {};
+         }
+         if (! ("Ingredient" in results)) {
+            results.Ingredient = {};
+         }
+         this.dishListView = new DishListView({model : window.Dishes, searchResults: results["Dish"]});
          this.dishListView.bind("selected", this.dishSelected)
-         this.ingredientListView = new IngredientListView({model : window.Ingredients, list:ingredients});
+         this.ingredientListView = new IngredientListView({model : window.Ingredients, searchResults:results["Ingredient"]});
          this.ingredientListView.bind("selected", this.ingredientSelected)
          this.render();
       },
       render : function() {
-         if (this.dishListView)
-            this.el.append(this.dishListView.render().el);
-         if (this.ingredientListView)
-            this.el.append(this.ingredientListView.render().el);
+         this.el.html("");
+         if (this.dishListView || this.ingredientListView) {
+            this.el.append("<div class='field-head'>Dishes</div>");
+            if (this.dishListView)
+               this.el.append(this.dishListView.render().el);
+            this.el.append("<div class='field-head'>Ingredients</div>");
+            if (this.ingredientListView)
+               this.el.append(this.ingredientListView.render().el);
+         } else {
+            this.el.html("Searching...");
+         }
          return this;
       },
       dishSelected : function(dish) {
