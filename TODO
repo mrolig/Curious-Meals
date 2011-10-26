@@ -3,7 +3,7 @@
 - gather menu/possible menu (flags)
 - add servings of carb/protien/veg to each dish
 - if editing dish, add new ingredients rather than forcing separate add ingredient
-- accordian for dishes/ingredients/tags
+- show vegan/veg. icon
 
 - add ACL to library
 - create method to share a library

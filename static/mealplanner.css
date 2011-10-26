@@ -1,13 +1,16 @@
 body, #app {
    margin: 0px;
    padding: 0px;
-   font-size: 12pt;
+   font-size: 10pt;
+   font-family: 'Droid Sans','MS Trebuchet',Verdana,Arial,sans-serif;
 }
 .sidebar {
    float:left;
    margin-right:6px;
    width: 20em;
-   background: #EEE;
+}
+.sidebar .ui-tabs-panel {
+   padding: 0px;
 }
 #user {
    float: right;
@@ -69,6 +72,10 @@ div.tag-list {
 	display: inline-block;
 	margin-left: 0.3em;
 }
-#side-accordion {
-   height: 90%;
+#side-tabs {
+   margin-top: 0.3em;
 }
+#side-tabs ul.dish-list, #side-tabs ul.ingredient-list, ul#tags{
+   padding-left: 18px;
+}
+

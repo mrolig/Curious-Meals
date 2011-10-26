@@ -18,17 +18,17 @@
       <div id="user">
       </div>
       <div class="sidebar">
-      <h3>Search</h3>
       <div>
-		<input type="text" id="search" class="ui-widget"></input><br/>
-		<input type="button" id="doSearch" value="Search"></input>
+		<input type="text" id="search" class="ui-widget"></input>
+		<input type="button" id="doSearch" value="Search"></input><br/>
+      <div class='add-dish'>Add Dish</div>
+      <div class='add-ingredient'>Add Ingredient</div>
       </div>
 		<div id="side-tabs">
       <ul>
-         <li><a href="#dishes">Dishes <div class='add-dish'>+</div></a></li>
-         <li><a href="#ingredients">Ingredients <div class='add-ingredient'>+</div></a></li>
-         <li><a href="#tags">Tags</a></li>
-         <li><a href="#backup-restore">Backup/Restore</a></li>
+         <li><a href="#dishes">Dishes</a></li>
+         <li><a href="#ingredients">Ingredients</a></li>
+         <li><a href="#tags-tab">Tags</a></li>
       </ul>
       <div id="dishes">
          
@@ -36,14 +36,17 @@
       <div id="ingredients">
          
       </div>
+      <div id="tags-tab">
       <ul id="tags">
          
       </ul>
+      </div>
+      </div>
+      <h3>Backup/Restore</h3>
       <div id="backup-restore">
 		<a href="/backup">Backup</a><br/>
 		<form id="restore-form" action="/restore" method="POST" enctype="multipart/form-data">
 		Restore:<br/><input type="file" name="restore-file" id="restore-file"></input>
-      </div>
       </div>
 		</form>
       </div>
