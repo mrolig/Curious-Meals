@@ -4411,5 +4411,21 @@
 				"Word": "Nut"
 			}
 		]
+	},
+	"Pairings": {
+		"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGIUBDA": [
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyJgsSB0xpYnJhcnkYAQwLEgREaXNoGIUBDAsSB1BhaXJpbmcYogUM",
+				"Other": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGJgBDA",
+				"Description": "Alternative"
+			}
+		],
+		"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGJgBDA": [
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyJgsSB0xpYnJhcnkYAQwLEgREaXNoGJgBDAsSB1BhaXJpbmcYoQUM",
+				"Other": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGIUBDA",
+				"Description": "Alternative"
+			}
+		]
 	}
 }

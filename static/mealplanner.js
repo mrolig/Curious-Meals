@@ -1277,6 +1277,15 @@ jQuery(function() {
          this.search(new Search({Word: $("#search").val()}));
       },
       search : function (search) {
+         $("#side-tabs").tabs('select', 0);
+			var words = "";
+			if (search.get("Word"))
+				words = search.get("Word");
+			if (search.get("Tags"))
+				words = search.get("Tags").reduce(function(prevValue, curValue, index, array) {
+					return prevValue + " " + curValue;
+				}, words)
+			$("#search").val(words)
          var searchView = new SearchView({ model: search });
          searchView.bind("selecteddish", this.viewDish);
          searchView.bind("selectedingredient", this.viewIngredient);

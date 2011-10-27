@@ -691,12 +691,14 @@ type backup struct {
 	Ingredients         []Ingredient
 	MeasuredIngredients map[string][]MeasuredIngredient
 	Tags map[string][]Word
+	Pairings map[string][]Pairing
 }
 
 func backupHandler(c *context) {
 	b := backup{}
 	b.MeasuredIngredients = map[string][]MeasuredIngredient{}
 	b.Tags = map[string][]Word{}
+	b.Pairings = map[string][]Pairing{}
 
 	query := c.NewQuery("Dish")
 	keys, err := query.GetAll(c.c, &b.Dishes)
@@ -724,6 +726,16 @@ func backupHandler(c *context) {
 		if len(tags) > 0 {
 			b.Tags[key.Encode()] = tags
 		}
+		pairings := make([]Pairing, 0, 10)
+		query = c.NewQuery("Pairing").Ancestor(key)
+		pkeys, err := query.GetAll(c.c, &pairings)
+		check(err)
+		for pindex, _ := range pairings {
+			pairings[pindex].Id = pkeys[pindex]
+		}
+		if len(pairings) > 0 {
+			b.Pairings[key.Encode()] = pairings
+		}
 	}
 	query = c.NewQuery("Ingredient")
 	keys, err = query.GetAll(c.c, &b.Ingredients)
@@ -740,6 +752,16 @@ func backupHandler(c *context) {
 		}
 		if len(tags) > 0 {
 			b.Tags[key.Encode()] = tags
+		}
+		pairings := make([]Pairing, 0, 10)
+		query = c.NewQuery("Pairing").Ancestor(key)
+		pkeys, err := query.GetAll(c.c, &pairings)
+		check(err)
+		for pindex, _ := range pairings {
+			pairings[pindex].Id = pkeys[pindex]
+		}
+		if len(pairings) > 0 {
+			b.Pairings[key.Encode()] = pairings
 		}
 	}
 	sendJSONIndent(c.w, b)
@@ -797,6 +819,20 @@ func restore(tc appengine.Context, c *context) os.Error {
 			i.Ingredient = restoreKey(tc, c, i.Ingredient, fixUpKeys)
 			if !c.isInLibrary(i.Id) {
 				i.Id = datastore.NewKey(tc, "MeasuredIngredient", "", 0, parent)
+			}
+			_, err = datastore.Put(tc, i.Id, &i)
+			check(err)
+		}
+	}
+	// add all the dishes' pairings
+	for d, pairings:= range data.Pairings {
+		temp, err := datastore.DecodeKey(d)
+		check(err)
+		parent := restoreKey(tc, c, temp, fixUpKeys)
+		for _, i := range pairings {
+			i.Other = restoreKey(tc, c, i.Other, fixUpKeys)
+			if !c.isInLibrary(i.Id) {
+				i.Id = datastore.NewKey(tc, "Pairing", "", 0, parent)
 			}
 			_, err = datastore.Put(tc, i.Id, &i)
 			check(err)

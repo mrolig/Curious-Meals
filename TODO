@@ -1,4 +1,3 @@
-- add pairing to backup/restore
 - filter search on rating
 - gather menu/possible menu (flags)
 - add servings of carb/protien/veg to each dish
@@ -9,3 +8,4 @@
 - create method to share a library
 
 - build a "starter" library when newly created
+- fix bug where tags aren't indexed for search during restore
