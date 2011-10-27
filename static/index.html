@@ -17,9 +17,7 @@
    <div id="app">
       <div id="user">
       </div>
-      <table class='main'>
-      <tr>
-      <td class="sidebar">
+      <div class="sidebar">
       <div>
       <div class='add-dish'>Add Dish</div>
       <div class='add-ingredient'>Add Ingredient</div>
@@ -27,22 +25,25 @@
 		<div id="side-tabs">
       <ul>
          <li><a href="#search-tab"><span class='ui-icon ui-icon-search'></span></a></li>
-         <li><a href="#dishes">Dishes</a></li>
-         <li><a href="#ingredients">Ingredients</a></li>
-         <li><a href="#tags-tab">Tags</a></li>
+         <li><a href="#dishes"><span class='ui-icon ui-icon-dish'></span></a></li>
+         <li><a href="#ingredients"><span class='ui-icon ui-icon-ingredient'></span></a></li>
+         <li><a href="#tags-tab"><span class='ui-icon ui-icon-tag'></span></a></li>
+         <li><a href="#menu-tab"><span class='ui-icon ui-icon-menu'></span></a></li>
       </ul>
       <div id="search-tab">
 		   <input type="text" id="search" class="ui-widget"></input>
 		   <input type="button" id="doSearch" value="Search"></input>
          <div id="search-results"></div>
       </div>
-      <div id="dishes"></div>
-      <div id="ingredients"></div>
+      <div id="dishes"><div class='field-head'>Dishes</div></div>
+      <div id="ingredients"><div class='field-head'>Ingredients</div></div>
       <div id="tags-tab">
+         <div class='field-head'>Tags</div>
       <ul id="tags">
          
       </ul>
       </div>
+      <div id="menu-tab"><div class='field-head'>Menus</div></div>
       </div>
       <h3>Backup/Restore</h3>
       <div id="backup-restore">
@@ -51,11 +52,9 @@
 		Restore:<br/><input type="file" name="restore-file" id="restore-file"></input>
       </div>
 		</form>
-      </td>
-      <td class="edit">
-      </td>
-      </tr>
-   </table>
+      </div>
+      <div id="main">
+      </div>
    </div>
 </body>
 </html>

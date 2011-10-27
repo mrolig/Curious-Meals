@@ -4,10 +4,13 @@ body, #app {
    font-size: 10pt;
    font-family: 'Droid Sans','MS Trebuchet',Verdana,Arial,sans-serif;
 }
+div#main {
+   margin-left: 20.5em;
+}
 .sidebar {
-   /*float:left;
-   margin-right:6px;*/
-   width: 22em;
+   float:left;
+   width: 20em;
+   padding: 4px;
 }
 .sidebar .ui-tabs-panel {
    padding: 0px;
@@ -37,6 +40,14 @@ body, #app {
 }
 .remove.ui-icon:hover {
    background-image: url(images/ui-icons_cd0a0a_256x240.png); 
+}
+.ui-icon.inline {
+   display: inline-block;
+   vertical-align: top;
+}
+
+.ui-icon.large {
+   zoom: 200%;
 }
 
 input.name {
@@ -75,7 +86,7 @@ div.tag-list {
 #side-tabs {
    margin-top: 0.3em;
 }
-#side-tabs ul.dish-list, #side-tabs ul.ingredient-list, ul#tags{
+ul#tags{
    padding-left: 18px;
 }
 
@@ -88,4 +99,11 @@ table.main {
 }
 table.main td{
    vertical-align: top;
+}
+.ui-icon-menu { background-position: -64px -96px; }
+.ui-icon-ingredient { background-position: -64px -176px; }
+.ui-icon-dish { background-position: -192px -128px; }
+ul.dish-list, ul.ingredient-list, ul.pairing-list {
+   list-style-type: none;
+   padding-left: 6px;
 }

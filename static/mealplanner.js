@@ -221,7 +221,7 @@ jQuery(function() {
       }
          
       _.each(filtered, function(dish, idx) {
-         var $li = $("<li></li>")
+         var $li = $("<li><span class='ui-icon inline ui-icon-"+cssclass+"'></span></li>")
             .appendTo(self.el)
             .addClass(cssclass)
 				.draggable({revert:true,helper:'clone'});
@@ -354,7 +354,7 @@ jQuery(function() {
 			var $ul = $("<ul class='pairing-list'></ul>")
 				.appendTo($pairings);
 			_.each(list, function(pairing, p) {
-         	var $pairing = $("<li class='pairing'></li>")
+         	var $pairing = $("<li class='pairing'><span class='ui-icon ui-icon-dish inline'></span></li>")
             	.appendTo($ul);
          	$("<a></a>")
             	.appendTo($pairing)
@@ -422,6 +422,7 @@ jQuery(function() {
          if (this.model.pairings.url)
             this.model.pairings.fetch();
          this.ingredients = { gen : 0};
+         this.el.append("<span class='ui-icon ui-icon-dish inline large'></span>");
          this.$name = $("<input class='name ui-widget' type='text'></input>")
             .appendTo(this.el);
          this.el.append(" ");
@@ -465,7 +466,7 @@ jQuery(function() {
          this.el.append(" minutes<br/><span class='field-head'>Cook time</span>: ");
          this.$cookTime = $("<input class='ui-widget' type='text'></input>")
             .appendTo(this.el);
-         this.el.append(" minutes<br/><span class='field-head'>Tags</span>:");
+         this.el.append(" minutes<br/><span class='field-head'>Tags</span>:<span class='ui-icon ui-icon-tag inline'></span>");
          this.$tags = $("<div class='tag-list'></div>")
             .appendTo(this.el);
          this.el.append("<br/>Type new tags, separated by commas<br/>");
@@ -719,6 +720,7 @@ jQuery(function() {
             this.model.tags.fetch();
          if (this.model.pairings.url)
             this.model.pairings.fetch();
+         this.el.append("<span class='ui-icon ui-icon-dish inline large'></span>");
          this.$name = $("<span class='dish-name'></span>")
             .appendTo(this.el);
          this.el.append(" ");
@@ -756,7 +758,7 @@ jQuery(function() {
          this.el.append(" minutes<br/><span class='field-head'>Cook time</span>: ");
          this.$cookTime = $("<span class='dish-time'></span>")
             .appendTo(this.el);
-         this.el.append(" minutes<br/><span class='field-head'>Tags</span>:");
+         this.el.append(" minutes<br/><span class='field-head'>Tags</span>:<span class='ui-icon ui-icon-tag inline'></span>");
          this.$tags = $("<div class='tag-list'></div>")
             .appendTo(this.el);
          this.$mi = $("<table class='ingredients'><tr><th>Ingredient</th><th>Amount</th><th>Notes</th><th></th></tr></table>")
@@ -809,7 +811,7 @@ jQuery(function() {
          this.model.ingredients.each(function(i) {
                var $tr = $("<tr class='ingredient'></tr>");
                $tr[0].id = i.id;
-               var $name = $("<td></td>").appendTo($tr);
+               var $name = $("<td><span class='ui-icon ui-icon-ingredient inline'></span></td>").appendTo($tr);
                var $amount = $("<td><span class='ingredient-amount'></span></td>")
                   .appendTo($tr)
                   .find("span");
@@ -872,6 +874,7 @@ jQuery(function() {
          this.model.tags.bind('all', this.render);
          if (this.model.tags.url && this.model.tags.length == 0)
             this.model.tags.fetch();
+         this.el.append("<span class='ui-icon ui-icon-ingredient inline large'></span>");
          this.$name = $("<input class='name ui-widget' type='text'></input>")
             .appendTo(this.el);
          this.el.append(" ");
@@ -898,7 +901,7 @@ jQuery(function() {
             .autocomplete({source:["Animal", "Vegan", "Vegetarian"], minLength:0})
             .appendTo(this.el)
          makeCombo(this.$source);
-         this.el.append("<br/><span class='field-head'>Tags</span>:");
+         this.el.append("<br/><span class='field-head'>Tags</span>:<span class='ui-icon ui-icon-tag inline'></span>");
          this.$tags = $("<div class='tag-list'></div>")
             .appendTo(this.el);
          this.el.append("<br/>Type new tags, separated by commas<br/>");
@@ -986,6 +989,7 @@ jQuery(function() {
          this.model.tags.bind('all', this.render);
          if (this.model.tags.url && this.model.tags.length == 0)
             this.model.tags.fetch();
+         this.el.append("<span class='ui-icon ui-icon-ingredient inline large'></span>");
          this.$name = $("<span class='dish-name'></span>")
             .appendTo(this.el);
          this.el.append(" ");
@@ -1004,7 +1008,7 @@ jQuery(function() {
          this.el.append("<br/><span class='field-head'>Source</span>: ");
          this.$source= $("<span></span>")
             .appendTo(this.el)
-         this.el.append("<br/><span class='field-head'>Tags</span>:");
+         this.el.append("<br/><span class='field-head'>Tags</span>: <span class='ui-icon ui-icon-tag inline'></span>");
          this.$tags = $("<div class='tag-list'></div>")
             .appendTo(this.el);
          this.el.append("<br/><span class='field-head'>Dishes with this ingredient</span>:");
@@ -1269,7 +1273,7 @@ jQuery(function() {
          view.bind("editIngredient", this.editIngredient);
          this.mainView = view;
          $(window).scrollTop(0);
-         this.el.find(".edit").append(view.render().el);
+         $("#main").append(view.render().el);
          if (view.focus)
             view.focus();
       },
