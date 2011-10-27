@@ -600,7 +600,8 @@ jQuery(function() {
       data.setValue(2,0, 'Carbohydrates');
       data.setValue(2,1, carbs);
       var chart = new google.visualization.PieChart($dest[0]);
-      chart.draw(data, {width: 400, height: 150, title:title});
+      chart.draw(data, {width: 400, height: 150, title:title,
+         colors : ["#459E00", "#B23500", "#770071"]});
    } 
    window.DishEditView = Backbone.View.extend({
       tagName : "div",

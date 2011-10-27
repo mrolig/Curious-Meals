@@ -9,7 +9,7 @@
 			"Rating": 5,
 			"Source": "Mom -- Blue Binder",
 			"ServingsCarb": 0,
-			"ServingsProtein": 0,
+			"ServingsProtein": 0.5,
 			"ServingsVeggies": 0,
 			"Text": ""
 		},
@@ -22,7 +22,7 @@
 			"Rating": 4,
 			"Source": "Binder",
 			"ServingsCarb": 0,
-			"ServingsProtein": 0,
+			"ServingsProtein": 0.5,
 			"ServingsVeggies": 0,
 			"Text": ""
 		},
@@ -34,9 +34,9 @@
 			"CookTimeMinutes": 20,
 			"Rating": 0,
 			"Source": "Shannon -- Blue Binder",
-			"ServingsCarb": 0,
+			"ServingsCarb": 0.5,
 			"ServingsProtein": 0,
-			"ServingsVeggies": 0,
+			"ServingsVeggies": 1,
 			"Text": ""
 		},
 		{
@@ -62,7 +62,7 @@
 			"Source": "Shannon -- Blue Binder",
 			"ServingsCarb": 0,
 			"ServingsProtein": 0,
-			"ServingsVeggies": 0,
+			"ServingsVeggies": 1,
 			"Text": ""
 		},
 		{
@@ -74,7 +74,7 @@
 			"Rating": 0,
 			"Source": "Shannon -- Blue Binder",
 			"ServingsCarb": 0,
-			"ServingsProtein": 0,
+			"ServingsProtein": 1,
 			"ServingsVeggies": 0,
 			"Text": ""
 		},
@@ -88,7 +88,7 @@
 			"Source": "Granny - Blue Binder",
 			"ServingsCarb": 0,
 			"ServingsProtein": 0,
-			"ServingsVeggies": 0,
+			"ServingsVeggies": 2,
 			"Text": ""
 		},
 		{
@@ -99,8 +99,8 @@
 			"CookTimeMinutes": 15,
 			"Rating": 4,
 			"Source": "adapted from Rachel Ray",
-			"ServingsCarb": 0,
-			"ServingsProtein": 0,
+			"ServingsCarb": 1,
+			"ServingsProtein": 0.25,
 			"ServingsVeggies": 0,
 			"Text": ""
 		},
@@ -112,9 +112,9 @@
 			"CookTimeMinutes": 15,
 			"Rating": 0,
 			"Source": "Lindsay -- Blue Binder",
-			"ServingsCarb": 0,
+			"ServingsCarb": 1,
 			"ServingsProtein": 0,
-			"ServingsVeggies": 0,
+			"ServingsVeggies": 1,
 			"Text": ""
 		},
 		{
@@ -127,7 +127,7 @@
 			"Source": "Moosewood Restraunt \"New Classics\" Tilgman Island Stew",
 			"ServingsCarb": 0,
 			"ServingsProtein": 0,
-			"ServingsVeggies": 0,
+			"ServingsVeggies": 2,
 			"Text": ""
 		},
 		{
@@ -139,7 +139,7 @@
 			"Rating": 4,
 			"Source": "Mom - Blue Binder",
 			"ServingsCarb": 0,
-			"ServingsProtein": 0,
+			"ServingsProtein": 1,
 			"ServingsVeggies": 0,
 			"Text": ""
 		},
@@ -153,7 +153,7 @@
 			"Source": "Mooswood Low-Fat Favorites, p 315",
 			"ServingsCarb": 0,
 			"ServingsProtein": 0,
-			"ServingsVeggies": 0,
+			"ServingsVeggies": 2,
 			"Text": ""
 		},
 		{
@@ -178,7 +178,7 @@
 			"Rating": 0,
 			"Source": "Blue Binder",
 			"ServingsCarb": 0,
-			"ServingsProtein": 0,
+			"ServingsProtein": 1,
 			"ServingsVeggies": 0,
 			"Text": ""
 		},
@@ -191,7 +191,7 @@
 			"Rating": 5,
 			"Source": "Blue Binder",
 			"ServingsCarb": 0,
-			"ServingsProtein": 0,
+			"ServingsProtein": 0.5,
 			"ServingsVeggies": 0,
 			"Text": ""
 		},
@@ -204,7 +204,7 @@
 			"Rating": 5,
 			"Source": "Blue Binder",
 			"ServingsCarb": 0,
-			"ServingsProtein": 0,
+			"ServingsProtein": 1,
 			"ServingsVeggies": 0,
 			"Text": ""
 		},
@@ -230,8 +230,8 @@
 			"Rating": 0,
 			"Source": "http://www.lowsodiumcooking.com/free/MexicanChickenStew.htm",
 			"ServingsCarb": 0,
-			"ServingsProtein": 0,
-			"ServingsVeggies": 0,
+			"ServingsProtein": 1,
+			"ServingsVeggies": 2,
 			"Text": ""
 		},
 		{
@@ -243,8 +243,8 @@
 			"Rating": 0,
 			"Source": "Blue Binder",
 			"ServingsCarb": 0,
-			"ServingsProtein": 0,
-			"ServingsVeggies": 0,
+			"ServingsProtein": 1,
+			"ServingsVeggies": 0.5,
 			"Text": ""
 		},
 		{
@@ -294,7 +294,7 @@
 			"CookTimeMinutes": 120,
 			"Rating": 0,
 			"Source": "Blue Binder",
-			"ServingsCarb": 0,
+			"ServingsCarb": 1,
 			"ServingsProtein": 0,
 			"ServingsVeggies": 0,
 			"Text": ""
@@ -307,8 +307,8 @@
 			"CookTimeMinutes": 20,
 			"Rating": 0,
 			"Source": "Ben Tyson -- Blue Binder",
-			"ServingsCarb": 0,
-			"ServingsProtein": 0,
+			"ServingsCarb": 0.5,
+			"ServingsProtein": 1,
 			"ServingsVeggies": 0,
 			"Text": ""
 		},
@@ -320,7 +320,7 @@
 			"CookTimeMinutes": 10,
 			"Rating": 5,
 			"Source": "http://frenchfood.about.com/od/breadandpastry/r/waffles.htm",
-			"ServingsCarb": 0,
+			"ServingsCarb": 1,
 			"ServingsProtein": 0,
 			"ServingsVeggies": 0,
 			"Text": ""
@@ -333,7 +333,7 @@
 			"CookTimeMinutes": 0,
 			"Rating": 0,
 			"Source": "Blue Binder",
-			"ServingsCarb": 0,
+			"ServingsCarb": 1,
 			"ServingsProtein": 0,
 			"ServingsVeggies": 0,
 			"Text": ""
@@ -346,9 +346,9 @@
 			"CookTimeMinutes": 20,
 			"Rating": 3,
 			"Source": "Mooswood \"New Classics\"",
-			"ServingsCarb": 0,
-			"ServingsProtein": 0,
-			"ServingsVeggies": 0,
+			"ServingsCarb": 1,
+			"ServingsProtein": 0.75,
+			"ServingsVeggies": 0.5,
 			"Text": ""
 		},
 		{
@@ -359,9 +359,9 @@
 			"CookTimeMinutes": 35,
 			"Rating": 0,
 			"Source": "http://simplyrecipes.com/recipes/asparagus_risotto/",
-			"ServingsCarb": 0,
-			"ServingsProtein": 0,
-			"ServingsVeggies": 0,
+			"ServingsCarb": 1,
+			"ServingsProtein": 0.25,
+			"ServingsVeggies": 1,
 			"Text": ""
 		},
 		{
@@ -372,9 +372,9 @@
 			"CookTimeMinutes": 30,
 			"Rating": 5,
 			"Source": "Seductions of Rice",
-			"ServingsCarb": 0,
-			"ServingsProtein": 0,
-			"ServingsVeggies": 0,
+			"ServingsCarb": 1,
+			"ServingsProtein": 0.5,
+			"ServingsVeggies": 0.25,
 			"Text": ""
 		},
 		{
@@ -398,9 +398,9 @@
 			"CookTimeMinutes": 40,
 			"Rating": 4,
 			"Source": "Seductions of Rice p 280",
-			"ServingsCarb": 0,
+			"ServingsCarb": 1,
 			"ServingsProtein": 0,
-			"ServingsVeggies": 0,
+			"ServingsVeggies": 1,
 			"Text": ""
 		},
 		{
@@ -413,7 +413,7 @@
 			"Source": "Grandma Kay -- Blue Binder",
 			"ServingsCarb": 0,
 			"ServingsProtein": 0,
-			"ServingsVeggies": 0,
+			"ServingsVeggies": 2,
 			"Text": ""
 		},
 		{
@@ -439,7 +439,7 @@
 			"Source": "blue binder",
 			"ServingsCarb": 0,
 			"ServingsProtein": 0,
-			"ServingsVeggies": 0,
+			"ServingsVeggies": 1,
 			"Text": ""
 		},
 		{
@@ -450,9 +450,9 @@
 			"CookTimeMinutes": 0,
 			"Rating": 0,
 			"Source": "Blue Binder",
-			"ServingsCarb": 0,
-			"ServingsProtein": 0,
-			"ServingsVeggies": 0,
+			"ServingsCarb": 0.75,
+			"ServingsProtein": 0.75,
+			"ServingsVeggies": 0.5,
 			"Text": ""
 		},
 		{
@@ -464,8 +464,8 @@
 			"Rating": 0,
 			"Source": "Shannon -- Blue Binder",
 			"ServingsCarb": 0,
-			"ServingsProtein": 0,
-			"ServingsVeggies": 0,
+			"ServingsProtein": 0.75,
+			"ServingsVeggies": 1,
 			"Text": ""
 		},
 		{
@@ -476,8 +476,73 @@
 			"CookTimeMinutes": 45,
 			"Rating": 5,
 			"Source": "http://www.foodnetwork.com/recipes/wolfgang-puck/roasted-root-vegetable-medley-recipe/index.html",
+			"ServingsCarb": 1,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 2,
+			"Text": ""
+		},
+		{
+			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGLQFDA",
+			"Name": "Steamed Broccoli",
+			"DishType": "Side",
+			"PrepTimeMinutes": 5,
+			"CookTimeMinutes": 10,
+			"Rating": 5,
+			"Source": "",
 			"ServingsCarb": 0,
 			"ServingsProtein": 0,
+			"ServingsVeggies": 2,
+			"Text": ""
+		},
+		{
+			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGLoFDA",
+			"Name": "Sauteed Green Beans",
+			"DishType": "Side",
+			"PrepTimeMinutes": 10,
+			"CookTimeMinutes": 10,
+			"Rating": 5,
+			"Source": "",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 2,
+			"Text": ""
+		},
+		{
+			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGMwFDA",
+			"Name": "Tomato Sauce",
+			"DishType": "Sauce",
+			"PrepTimeMinutes": 10,
+			"CookTimeMinutes": 10,
+			"Rating": 5,
+			"Source": "",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0.5,
+			"Text": ""
+		},
+		{
+			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGN4FDA",
+			"Name": "Bread",
+			"DishType": "Side",
+			"PrepTimeMinutes": 0,
+			"CookTimeMinutes": 0,
+			"Rating": 5,
+			"Source": "",
+			"ServingsCarb": 1,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
+		},
+		{
+			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGOIFDA",
+			"Name": "Cheese Ravioli",
+			"DishType": "Entree",
+			"PrepTimeMinutes": 0,
+			"CookTimeMinutes": 5,
+			"Rating": 5,
+			"Source": "",
+			"ServingsCarb": 1,
+			"ServingsProtein": 0.5,
 			"ServingsVeggies": 0,
 			"Text": ""
 		},
@@ -1044,8 +1109,8 @@
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GNQFDA",
-			"Name": "Tomato Paste",
-			"Category": "Vegetable",
+			"Name": "Basil",
+			"Category": "Herb",
 			"Source": "Vegan"
 		},
 		{
@@ -2964,6 +3029,15 @@
 				"Order": 7
 			}
 		],
+		"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGLQFDA": [
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyMQsSB0xpYnJhcnkYAQwLEgREaXNoGLQFDAsSEk1lYXN1cmVkSW5ncmVkaWVudBi5BQw",
+				"Ingredient": "ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GPMEDA",
+				"Amount": "1 crown",
+				"Instruction": "",
+				"Order": 0
+			}
+		],
 		"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGLUBDA": [
 			{
 				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyMQsSB0xpYnJhcnkYAQwLEgREaXNoGLUBDAsSEk1lYXN1cmVkSW5ncmVkaWVudBjECQw",
@@ -3122,6 +3196,15 @@
 				"Order": 12
 			}
 		],
+		"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGLoFDA": [
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyMQsSB0xpYnJhcnkYAQwLEgREaXNoGLoFDAsSEk1lYXN1cmVkSW5ncmVkaWVudBjBBQw",
+				"Ingredient": "ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GNAEDA",
+				"Amount": "",
+				"Instruction": "",
+				"Order": 0
+			}
+		],
 		"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGLwBDA": [
 			{
 				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyMQsSB0xpYnJhcnkYAQwLEgREaXNoGLwBDAsSEk1lYXN1cmVkSW5ncmVkaWVudBiiCAw",
@@ -3215,6 +3298,43 @@
 				"Amount": "4 cups",
 				"Instruction": "all-purpose",
 				"Order": 7
+			}
+		],
+		"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGMwFDA": [
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyMQsSB0xpYnJhcnkYAQwLEgREaXNoGMwFDAsSEk1lYXN1cmVkSW5ncmVkaWVudBjRBQw",
+				"Ingredient": "ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GJ0EDA",
+				"Amount": "30oz can",
+				"Instruction": "",
+				"Order": 0
+			},
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyMQsSB0xpYnJhcnkYAQwLEgREaXNoGMwFDAsSEk1lYXN1cmVkSW5ncmVkaWVudBjSBQw",
+				"Ingredient": "ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GOcCDA",
+				"Amount": "",
+				"Instruction": "",
+				"Order": 1
+			},
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyMQsSB0xpYnJhcnkYAQwLEgREaXNoGMwFDAsSEk1lYXN1cmVkSW5ncmVkaWVudBjTBQw",
+				"Ingredient": "ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GNkCDA",
+				"Amount": "",
+				"Instruction": "",
+				"Order": 2
+			},
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyMQsSB0xpYnJhcnkYAQwLEgREaXNoGMwFDAsSEk1lYXN1cmVkSW5ncmVkaWVudBjcBQw",
+				"Ingredient": "ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GNQFDA",
+				"Amount": "",
+				"Instruction": "",
+				"Order": 3
+			},
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyMQsSB0xpYnJhcnkYAQwLEgREaXNoGMwFDAsSEk1lYXN1cmVkSW5ncmVkaWVudBjdBQw",
+				"Ingredient": "ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GOEFDA",
+				"Amount": "",
+				"Instruction": "optional, grated",
+				"Order": 4
 			}
 		],
 		"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGN8BDA": [
@@ -3545,6 +3665,22 @@
 				"Amount": "1/4 cup",
 				"Instruction": "",
 				"Order": 13
+			}
+		],
+		"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGOIFDA": [
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyMQsSB0xpYnJhcnkYAQwLEgREaXNoGOIFDAsSEk1lYXN1cmVkSW5ncmVkaWVudBjnBQw",
+				"Ingredient": "ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GJIFDA",
+				"Amount": "",
+				"Instruction": "",
+				"Order": 0
+			},
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyMQsSB0xpYnJhcnkYAQwLEgREaXNoGOIFDAsSEk1lYXN1cmVkSW5ncmVkaWVudBjoBQw",
+				"Ingredient": "ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GNwFDA",
+				"Amount": "",
+				"Instruction": "",
+				"Order": 1
 			}
 		],
 		"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGOcBDA": [
@@ -4391,6 +4527,10 @@
 			{
 				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyKQsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GNQFDAsSBFRhZ3MY2AUM",
 				"Word": "Canned"
+			},
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyKQsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GNQFDAsSBFRhZ3MY2wUM",
+				"Word": "Herb"
 			}
 		],
 		"ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GNUCDA": [
@@ -4583,6 +4723,13 @@
 		]
 	},
 	"Pairings": {
+		"ag9kZXZ-bWVhbHBsYW5uZXJyFwsSB0xpYnJhcnkYAQwLEgREaXNoGGMM": [
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyJQsSB0xpYnJhcnkYAQwLEgREaXNoGGMMCxIHUGFpcmluZxjqBQw",
+				"Other": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGLQFDA",
+				"Description": "Alternative"
+			}
+		],
 		"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGIUBDA": [
 			{
 				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyJgsSB0xpYnJhcnkYAQwLEgREaXNoGIUBDAsSB1BhaXJpbmcYogUM",
@@ -4596,9 +4743,26 @@
 				"Other": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGIUBDA",
 				"Description": "Alternative"
 			}
+		],
+		"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGLQFDA": [
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyJgsSB0xpYnJhcnkYAQwLEgREaXNoGLQFDAsSB1BhaXJpbmcY6QUM",
+				"Other": "ag9kZXZ-bWVhbHBsYW5uZXJyFwsSB0xpYnJhcnkYAQwLEgREaXNoGGMM",
+				"Description": "Alternative"
+			}
 		]
 	},
 	"Menus": [
+		{
+			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgRNZW51GOsFDA",
+			"Name": "Ravioli Dinner",
+			"Dishes": [
+				"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGN4FDA",
+				"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGOIFDA",
+				"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGLQFDA",
+				"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGMwFDA"
+			]
+		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgRNZW51GO8JDA",
 			"Name": "\u003cNew Menu\u003e",
