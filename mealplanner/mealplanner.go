@@ -85,6 +85,10 @@ func dishHandler(c *context) {
 		wordHandler(c, "Keyword")
 		return
 	}
+	if strings.Contains(c.r.URL.Path, "/pairing/") {
+		pairingHandler(c)
+		return
+	}
 	handler := newDataHandler(c, "Dish")
 	id := getID(c.r)
 	if len(id) == 0 {
@@ -311,6 +315,61 @@ func wordHandler(c *context, kind string) {
 	}
 }
 
+func pairingHandler(c *context) {
+	kind := "Pairing"
+	handler := newDataHandler(c, kind)
+	id := getID(c.r)
+	parentKey,err := datastore.DecodeKey(getParentID(c.r))
+	check(err)
+	c.checkUser(parentKey)
+	if len(id) == 0 {
+		switch c.r.Method {
+		case "GET":
+			query := c.NewQuery(kind).Ancestor(parentKey)
+			pairs := make([]Pairing, 0, 20)
+			keys, err := query.GetAll(handler.c, &pairs)
+			check(err)
+			for index, _ := range pairs {
+				pairs[index].SetID(keys[index])
+			}
+			sendJSON(handler.w, pairs)
+		case "POST":
+			pairing := Pairing{}
+			handler.createEntry(&pairing, parentKey)
+			// create the matching entry
+			other := pairing.Other
+			newPairKey := datastore.NewKey(c.c, kind, "",0,other)
+			pairing.Other = parentKey
+			pairing.Id = nil
+			newPairKey, err := datastore.Put(c.c, newPairKey, &pairing)
+			check(err)
+		}
+		return
+	}
+	key, err := datastore.DecodeKey(id)
+	check(err)
+	handler.checkUser(key)
+	pairing := Pairing{}
+	switch c.r.Method {
+	case "GET":
+		handler.get(key, &pairing)
+	case "PUT":
+		// can't modify a pairing, only add/remove
+		check(ErrUnsupported)
+	case "DELETE":
+		err = datastore.Get(c.c, key, &pairing)
+		check(err)
+		otherParent := pairing.Other
+		query := datastore.NewQuery(kind).Ancestor(otherParent).Filter("Other=", parentKey).Filter("Description=",pairing.Description).KeysOnly()
+		keys, err:= query.GetAll(c.c, nil)
+		check(err)
+		handler.delete(key)
+		for _, otherKey := range keys {
+			handler.delete(otherKey)
+		}
+	}
+}
+
 func ingredientHandler(c *context) {
 	if strings.Contains(c.r.URL.Path, "/in/") {
 		dishesForIngredientHandler(c)
@@ -330,6 +389,10 @@ func ingredientHandler(c *context) {
 	}
 	if strings.Contains(c.r.URL.Path, "/keywords/") {
 		wordHandler(c, "Keyword")
+		return
+	}
+	if strings.Contains(c.r.URL.Path, "/pairing/") {
+		pairingHandler(c)
 		return
 	}
 	handler := newDataHandler(c, "Ingredient")
@@ -418,6 +481,7 @@ func getParentID(r *http.Request) string {
 
 var (
 	ErrUnknownItem = os.NewError("Unknown item")
+	ErrUnsupported = os.NewError("Unsupported action")
 )
 
 type Ided interface {

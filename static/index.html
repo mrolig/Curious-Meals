@@ -17,25 +17,27 @@
    <div id="app">
       <div id="user">
       </div>
-      <div class="sidebar">
+      <table class='main'>
+      <tr>
+      <td class="sidebar">
       <div>
-		<input type="text" id="search" class="ui-widget"></input>
-		<input type="button" id="doSearch" value="Search"></input><br/>
       <div class='add-dish'>Add Dish</div>
       <div class='add-ingredient'>Add Ingredient</div>
       </div>
 		<div id="side-tabs">
       <ul>
+         <li><a href="#search-tab"><span class='ui-icon ui-icon-search'></span></a></li>
          <li><a href="#dishes">Dishes</a></li>
          <li><a href="#ingredients">Ingredients</a></li>
          <li><a href="#tags-tab">Tags</a></li>
       </ul>
-      <div id="dishes">
-         
+      <div id="search-tab">
+		   <input type="text" id="search" class="ui-widget"></input>
+		   <input type="button" id="doSearch" value="Search"></input>
+         <div id="search-results"></div>
       </div>
-      <div id="ingredients">
-         
-      </div>
+      <div id="dishes"></div>
+      <div id="ingredients"></div>
       <div id="tags-tab">
       <ul id="tags">
          
@@ -49,9 +51,11 @@
 		Restore:<br/><input type="file" name="restore-file" id="restore-file"></input>
       </div>
 		</form>
-      </div>
-      <div class="edit">
-      </div>
+      </td>
+      <td class="edit">
+      </td>
+      </tr>
+   </table>
    </div>
 </body>
 </html>
