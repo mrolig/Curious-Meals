@@ -2,6 +2,105 @@ google.load("visualization", "1", {packages:["corechart"]});
 
 jQuery(function() {
    "use strict";
+   function ServingDisplay(model, field, $parent, onChange) {
+      this.value = model.get(field);
+      this.model = model;
+      this.field = field;
+      this.onChange = onChange;
+      this.$div = $("<div class='serving'></div>")
+         .appendTo($parent);
+      this.inc = this.inc.bind(this);
+      this.sub = this.sub.bind(this);
+      this.$span = $("<div class='serving-value'></div>")
+         .appendTo(this.$div)
+         .html(this.htmlValue(this.value));
+      if (onChange) {
+         var $plus = $("<span class='ui-icon ui-icon-plus inline'></span>")
+            .appendTo(this.$div)
+            .hide()
+            .click(this.inc);
+         var $minus = $("<span class='ui-icon ui-icon-minus inline'></span>")
+            .appendTo(this.$div)
+            .hide()
+            .click(this.sub);
+         this.$div.hover(function() {
+               $plus.show();
+               $minus.show();
+            }, function() {
+               $plus.hide();
+               $minus.hide();
+            });
+      }
+   }
+   ServingDisplay.prototype.htmlValue = function(value) {
+      if (value == 0)
+         return "0";
+      if (value <= 0.26)
+         return "&frac14;";
+      if (value <= 0.34)
+         return "&frac13;";
+      if (value <= 0.5)
+         return "&frac12;";
+      if (value <= 0.67)
+         return "&frac23;";
+      if (value <= 0.76)
+         return "&frac34;";
+      var intPart = parseInt(value);
+      var fracPart = value - intPart;
+      if (fracPart < 0.1)
+         return "" + intPart;
+      return "" + intPart + this.htmlValue(fracPart);
+   }
+   ServingDisplay.prototype.sub = function() {
+      var val = this.value;
+      var intPart = parseInt(val);
+      var fracPart = val - intPart;
+      if (fracPart > 0.7) {
+         val = intPart + 0.5;
+      } else if (fracPart > 0.45) {
+         val = intPart + 0.25;
+      } else if (fracPart > 0.2) {
+         val = intPart;
+      } else {
+         val = (intPart-1)+0.75;
+      }
+      if (val < 0)
+         val = 0;
+      this.val(val);
+   }
+   ServingDisplay.prototype.inc = function() {
+      var val = this.value;
+      var intPart = parseInt(val);
+      var fracPart = val - intPart;
+      if (fracPart < 0.2) {
+         val = intPart + 0.25;
+      } else if (fracPart < 0.49) {
+         val = intPart + 0.5;
+      } else if (fracPart < 0.7) {
+         val = intPart + 0.75;
+      } else {
+         val = intPart + 1;
+      }
+      if (val > 3)
+         val = 3;
+      this.val(val);
+   }
+   ServingDisplay.prototype.val = function(newVal) {
+      if (newVal == undefined)
+         return this.value;
+      if (newVal == NaN || newVal < 0)
+         this.value = 0;
+      else
+         this.value = newVal;
+      if (this.value != this.model.get(this.field))
+      {
+         this.$span.html(this.htmlValue(this.value));
+         var vals = {};
+         vals[this.field] = this.value;
+         this.model.set(vals);
+         this.onChange();
+      }
+   }
    function makeCombo($autocomplete) {
       $autocomplete
          .addClass("ui-widget")
@@ -127,7 +226,12 @@ jQuery(function() {
          PrepTimeMinutes : 0,
          CookTimeMinutes : 0,
          Rating : 0,
-         Source : "" };
+         Source : "",
+         Text : "",
+         ServingsCarb : 0,
+         ServingsProtein : 0,
+         ServingsVeggies : 0
+       };
       },
       parse : function(response) {
          var attrs = Backbone.Model.prototype.parse.call(this, response);
@@ -484,15 +588,15 @@ jQuery(function() {
          this.render();
       }
    }
-   function drawChart($dest, title, veggies, protien, carbs) {
+   function drawChart($dest, title, veggies, protein, carbs) {
       var data = new google.visualization.DataTable();
       data.addColumn('string', 'Type');
       data.addColumn('number', 'Servings');
       data.addRows(3);
       data.setValue(0,0, 'Fruits/Veggies');
       data.setValue(0,1, veggies);
-      data.setValue(1,0, 'Protien');
-      data.setValue(1,1, protien);
+      data.setValue(1,0, 'Protein');
+      data.setValue(1,1, protein);
       data.setValue(2,0, 'Carbohydrates');
       data.setValue(2,1, carbs);
       var chart = new google.visualization.PieChart($dest[0]);
@@ -503,7 +607,8 @@ jQuery(function() {
       className : "dish-edit",
       events : {
         "change input" : "onChange",
-        "autocompletechange input" : "onChange"
+        "autocompletechange input" : "onChange",
+        "slidestop *" : "onChange"
       },
       initialize: function() {
          this.el = $(this.el);
@@ -578,7 +683,27 @@ jQuery(function() {
          this.el.append(" minutes<br/><span class='field-head'>Cook time</span>: ");
          this.$cookTime = $("<input class='ui-widget' type='text'></input>")
             .appendTo(this.el);
-         this.el.append(" minutes<br/><span class='field-head'>Tags</span>:<span class='ui-icon ui-icon-tag inline'></span>");
+         this.el.append(" minutes<br/><span class='field-head'>Breakdown of a single serving</span>");
+         var $breakdown = $("<table class='breakdown'></table>")
+            .appendTo(this.el);
+         var $tr = $("<tr><td>Fruits and Vegetables</td></tr>")
+            .appendTo($breakdown);
+         var $td = $("<td></td>")
+            .appendTo($tr);
+
+         this.veggies = new ServingDisplay(this.model, "ServingsVeggies", $td, this.onChange);
+         $tr = $("<tr><td>Protein</td></tr>")
+            .appendTo($breakdown);
+         $td = $("<td></td>")
+            .appendTo($tr);
+         this.proteins = new ServingDisplay(this.model, "ServingsProtein", $td, this.onChange);
+         $tr = $("<tr><td>Carbohydrates</td></tr>")
+            .appendTo($breakdown);
+         $td = $("<td></td>")
+            .appendTo($tr);
+         this.carbs = new ServingDisplay(this.model, "ServingsCarb", $td, this.onChange);
+         
+         this.el.append("<span class='field-head'>Tags</span>:<span class='ui-icon ui-icon-tag inline'></span>");
          this.$tags = $("<div class='tag-list'></div>")
             .appendTo(this.el);
          this.el.append("<br/>Type new tags, separated by commas<br/>");
@@ -618,6 +743,10 @@ jQuery(function() {
 					hoverClass : "ui-state-highlight drop-accept",
 					drop: this.newPairing
 				});
+			this.el.append("<br/><span class='field-head'>Text</span>:<br/>"); 
+         this.$text = $("<textarea cols='80' rows='10'></textarea>")
+            .appendTo(this.el)
+            .change(this.onChange);
             
          if (!this.model.id)
             this.save();
@@ -648,6 +777,9 @@ jQuery(function() {
             else
                this.$stars.eq(i).addClass("disabled");
          }
+         this.veggies.val(this.model.get("ServingsVeggies"));
+         this.carbs.val(this.model.get("ServingsCarb"));
+         this.proteins.val(this.model.get("ServingsProtein"));
          var self = this;
          renderTags(this.$tags, this.model.tags);
          this.ingredients.gen++;
@@ -713,6 +845,7 @@ jQuery(function() {
          }
          renderPairings(this.$pairings, this.model.pairings,
 				window.Dishes);
+         this.$text.val(this.model.get("Text"));
          return this;
       },
       focus : function() {
@@ -729,7 +862,7 @@ jQuery(function() {
                   error : this.saveError,
                   success : this.saveSuccess
                });
-            if (this.model.ingredients.url)
+            /*if (this.model.ingredients.url)
             {
                var self = this;
                this.model.ingredients.each(function(mi) {
@@ -750,7 +883,7 @@ jQuery(function() {
                         success : self.saveSuccess
                      });
                   });
-            }
+            }*/
          }
          else if (this.$error.is(":hidden"))
          {
@@ -778,7 +911,8 @@ jQuery(function() {
             "DishType": this.$type.val(),
             "PrepTimeMinutes": parseInt(this.$prepTime.val()),
             "CookTimeMinutes": parseInt(this.$cookTime.val()),
-            "Source": this.$source.val()
+            "Source": this.$source.val(),
+            "Text" : this.$text.val()
             });
          var $trs = this.$mi.find("tr.ingredient");
          for (var i = 0; i < $trs.length; i++)
@@ -788,8 +922,12 @@ jQuery(function() {
             var model = this.model.ingredients.get(id);
             var $amount = $tr.find("input").eq(0);
             var $instruction = $tr.find("input").eq(1);
-            model.set({"Amount" : $amount.val(),
-                        "Instruction" : $instruction.val()});
+            if (model.get("Amount") != $amount.val()
+               || model.get("Instruction") != $instruction.val())
+            {
+               model.save({"Amount" : $amount.val(),
+                           "Instruction" : $instruction.val()});
+            }
          }
          this.parseTags();
          this.addIngredient(true);
@@ -885,7 +1023,27 @@ jQuery(function() {
          this.el.append(" minutes<br/><span class='field-head'>Cook time</span>: ");
          this.$cookTime = $("<span class='dish-time'></span>")
             .appendTo(this.el);
-         this.el.append(" minutes<br/><span class='field-head'>Tags</span>:<span class='ui-icon ui-icon-tag inline'></span>");
+         this.el.append(" minutes<br/><span class='field-head'>Breakdown of a single serving</span>");
+         var $breakdown = $("<table class='breakdown'></table>")
+            .appendTo(this.el);
+         var $tr = $("<tr><td>Fruits and Vegetables</td></tr>")
+            .appendTo($breakdown);
+         var $td = $("<td></td>")
+            .appendTo($tr);
+
+         this.veggies = new ServingDisplay(this.model, "ServingsVeggies", $td);
+         $tr = $("<tr><td>Protein</td></tr>")
+            .appendTo($breakdown);
+         $td = $("<td></td>")
+            .appendTo($tr);
+         this.proteins = new ServingDisplay(this.model, "ServingsProtein", $td);
+         $tr = $("<tr><td>Carbohydrates</td></tr>")
+            .appendTo($breakdown);
+         $td = $("<td></td>")
+            .appendTo($tr);
+         this.carbs = new ServingDisplay(this.model, "ServingsCarb", $td);
+
+         this.el.append("<span class='field-head'>Tags</span>:<span class='ui-icon ui-icon-tag inline'></span>");
          this.$tags = $("<div class='tag-list'></div>")
             .appendTo(this.el);
          this.$mi = $("<table class='ingredients'><tr><th>Ingredient</th><th>Amount</th><th>Notes</th><th></th></tr></table>")
@@ -905,7 +1063,9 @@ jQuery(function() {
 					hoverClass : "ui-state-highlight drop-accept",
 					drop: this.newPairing
 				});
-            
+         this.el.append("<br/>");
+         this.$text = $("<div class='text'></div>")
+            .appendTo(this.el); 
       },
       render : function() {
          var self = this;
@@ -921,6 +1081,9 @@ jQuery(function() {
          this.$type.text(this.model.get("DishType"));
          this.$prepTime.text(this.model.get("PrepTimeMinutes"));
          this.$cookTime.text(this.model.get("CookTimeMinutes"));
+         this.veggies.val(this.model.get("ServingsVeggies"));
+         this.carbs.val(this.model.get("ServingsCarb"));
+         this.proteins.val(this.model.get("ServingsProtein"));
          var source = this.model.get("Source");
          if (source.indexOf("http://") == 0 ||
             source.indexOf("https://") == 0)
@@ -963,6 +1126,13 @@ jQuery(function() {
          });
          renderPairings(this.$pairings, this.model.pairings,
 				window.Dishes);
+         this.$text.html("");
+         var lines = this.model.get("Text").split("\n");
+         for (var l in lines) {
+            var text = document.createTextNode(lines[l]);
+            this.$text.append(text);
+            this.$text.append("<br>");
+         }
          return this;
       },
       del : function() {
@@ -1223,8 +1393,12 @@ jQuery(function() {
             .appendTo(this.el)
             .hide();
          this.el.append("<br/><br/>");
-         this.$targetChart = $("<div class='menu-chart'></div>")
+         var $charts = $("<div class='menu-chart'></div>")
             .appendTo(this.el);
+         this.$menuChart = $("<div></div>")
+            .appendTo($charts);
+         this.$targetChart = $("<div></div>")
+            .appendTo($charts);
          this.$dishes = $("<ul class='dish-list'></ul>")
             .appendTo(this.el);
 			this.$dishDrop = $("<div class='dish-drop ui-widget-content'>Drag dishes here to add to the menu.</div>")
@@ -1237,11 +1411,6 @@ jQuery(function() {
       },
       render : function() {
          var self = this;
-         // delay chart drawing, because it fails if the
-         //  element isn't rooted in the document yet
-         setTimeout( function() {
-            drawChart(self.$targetChart, "Target Balance", 0.5, 0.25, 0.25);
-            }, 10);
          var name = this.model.get("Name");
          this.$name.text(name);
 			document.title = name;
@@ -1261,30 +1430,41 @@ jQuery(function() {
          dishes = _.sortBy(dishes, function(dish) {
                return dish.get("Name");
             });
+         var veggies = 0;
+         var protein = 0;
+         var carbs = 0;
          _.each(dishes, function(dish) {
-               var $li = $("<li class='dish'><span class='ui-icon inline ui-icon-dish'></span></li>")
-                  .appendTo(self.$dishes)
-                  .draggable({revert:true,helper:'clone'});
-               var name = dish.get("Name");
-               $("<a></a>")
-                     .appendTo($li)
-                     .text(name)
-                     [0].href = "#viewDish/" + dish.id;
-			      $li[0].model = dish;
-               var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
+            var $li = $("<li class='dish'><span class='ui-icon inline ui-icon-dish'></span></li>")
+               .appendTo(self.$dishes)
+               .draggable({revert:true,helper:'clone'});
+            var name = dish.get("Name");
+            $("<a></a>")
                   .appendTo($li)
-                  .click(function () {
-                        self.model.removeDish(dish);
-                        self.render();
-                     })
-                  .hide();
-               $li.hover(function() {
-                     $delTag.show();
-                  }, function() {
-                     $delTag.hide();
-                  });
-               
+                  .text(name)
+                  [0].href = "#viewDish/" + dish.id;
+			   $li[0].model = dish;
+            var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
+               .appendTo($li)
+               .click(function () {
+                     self.model.removeDish(dish);
+                     self.render();
+                  })
+               .hide();
+            $li.hover(function() {
+                  $delTag.show();
+               }, function() {
+                  $delTag.hide();
+               });
+            veggies += dish.get("ServingsVeggies");  
+            protein += dish.get("ServingsProtein");  
+            carbs += dish.get("ServingsCarb");  
          });
+         // delay chart drawing, because it fails if the
+         //  element isn't rooted in the document yet
+         setTimeout( function() {
+            drawChart(self.$menuChart, "Menu Balance", veggies, protein, carbs);
+            drawChart(self.$targetChart, "Target Balance", 2, 1, 1);
+            }, 10);
          return this;
       },
       del : function() {

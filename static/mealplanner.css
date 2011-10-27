@@ -118,3 +118,14 @@ ul.dish-list, ul.ingredient-list, ul.pairing-list, ul.menu-list{
 .menu-chart {
    float: right;
 }
+div.serving {
+   padding-right: 5px;
+   font-size: 16px;
+}
+div.serving .ui-icon {
+   vertical-align: top;
+}
+div.serving-value {
+   display: inline-block;
+   width: 2em;
+}

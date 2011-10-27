@@ -12,6 +12,10 @@ type Dish struct {
 	CookTimeMinutes int
 	Rating          int
 	Source          string
+	ServingsCarb    float32
+	ServingsProtein float32
+	ServingsVeggies float32
+	Text				 string
 }
 
 type MeasuredIngredient struct {
