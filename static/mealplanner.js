@@ -1,3 +1,5 @@
+google.load("visualization", "1", {packages:["corechart"]});
+
 jQuery(function() {
    "use strict";
    function makeCombo($autocomplete) {
@@ -482,6 +484,20 @@ jQuery(function() {
          this.render();
       }
    }
+   function drawChart($dest, title, veggies, protien, carbs) {
+      var data = new google.visualization.DataTable();
+      data.addColumn('string', 'Type');
+      data.addColumn('number', 'Servings');
+      data.addRows(3);
+      data.setValue(0,0, 'Fruits/Veggies');
+      data.setValue(0,1, veggies);
+      data.setValue(1,0, 'Protien');
+      data.setValue(1,1, protien);
+      data.setValue(2,0, 'Carbohydrates');
+      data.setValue(2,1, carbs);
+      var chart = new google.visualization.PieChart($dest[0]);
+      chart.draw(data, {width: 400, height: 150, title:title});
+   } 
    window.DishEditView = Backbone.View.extend({
       tagName : "div",
       className : "dish-edit",
@@ -1206,6 +1222,9 @@ jQuery(function() {
             .click(this.clearMenu)
             .appendTo(this.el)
             .hide();
+         this.el.append("<br/><br/>");
+         this.$targetChart = $("<div class='menu-chart'></div>")
+            .appendTo(this.el);
          this.$dishes = $("<ul class='dish-list'></ul>")
             .appendTo(this.el);
 			this.$dishDrop = $("<div class='dish-drop ui-widget-content'>Drag dishes here to add to the menu.</div>")
@@ -1218,6 +1237,11 @@ jQuery(function() {
       },
       render : function() {
          var self = this;
+         // delay chart drawing, because it fails if the
+         //  element isn't rooted in the document yet
+         setTimeout( function() {
+            drawChart(self.$targetChart, "Target Balance", 0.5, 0.25, 0.25);
+            }, 10);
          var name = this.model.get("Name");
          this.$name.text(name);
 			document.title = name;

@@ -114,3 +114,7 @@ ul.dish-list, ul.ingredient-list, ul.pairing-list, ul.menu-list{
 .menu-active, .ui-widget-content .menu-active, .ui-widget-header .menu-active { border: 1px solid #d4ccb0; background: #fafaf4 url(images/ui-bg_highlight-hard_100_fafaf4_1x100.png) 50% 50% repeat-x; font-weight: bold; color: #459e00; }
 .menu-active a, .menu-active a:link, .menu-active a:visited { color: #459e00; text-decoration: none; }
 .menu-active .ui-icon {background-image: url(images/ui-icons_8dc262_256x240.png); }
+
+.menu-chart {
+   float: right;
+}
