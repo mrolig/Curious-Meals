@@ -499,6 +499,7 @@ jQuery(function() {
          _.bindAll(this, "saveError");
          _.bindAll(this, "onChange");
          _.bindAll(this, "newPairing");
+         _.bindAll(this, "toggleMenu");
          this.model.bind('all', this.render);
          this.model.ingredients.bind('all', this.render);
          this.model.tags.bind('all', this.render);
@@ -514,6 +515,13 @@ jQuery(function() {
          this.$name = $("<input class='name ui-widget' type='text'></input>")
             .appendTo(this.el);
          this.el.append(" ");
+         this.$menu = $("<button value='menu' title='Add to menu'>&nbsp;</button>")
+            .button({
+               icons : {primary:'ui-icon-arrowthick-1-e', secondary:'ui-icon-menu'},
+               text : false
+            })
+            .click(this.toggleMenu)
+            .appendTo(this.el);
          //  grey-out Save button when already saved (hasChanged == false)
          this.$save = $("<input class='save' type='button' value='Save'></input>")
             .button({disabled: true, label: "Saved"})
@@ -600,6 +608,13 @@ jQuery(function() {
       },
       render : function() {
          var self = this;
+         if (Menus.getDraftMenu().hasDish(this.model)) {
+            this.$menu.addClass("menu-active");
+            this.$menu.button("option", "icons", {primary:'ui-icon-arrowthick-1-w', secondary:'ui-icon-menu'});
+         } else {
+            this.$menu.removeClass("menu-active");
+            this.$menu.button("option", "icons", {primary:'ui-icon-arrowthick-1-e', secondary:'ui-icon-menu'});
+         }
          if (this.dirty) {
             this.$save.button({disabled : false, label: "Save"}); 
          }
@@ -766,6 +781,7 @@ jQuery(function() {
          setTimeout(this.save, 5000);
       },
       parseTags : parseTags,
+      toggleMenu : toggleMenu,
       addIngredient : function(fromChangeHandler) {
          if (this.$addIngredient.val()) {
             var newName = this.$addIngredient.val();
@@ -1260,7 +1276,7 @@ jQuery(function() {
       },
       cloneMenu : function() {
          var self = this;
-         var $dialog = $("<div><input type='text' size='50'></input></div>")
+         var $dialog = $("<div><input type='text' size='30'></input></div>")
             .appendTo(this.el)
             .dialog({
                modal: true,

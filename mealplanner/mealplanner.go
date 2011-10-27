@@ -730,6 +730,7 @@ type backup struct {
 	MeasuredIngredients map[string][]MeasuredIngredient
 	Tags map[string][]Word
 	Pairings map[string][]Pairing
+	Menus []Menu
 }
 
 func backupHandler(c *context) {
@@ -801,6 +802,13 @@ func backupHandler(c *context) {
 		if len(pairings) > 0 {
 			b.Pairings[key.Encode()] = pairings
 		}
+	}
+	query = c.NewQuery("Menu")
+	keys, err = query.GetAll(c.c, &b.Menus)
+	check(err)
+	for index, _ := range b.Menus {
+		key := keys[index]
+		b.Menus[index].SetID(key)
 	}
 	sendJSONIndent(c.w, b)
 }
@@ -887,6 +895,18 @@ func restore(tc appengine.Context, c *context) os.Error {
 			}
 			_, err = datastore.Put(tc, t.Id, &t)
 			check(err)
+		}
+	}
+	// add all the menus
+	for _, m := range data.Menus {
+		key := restoreKey(tc, c, m.Id, fixUpKeys)
+		for index, dishKey := range m.Dishes {
+			m.Dishes[index] = restoreKey(tc, c, dishKey, fixUpKeys)
+		}
+		newKey, err := datastore.Put(tc, key, &m)
+		check(err)
+		if !m.Id.Eq(newKey) {
+			fixUpKeys[m.Id.Encode()] = newKey
 		}
 	}
 	indexHandler(c)
