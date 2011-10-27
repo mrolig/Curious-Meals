@@ -7,7 +7,11 @@
 			"PrepTimeMinutes": 20,
 			"CookTimeMinutes": 0,
 			"Rating": 5,
-			"Source": "Mom -- Blue Binder"
+			"Source": "Mom -- Blue Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyFwsSB0xpYnJhcnkYAQwLEgREaXNoGAwM",
@@ -16,7 +20,11 @@
 			"PrepTimeMinutes": 15,
 			"CookTimeMinutes": 0,
 			"Rating": 4,
-			"Source": "Binder"
+			"Source": "Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyFwsSB0xpYnJhcnkYAQwLEgREaXNoGBEM",
@@ -25,7 +33,11 @@
 			"PrepTimeMinutes": 15,
 			"CookTimeMinutes": 20,
 			"Rating": 0,
-			"Source": "Shannon -- Blue Binder"
+			"Source": "Shannon -- Blue Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyFwsSB0xpYnJhcnkYAQwLEgREaXNoGBoM",
@@ -34,7 +46,11 @@
 			"PrepTimeMinutes": 20,
 			"CookTimeMinutes": 0,
 			"Rating": 3,
-			"Source": "Shannon -- Blue Binder"
+			"Source": "Shannon -- Blue Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyFwsSB0xpYnJhcnkYAQwLEgREaXNoGCYM",
@@ -43,7 +59,11 @@
 			"PrepTimeMinutes": 15,
 			"CookTimeMinutes": 0,
 			"Rating": 0,
-			"Source": "Shannon -- Blue Binder"
+			"Source": "Shannon -- Blue Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyFwsSB0xpYnJhcnkYAQwLEgREaXNoGDIM",
@@ -52,7 +72,11 @@
 			"PrepTimeMinutes": 20,
 			"CookTimeMinutes": 20,
 			"Rating": 0,
-			"Source": "Shannon -- Blue Binder"
+			"Source": "Shannon -- Blue Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyFwsSB0xpYnJhcnkYAQwLEgREaXNoGDkM",
@@ -61,7 +85,11 @@
 			"PrepTimeMinutes": 20,
 			"CookTimeMinutes": 0,
 			"Rating": 5,
-			"Source": "Granny - Blue Binder"
+			"Source": "Granny - Blue Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyFwsSB0xpYnJhcnkYAQwLEgREaXNoGEEM",
@@ -70,7 +98,11 @@
 			"PrepTimeMinutes": 15,
 			"CookTimeMinutes": 15,
 			"Rating": 4,
-			"Source": "adapted from Rachel Ray"
+			"Source": "adapted from Rachel Ray",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyFwsSB0xpYnJhcnkYAQwLEgREaXNoGEoM",
@@ -79,7 +111,11 @@
 			"PrepTimeMinutes": 15,
 			"CookTimeMinutes": 15,
 			"Rating": 0,
-			"Source": "Lindsay -- Blue Binder"
+			"Source": "Lindsay -- Blue Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyFwsSB0xpYnJhcnkYAQwLEgREaXNoGFEM",
@@ -88,7 +124,11 @@
 			"PrepTimeMinutes": 20,
 			"CookTimeMinutes": 30,
 			"Rating": 5,
-			"Source": "Moosewood Restraunt \"New Classics\" Tilgman Island Stew"
+			"Source": "Moosewood Restraunt \"New Classics\" Tilgman Island Stew",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyFwsSB0xpYnJhcnkYAQwLEgREaXNoGFwM",
@@ -97,7 +137,11 @@
 			"PrepTimeMinutes": 20,
 			"CookTimeMinutes": 20,
 			"Rating": 4,
-			"Source": "Mom - Blue Binder"
+			"Source": "Mom - Blue Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyFwsSB0xpYnJhcnkYAQwLEgREaXNoGGMM",
@@ -106,7 +150,11 @@
 			"PrepTimeMinutes": 15,
 			"CookTimeMinutes": 15,
 			"Rating": 0,
-			"Source": "Mooswood Low-Fat Favorites, p 315"
+			"Source": "Mooswood Low-Fat Favorites, p 315",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyFwsSB0xpYnJhcnkYAQwLEgREaXNoGGwM",
@@ -115,7 +163,11 @@
 			"PrepTimeMinutes": 15,
 			"CookTimeMinutes": 15,
 			"Rating": 0,
-			"Source": "HTCE 484 ? -- Blue Binder"
+			"Source": "HTCE 484 ? -- Blue Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyFwsSB0xpYnJhcnkYAQwLEgREaXNoGHMM",
@@ -124,7 +176,11 @@
 			"PrepTimeMinutes": 20,
 			"CookTimeMinutes": 15,
 			"Rating": 0,
-			"Source": "Blue Binder"
+			"Source": "Blue Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyFwsSB0xpYnJhcnkYAQwLEgREaXNoGHkM",
@@ -133,7 +189,11 @@
 			"PrepTimeMinutes": 0,
 			"CookTimeMinutes": 5,
 			"Rating": 5,
-			"Source": "Blue Binder"
+			"Source": "Blue Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGIABDA",
@@ -142,7 +202,11 @@
 			"PrepTimeMinutes": 10,
 			"CookTimeMinutes": 15,
 			"Rating": 5,
-			"Source": "Blue Binder"
+			"Source": "Blue Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGIUBDA",
@@ -151,7 +215,11 @@
 			"PrepTimeMinutes": 15,
 			"CookTimeMinutes": 120,
 			"Rating": 5,
-			"Source": "Grandma Chase -- Blue binder"
+			"Source": "Grandma Chase -- Blue binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 1,
+			"ServingsVeggies": 0.5,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGIwBDA",
@@ -160,7 +228,11 @@
 			"PrepTimeMinutes": 20,
 			"CookTimeMinutes": 240,
 			"Rating": 0,
-			"Source": "http://www.lowsodiumcooking.com/free/MexicanChickenStew.htm"
+			"Source": "http://www.lowsodiumcooking.com/free/MexicanChickenStew.htm",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGJgBDA",
@@ -169,7 +241,11 @@
 			"PrepTimeMinutes": 20,
 			"CookTimeMinutes": 180,
 			"Rating": 0,
-			"Source": "Blue Binder"
+			"Source": "Blue Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGJ0BDA",
@@ -178,7 +254,11 @@
 			"PrepTimeMinutes": 0,
 			"CookTimeMinutes": 0,
 			"Rating": 0,
-			"Source": "Blue Binder"
+			"Source": "Blue Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGKMBDA",
@@ -187,7 +267,11 @@
 			"PrepTimeMinutes": 0,
 			"CookTimeMinutes": 0,
 			"Rating": 0,
-			"Source": "Blue Binder"
+			"Source": "Blue Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGKoBDA",
@@ -196,7 +280,11 @@
 			"PrepTimeMinutes": 10,
 			"CookTimeMinutes": 20,
 			"Rating": 0,
-			"Source": "http://allrecipes.com/Recipe/golden-sweet-cornbread/detail.aspx"
+			"Source": "http://allrecipes.com/Recipe/golden-sweet-cornbread/detail.aspx",
+			"ServingsCarb": 1,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGLUBDA",
@@ -205,7 +293,11 @@
 			"PrepTimeMinutes": 60,
 			"CookTimeMinutes": 120,
 			"Rating": 0,
-			"Source": "Blue Binder"
+			"Source": "Blue Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGLwBDA",
@@ -214,7 +306,11 @@
 			"PrepTimeMinutes": 10,
 			"CookTimeMinutes": 20,
 			"Rating": 0,
-			"Source": "Ben Tyson -- Blue Binder"
+			"Source": "Ben Tyson -- Blue Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGMUBDA",
@@ -223,7 +319,11 @@
 			"PrepTimeMinutes": 70,
 			"CookTimeMinutes": 10,
 			"Rating": 5,
-			"Source": "http://frenchfood.about.com/od/breadandpastry/r/waffles.htm"
+			"Source": "http://frenchfood.about.com/od/breadandpastry/r/waffles.htm",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGNABDA",
@@ -232,7 +332,11 @@
 			"PrepTimeMinutes": 0,
 			"CookTimeMinutes": 0,
 			"Rating": 0,
-			"Source": "Blue Binder"
+			"Source": "Blue Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGNcBDA",
@@ -241,7 +345,11 @@
 			"PrepTimeMinutes": 20,
 			"CookTimeMinutes": 20,
 			"Rating": 3,
-			"Source": "Mooswood \"New Classics\""
+			"Source": "Mooswood \"New Classics\"",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGN8BDA",
@@ -250,7 +358,11 @@
 			"PrepTimeMinutes": 5,
 			"CookTimeMinutes": 35,
 			"Rating": 0,
-			"Source": "http://simplyrecipes.com/recipes/asparagus_risotto/"
+			"Source": "http://simplyrecipes.com/recipes/asparagus_risotto/",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGOcBDA",
@@ -259,7 +371,11 @@
 			"PrepTimeMinutes": 15,
 			"CookTimeMinutes": 30,
 			"Rating": 5,
-			"Source": "Seductions of Rice"
+			"Source": "Seductions of Rice",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGO4BDA",
@@ -268,7 +384,11 @@
 			"PrepTimeMinutes": 10,
 			"CookTimeMinutes": 30,
 			"Rating": 5,
-			"Source": "Seductions of Rice, p 261"
+			"Source": "Seductions of Rice, p 261",
+			"ServingsCarb": 0,
+			"ServingsProtein": 1,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGPYBDA",
@@ -277,7 +397,11 @@
 			"PrepTimeMinutes": 20,
 			"CookTimeMinutes": 40,
 			"Rating": 4,
-			"Source": "Seductions of Rice p 280"
+			"Source": "Seductions of Rice p 280",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGP4BDA",
@@ -286,7 +410,11 @@
 			"PrepTimeMinutes": 0,
 			"CookTimeMinutes": 0,
 			"Rating": 3,
-			"Source": "Grandma Kay -- Blue Binder"
+			"Source": "Grandma Kay -- Blue Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGIgCDA",
@@ -295,7 +423,11 @@
 			"PrepTimeMinutes": 15,
 			"CookTimeMinutes": 25,
 			"Rating": 5,
-			"Source": "http://www.foodnetwork.com/recipes/saras-secrets/aloo-gobipunjabi-style-cauliflower-and-potatoes-with-ginger-recipe/index.html"
+			"Source": "http://www.foodnetwork.com/recipes/saras-secrets/aloo-gobipunjabi-style-cauliflower-and-potatoes-with-ginger-recipe/index.html",
+			"ServingsCarb": 1,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 1,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGJ0CDA",
@@ -304,7 +436,11 @@
 			"PrepTimeMinutes": 10,
 			"CookTimeMinutes": 60,
 			"Rating": 0,
-			"Source": "blue binder"
+			"Source": "blue binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGKQCDA",
@@ -313,7 +449,11 @@
 			"PrepTimeMinutes": 0,
 			"CookTimeMinutes": 0,
 			"Rating": 0,
-			"Source": "Blue Binder"
+			"Source": "Blue Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGK0CDA",
@@ -322,7 +462,11 @@
 			"PrepTimeMinutes": 0,
 			"CookTimeMinutes": 0,
 			"Rating": 0,
-			"Source": "Shannon -- Blue Binder"
+			"Source": "Shannon -- Blue Binder",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGLcCDA",
@@ -331,7 +475,11 @@
 			"PrepTimeMinutes": 30,
 			"CookTimeMinutes": 45,
 			"Rating": 5,
-			"Source": "http://www.foodnetwork.com/recipes/wolfgang-puck/roasted-root-vegetable-medley-recipe/index.html"
+			"Source": "http://www.foodnetwork.com/recipes/wolfgang-puck/roasted-root-vegetable-medley-recipe/index.html",
+			"ServingsCarb": 0,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGPMJDA",
@@ -340,7 +488,11 @@
 			"PrepTimeMinutes": 0,
 			"CookTimeMinutes": 0,
 			"Rating": 0,
-			"Source": ""
+			"Source": "",
+			"ServingsCarb": 1,
+			"ServingsProtein": 0,
+			"ServingsVeggies": 0,
+			"Text": ""
 		}
 	],
 	"Ingredients": [
