@@ -11,7 +11,6 @@ import (
 	"io"
 	"json"
 	"unicode"
-	//"bytes"
 )
 
 func init() {
@@ -21,6 +20,7 @@ func init() {
 	http.HandleFunc("/users", errorHandler(usersHandler))
 	http.HandleFunc("/ingredient", errorHandler(ingredientHandler))
 	http.HandleFunc("/ingredient/", errorHandler(ingredientHandler))
+	http.HandleFunc("/menu/", errorHandler(menuHandler))
 	http.HandleFunc("/search", errorHandler(searchHandler))
 	http.HandleFunc("/tags", errorHandler(allTagsHandler))
 	http.HandleFunc("/backup", errorHandler(backupHandler))
@@ -439,6 +439,44 @@ func ingredientHandler(c *context) {
 				return nil
 			}, nil)
 		handler.c = savedContext
+	case "DELETE":
+		handler.delete(key)
+	}
+}
+
+func menuHandler(c *context) {
+	if strings.Contains(c.r.URL.Path, "/tags/") {
+		wordHandler(c, "Tags")
+		return
+	}
+	handler := newDataHandler(c, "Menu")
+	id := getID(c.r)
+	if len(id) == 0 {
+		switch c.r.Method {
+		case "GET":
+			query := c.NewQuery("Menu").Order("Name")
+			menus := make([]Menu, 0, 100)
+			keys, err := query.GetAll(handler.c, &menus)
+			check(err)
+			for index, _ := range menus {
+				menus[index].Id = keys[index]
+			}
+			sendJSON(handler.w, menus)
+		case "POST":
+			menu := Menu{}
+			handler.createEntry(&menu, nil)
+		}
+		return
+	}
+	key, err := datastore.DecodeKey(id)
+	check(err)
+	handler.checkUser(key)
+	menu := Menu{}
+	switch c.r.Method {
+	case "GET":
+		handler.get(key, &menu)
+	case "PUT":
+		handler.update(key, &menu)
 	case "DELETE":
 		handler.delete(key)
 	}

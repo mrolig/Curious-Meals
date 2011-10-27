@@ -47,6 +47,11 @@ indexes:
   properties:
   - name: Order
 
+- kind: Menu
+  ancestor: yes
+  properties:
+  - name: Name
+
 - kind: Tag
   ancestor: yes
   properties:

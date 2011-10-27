@@ -1,10 +1,11 @@
 - gather menu/possible menu (flags)
 - add servings of carb/protien/veg to each dish
+- add big open text section for full recipe
 
+- add menus to search
 - filter search on rating
 - if editing dish, add new ingredients rather than forcing separate add ingredient
 - show vegan/veg. icon
-- add big open text section for full recipe
 - improve layout, esp. w/ user box
 
 - add ACL to library
