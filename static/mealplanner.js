@@ -1,4 +1,35 @@
 google.load("visualization", "1", {packages:["corechart"]});
+(function($) {
+   // make the element hide when the specified container element is hovered
+   $.fn.autoHide = function(options) {
+      if (options.handle) {
+         // start hidden
+         this.hide();
+         // unhide when the handle hovers
+         options.handle.hover(function() {
+            this.show();
+         }.bind(this), function() {
+            this.hide();
+         }.bind(this));
+      }
+      return this;
+   }
+   // do 'default' stying to a text input
+   $.fn.textInput = function(options) {
+      var defaults = { size: 20 };
+      var options = $.extend(defaults, options);
+      this.addClass("ui-widget");
+      // select content when focused
+      this.focus(function() {
+         setTimeout(function() {
+            this.select()
+         }.bind(this), 10);
+      });
+      this.attr("size", options.size);
+      return this;
+   }
+    
+})(jQuery);
 
 jQuery(function() {
    "use strict";
@@ -381,16 +412,17 @@ jQuery(function() {
       }
          
       _.each(filtered, function(dish, idx) {
-         var $li = $("<li><span class='ui-icon inline ui-icon-"+cssclass+"'></span></li>")
+         var $li = $("<li><table class='li'><tr><td><span class='ui-icon inline ui-icon-"+cssclass+"'></span></td><td></td></tr></li>")
             .appendTo(self.el)
             .addClass(cssclass)
 				.draggable({revert:true,helper:'clone'});
+         var $td = $li.find("td").eq(1);
          var name = dish.get("Name");
          $("<a></a>")
-               .appendTo($li)
+               .appendTo($td)
                .text(name)
-               [0].href = "#" + viewLink + "/" + dish.id;
-			$li[0].model = dish;
+               .attr("href", "#" + viewLink + "/" + dish.id);
+			$li.attr("model", dish);
       });
       if (filtered.length == 0) {
          var $li = $("<li>[No "+englishPlural+"]</li>")
@@ -486,7 +518,7 @@ jQuery(function() {
          var $text = $("<a></a>")
             .appendTo($tag)
             .text(tag.get("Word"))
-            [0].href = "#search/" + tag.get("Word") + "//";
+            .attr("href", "#search/" + tag.get("Word") + "//");
          var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
             .appendTo($tag)
             .click(function () {
@@ -525,7 +557,7 @@ jQuery(function() {
          	$("<a></a>")
             	.appendTo($pairing)
             	.text(pairing.other.get("Name"))
-            	[0].href = "#viewDish/" + pairing.other.id;
+            	.attr("href", "#viewDish/" + pairing.other.id);
          	var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
             	.appendTo($pairing)
             	.click(function () {
@@ -544,7 +576,7 @@ jQuery(function() {
 		this.model.pairings.create({Other : other.id, Description : desc });
 	}
 	function newPairing(evt, ui) { 
-		var other = ui.draggable[0].model;
+		var other = ui.draggable.attr("model");
 		var self = this;
 		var $dialog =$("<div></div>").appendTo(document.body);
 		$dialog.text("For " + self.model.get("Name") + " and " + other.get("Name") + "?")
@@ -552,7 +584,7 @@ jQuery(function() {
 			title : "What kind of suggestion?",
 			modal: true,
 			buttons : {
-				Recommended : function() {
+				Together : function() {
 					self.addPairing("Together", other);
 					$(this).dialog("close");
 				},
@@ -600,7 +632,7 @@ jQuery(function() {
       data.setValue(2,0, 'Carbohydrates');
       data.setValue(2,1, carbs);
       var chart = new google.visualization.PieChart($dest[0]);
-      chart.draw(data, {width: 400, height: 150, title:title,
+      chart.draw(data, {width: 100, height: 100, legend:'none',
          colors : ["#459E00", "#B23500", "#770071"]});
    } 
    window.DishEditView = Backbone.View.extend({
@@ -634,7 +666,8 @@ jQuery(function() {
             this.model.pairings.fetch();
          this.ingredients = { gen : 0};
          this.el.append("<span class='ui-icon ui-icon-dish inline large'></span>");
-         this.$name = $("<input class='name ui-widget' type='text'></input>")
+         this.$name = $("<input class='name' type='text'></input>")
+            .textInput()
             .appendTo(this.el);
          this.el.append(" ");
          this.$menu = $("<button value='menu' title='Add to menu'>&nbsp;</button>")
@@ -671,18 +704,22 @@ jQuery(function() {
          }
          this.$stars = this.el.find(".ui-icon-star");
          this.el.append("<br/><span class='field-head'>Source</span>: ");
-         this.$source = $("<input type='text' size='75' class='ui-widget'></input>")
+         this.$source = $("<input type='text'></input>")
+            .textInput({size:75})
             .appendTo(this.el);
          this.el.append("<br/><span class='field-head'>Dish type</span>: ");
          this.$type = $("<input type='text'></input>")
             .appendTo(this.el)
+            .textInput()
             .autocomplete({source:["Entree", "Side", "Appetizer", "Dessert", "Drink"], minLength:0});
          makeCombo(this.$type);
          this.el.append("<br/><span class='field-head'>Prep time</span>: ");
-         this.$prepTime = $("<input class='ui-widget' type='text'></input>")
+         this.$prepTime = $("<input type='text'></input>")
+            .textInput({size:4})
             .appendTo(this.el);
          this.el.append(" minutes<br/><span class='field-head'>Cook time</span>: ");
-         this.$cookTime = $("<input class='ui-widget' type='text'></input>")
+         this.$cookTime = $("<input type='text'></input>")
+            .textInput({size:4})
             .appendTo(this.el);
          this.el.append(" minutes<br/><span class='field-head'>Breakdown of a single serving</span>");
          var $breakdown = $("<table class='breakdown'></table>")
@@ -708,13 +745,14 @@ jQuery(function() {
          this.$tags = $("<div class='tag-list'></div>")
             .appendTo(this.el);
          this.el.append("<br/>Type new tags, separated by commas<br/>");
-         this.$newTags = $("<input type='text' class='ui-widget' width='40'></input>")
+         this.$newTags = $("<input type='text'></input>")
             .bind('keypress', function (evt) {
                if (evt.which == 13) {
                   evt.preventDefault();
                   self.parseTags()
                }
             })
+            .textInput({size:40})
             .appendTo(this.el);
          this.el.append("<br/><span class='field-head'>Ingredients [Amount, extra instructions (chopped, peeled, etc.)]</span>:");
          this.$mi = $("<table class='ingredients'><tr><th>Ingredient</th><th>Amount</th><th>Notes</th><th></th></tr></table>")
@@ -723,8 +761,9 @@ jQuery(function() {
                function(i) { return i.get("Name"); });
          var $lastRow = $("<tr></tr>")
             .appendTo(this.$mi);
-         this.$addIngredient = $("<input class='ui-widget' type='text'></input>")
+         this.$addIngredient = $("<input type='text'></input>")
             .appendTo($lastRow)
+            .textInput()
             .autocomplete({source: allIngredients, minLength:0})
             .bind('keypress', function (evt) {
                if (evt.which == 13) {
@@ -806,19 +845,21 @@ jQuery(function() {
                var $tr = $("<tr class='ingredient'></tr>");
                ing.$tr = $tr;
                self.$mi.find("tr").last().before($tr);
-               $tr[0].id = i.id;
+               $tr.attr("id", i.id);
                ing.$name = $("<td></td>").appendTo($tr);
-               ing.$amount = $("<td><input type='text' class='ui-widget'></input></td>")
+               ing.$amount = $("<td><input type='text'></input></td>")
                   .appendTo($tr)
-                  .find("input");
-               ing.$instruction = $("<td><input type='text' class='ui-widget'></input></td>")
+                  .find("input")
+                  .textInput();
+               ing.$instruction = $("<td><input type='text'></input></td>")
                   .appendTo($tr)
-                  .find("input");
+                  .find("input")
+                  .textInput();
                ing.$del = $("<td><span class='remove ui-icon ui-icon-close'></span></td>")
                   .appendTo($tr)
                   .click(function() {
                      var $tr = $(this).closest("tr");
-                     var mi  = self.model.ingredients.get($tr[0].id);
+                     var mi  = self.model.ingredients.get($tr.attr("id"));
                      mi.destroy();
                      });
                if (self.addedIngredient) {
@@ -919,7 +960,7 @@ jQuery(function() {
          for (var i = 0; i < $trs.length; i++)
          {
             var $tr = $($trs[i]);
-            var id = $tr[0].id;
+            var id = $tr.attr("id");
             var model = this.model.ingredients.get(id);
             var $amount = $tr.find("input").eq(0);
             var $instruction = $tr.find("input").eq(1);
@@ -1108,7 +1149,7 @@ jQuery(function() {
          this.$mi.find("tr.ingredient").remove();
          this.model.ingredients.each(function(i) {
                var $tr = $("<tr class='ingredient'></tr>");
-               $tr[0].id = i.id;
+               $tr.attr("id", i.id);
                var $name = $("<td><span class='ui-icon ui-icon-ingredient inline'></span></td>").appendTo($tr);
                var $amount = $("<td><span class='ingredient-amount'></span></td>")
                   .appendTo($tr)
@@ -1122,7 +1163,7 @@ jQuery(function() {
                $("<a></a>")
                      .appendTo($name)
                      .text(ingredient.get("Name"))
-                     [0].href = "#viewIngredient/" + ingredient.id;
+                     .attr("href", "#viewIngredient/" + ingredient.id);
                self.$mi.append($tr);
          });
          renderPairings(this.$pairings, this.model.pairings,
@@ -1181,7 +1222,8 @@ jQuery(function() {
          if (this.model.tags.url && this.model.tags.length == 0)
             this.model.tags.fetch();
          this.el.append("<span class='ui-icon ui-icon-ingredient inline large'></span>");
-         this.$name = $("<input class='name ui-widget' type='text'></input>")
+         this.$name = $("<input class='name' type='text'></input>")
+            .textInput()
             .appendTo(this.el);
          this.el.append(" ");
          //  grey-out Save button when already saved (hasChanged == false)
@@ -1198,7 +1240,8 @@ jQuery(function() {
                         .hide()
                         .appendTo(this.el);
          this.el.append("<br/><span class='field-head'>Category</span>: ");
-         this.$category = $("<input class='ui-widget' type='text'></input>")
+         this.$category = $("<input type='text'></input>")
+            .textInput()
             .appendTo(this.el)
             .autocomplete({source:["Carbohydrate", "Protein", "Vegetable", "Fruit", "Sweet", "Spice", "Fat", "Herb"], minLength:0});
          makeCombo(this.$category);
@@ -1211,7 +1254,8 @@ jQuery(function() {
          this.$tags = $("<div class='tag-list'></div>")
             .appendTo(this.el);
          this.el.append("<br/>Type new tags, separated by commas<br/>");
-         this.$newTags = $("<input type='text' class='ui-widget' width='40'></input>")
+         this.$newTags = $("<input type='text'></input>")
+            .textInput({size:40})
             .bind('keypress', function (evt) {
                if (evt.which == 13) {
                   evt.preventDefault();
@@ -1396,9 +1440,9 @@ jQuery(function() {
          this.el.append("<br/><br/>");
          var $charts = $("<div class='menu-chart'></div>")
             .appendTo(this.el);
-         this.$menuChart = $("<div></div>")
+         this.$menuChart = $("<span>")
             .appendTo($charts);
-         this.$targetChart = $("<div></div>")
+         this.$targetChart = $("<span>")
             .appendTo($charts);
          this.$dishes = $("<ul class='dish-list'></ul>")
             .appendTo(this.el);
@@ -1442,8 +1486,8 @@ jQuery(function() {
             $("<a></a>")
                   .appendTo($li)
                   .text(name)
-                  [0].href = "#viewDish/" + dish.id;
-			   $li[0].model = dish;
+                  .attr("href", "#viewDish/" + dish.id);
+			   $li.attr("model", dish);
             var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
                .appendTo($li)
                .click(function () {
@@ -1481,31 +1525,44 @@ jQuery(function() {
       },
       cloneMenu : function() {
          var self = this;
-         var $dialog = $("<div><input type='text' size='30'></input></div>")
-            .appendTo(this.el)
+         var $dialog = $("<div><input type='text'></input></div>");
+         var save = function() {
+            var $input = $dialog.find("input");
+            if ($input.val().length > 0 &&
+                $input.val() != "<New Menu>")
+            {
+               var newAttrs = {Name:$input.val(),
+                  Dishes:self.model.get("Dishes")};
+               var newMenu = Menus.create(newAttrs, {
+                  success : function(model, resp, shr) {
+                     $dialog.dialog("close");
+                     App.viewMenu(newMenu);
+                     // empty the draft menu
+                     self.model.save({Dishes: [] });
+                  }});
+            }
+         }
+         $dialog.appendTo(this.el)
             .dialog({
                modal: true,
                title: "Menu Name?",
                buttons : {
-                  Save : function() {
-                     var $input = $dialog.find("input");
-                     if ($input.val().length > 0 &&
-                         $input.val() != "<New Menu>")
-                     {
-                        var newMenu = Menus.create({Name:$input.val(),
-                           Dishes:self.model.get("Dishes")});
-					         $(this).dialog("close");
-                        App.viewMenu(newMenu);
-                     }
-                  },
+                  Save : save,
                   Cancel : function() {
 					      $(this).dialog("close");
                   }
+               }});
+         $dialog.find("input")
+            .textInput({size:30})
+            .bind('keypress', function (evt) {
+               if (evt.which == 13) {
+                  evt.preventDefault();
+                  save();
                }
-               });
+            });
       },
       newDish : function(evt, ui) {
-		   var other = ui.draggable[0].model;
+		   var other = ui.draggable.attr("model");
          if (other && !this.model.hasDish(other)) {
             var dishes = this.model.get("Dishes");
             dishes.push(other.id);
@@ -1540,6 +1597,7 @@ jQuery(function() {
                .addClass("signout")
                .button()
                .attr("href", user.get("logoutURL"))
+               .autoHide({handle:this.el})
                .appendTo(this.el);
          }
          return this;
@@ -1705,7 +1763,11 @@ jQuery(function() {
          this.el.find(".add-ingredient")
                   .button()
                   .click(this.newIngredient);
-			$("#restore-file").change(this.restore);
+         
+         $("#br-controls")
+            .autoHide({handle:$("#backup-restore")});
+			$("#restore-file")
+            .change(this.restore);
          $("#side-tabs").tabs({
          });
          this.fetched = 0;
@@ -1737,7 +1799,7 @@ jQuery(function() {
             $("<a></a>")
                .appendTo($li)
                .text(tags[tag])
-               [0].href = "#search/" + tags[tag] + "//";
+               .attr("href", "#search/" + tags[tag] + "//");
          }
       },
       show : function(view) {

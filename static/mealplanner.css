@@ -5,21 +5,41 @@ body, #app {
    font-family: 'Droid Sans','MS Trebuchet',Verdana,Arial,sans-serif;
 }
 div#main {
-   margin-left: 20.5em;
+   margin-left: 16em;
+   margin-right: 16em;
 }
 .sidebar {
-   float:left;
-   width: 20em;
+   left:0px;
+   top:0px;
+   position:fixed;
+   overflow: auto;
+   /*float:left;*/
+   height: 100%;
+   width: 15em;
    padding: 4px;
 }
 .sidebar .ui-tabs-panel {
    padding: 0px;
 }
+#menubar {
+   position:fixed;
+   right:0px;
+   top:0px;
+   overflow: auto;
+   /*float:left;*/
+   height: 100%;
+   width: 15em;
+   padding: 0px;
+   margin-top: 0px;
+   margin-right: 0px;
+}
 #user {
-   float: right;
    background: #444;
    color: white;
    padding: 3px;
+   height: 2.5em;
+   line-height: 2em;
+   vertical-align: bottom;
 }
 .error {
    background: #C88;
@@ -89,6 +109,9 @@ div.tag-list {
 #side-tabs {
    margin-top: 0.3em;
 }
+#side-tabs a {
+   padding: 3px 6px;
+}
 ul#tags{
    padding-left: 18px;
 }
@@ -97,11 +120,16 @@ ul#tags{
    padding: 1em;
    display: inline-block;
 }
-table.main {
-   border-collapse: true;
+th {
+   text-align: left;
 }
-table.main td{
-   vertical-align: top;
+table.ingredients {
+   margin-top: 0.5em;
+   margin-bottom: 0.5em;
+   border-collapse:collapse;
+}
+table.ingredients td, table.ingredients th{
+   padding-right: 1.0em;
 }
 .ui-icon-menu { background-position: -64px -96px; }
 .ui-icon-ingredient { background-position: -64px -176px; }
@@ -129,3 +157,11 @@ div.serving-value {
    display: inline-block;
    width: 2em;
 }
+
+table.li {
+   border-collapse: collapse;
+}
+table.li td {
+   vertical-align: top;
+}
+
