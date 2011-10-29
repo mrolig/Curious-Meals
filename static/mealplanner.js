@@ -80,6 +80,12 @@ google.load("visualization", "1", {packages:["corechart"]});
       });
       return this;
    }
+   $.zfill = function (str, count) {
+      var zeros = count - str.toString().length;
+      if (zeros <= 0) return str;
+      var ret = Array(zeros+1).join("0") + str;
+      return ret;
+   }
     
 })(jQuery);
 
@@ -259,48 +265,6 @@ jQuery(function() {
          return this.draft;
       }
    })
-   function zfill(str, count) {
-      var zeros = count - str.toString().length;
-      if (zeros <= 0) return str;
-      var ret = Array(zeros+1).join("0") + str;
-      return ret;
-   }
-   function renderItemNameList(cssclass, viewLink, englishPlural) {
-      this.el.children().remove();
-      var self = this;
-      var filtered;
-      if (this.options.searchResults != undefined) {
-         var results = this.options.searchResults;
-         filtered = this.model.filter(function(item) {
-               return item.id in results;
-            });
-         filtered = _.sortBy(filtered, function(item) {
-               var key = zfill(9999 - results[item.id], 4);
-               return key + item.get("Name");
-            });
-      } else {
-         filtered = this.model.toArray();
-      }
-         
-      _.each(filtered, function(dish, idx) {
-         var $li = $("<li><table class='li'><tr><td><span class='ui-icon inline ui-icon-"+cssclass+"'></span></td><td></td></tr></li>")
-            .appendTo(self.el)
-            .addClass(cssclass)
-				.draggable({revert:true,helper:'clone',appendTo:'body'});
-         var $td = $li.find("td").eq(1);
-         var name = dish.get("Name");
-         $("<a></a>")
-               .appendTo($td)
-               .text(name)
-               .attr("href", "#" + viewLink + "/" + dish.id);
-			$li[0].model = dish;
-      });
-      if (filtered.length == 0) {
-         var $li = $("<li>[No "+englishPlural+"]</li>")
-            .appendTo(this.el)
-      }
-      return this;
-   }
    window.MealplannerView = Backbone.View.extend({
       events : {
          "mouseover .dish" : "onEnterDish",
@@ -322,6 +286,7 @@ jQuery(function() {
          _.bindAll(this, "saveError");
          _.bindAll(this, "del");
          this.model.bind('error', this.saveError);
+         this.model.bind('all', this.render);
       },
       onChange : function() {
          this.dirty++;
@@ -399,6 +364,13 @@ jQuery(function() {
                   //  it will not be hidden immediately after appearing
                   $hoverView.show('blind')
                      .delay(100);
+                  // catch the case of ophans, and remove them -- somehow
+                  //  we can fail to get the mouse leave event
+                  setTimeout(function() {
+                     $hoverView.hide(0, function() {
+                           $hoverView.remove();
+                        });
+                     }, 20000);
                 }
             }, 1000);
          }
@@ -424,6 +396,8 @@ jQuery(function() {
       onEnterIngredient : function (evt) {
          return this.onHoverEnter(evt, IngredientView);
       },
+      // take the comma separated values in the $newTags field
+      // and add them to the model.tags collection
       parseTags : function () {
             var newTags = this.$newTags.val();
             if (newTags.length == 0)
@@ -486,6 +460,7 @@ jQuery(function() {
                      {error:this.saveError });
                }
       },
+      // render the tags from the tags collection in the $tags element
       renderTags : function () {
          var $tags = this.$tags;
          var tags = this.model.tags;
@@ -583,43 +558,74 @@ jQuery(function() {
 				   }
 			   }
 		   });
-	   }
+	   },
+      renderItemNameList : function (cssclass, viewLink, englishPlural) {
+         this.el.children().remove();
+         var self = this;
+         var filtered;
+         if (this.options.searchResults != undefined) {
+            var results = this.options.searchResults;
+            filtered = this.model.filter(function(item) {
+                  return item.id in results;
+               });
+            filtered = _.sortBy(filtered, function(item) {
+                  var key = $.zfill(9999 - results[item.id], 4);
+                  return key + item.get("Name");
+               });
+         } else {
+            filtered = this.model.toArray();
+         }
+            
+         _.each(filtered, function(dish, idx) {
+            var $li = $("<li><table class='li'><tr><td><span class='ui-icon inline ui-icon-"+cssclass+"'></span></td><td></td></tr></li>")
+               .appendTo(self.el)
+               .addClass(cssclass)
+				   .draggable({revert:true,helper:'clone',appendTo:'body'});
+            var $td = $li.find("td").eq(1);
+            var name = dish.get("Name");
+            $("<a></a>")
+                  .appendTo($td)
+                  .text(name)
+                  .attr("href", "#" + viewLink + "/" + dish.id);
+			   $li[0].model = dish;
+         });
+         if (filtered.length == 0) {
+            var $li = $("<li>[No "+englishPlural+"]</li>")
+               .appendTo(this.el)
+         }
+         return this;
+      },
+      drawChart : function ($dest, title, veggies, protein, carbs) {
+         var data = new google.visualization.DataTable();
+         data.addColumn('string', 'Type');
+         data.addColumn('number', 'Servings');
+         data.addRows(3);
+         data.setValue(0,0, 'Fruits/Veggies');
+         data.setValue(0,1, veggies);
+         data.setValue(1,0, 'Protein');
+         data.setValue(1,1, protein);
+         data.setValue(2,0, 'Carbohydrates');
+         data.setValue(2,1, carbs);
+         var chart = new google.visualization.PieChart($dest[0]);
+         chart.draw(data, {width: 100, height: 100, legend:'none',
+            title : title, fontSize : 10, 
+            colors : ["#459E00", "#B23500", "#770071"]});
+      } 
    });
    window.DishListView = window.MealplannerView.extend({
       tagName : "ul",
       className : "dish-list",
-      initialize: function() {
-         MealplannerView.prototype.initialize.call(this);
-         this.model.bind('all', this.render);
-      },
       render : function() {
-         renderItemNameList.call(this, "dish", "viewDish", "dishes");
+         this.renderItemNameList("dish", "viewDish", "dishes");
          return this;
       }
    })
-   function drawChart($dest, title, veggies, protein, carbs) {
-      var data = new google.visualization.DataTable();
-      data.addColumn('string', 'Type');
-      data.addColumn('number', 'Servings');
-      data.addRows(3);
-      data.setValue(0,0, 'Fruits/Veggies');
-      data.setValue(0,1, veggies);
-      data.setValue(1,0, 'Protein');
-      data.setValue(1,1, protein);
-      data.setValue(2,0, 'Carbohydrates');
-      data.setValue(2,1, carbs);
-      var chart = new google.visualization.PieChart($dest[0]);
-      chart.draw(data, {width: 100, height: 100, legend:'none',
-         title : title, fontSize : 10, 
-         colors : ["#459E00", "#B23500", "#770071"]});
-   } 
    window.DishEditView = window.MealplannerView.extend({
       tagName : "div",
       className : "dish-edit",
       initialize: function() {
          MealplannerView.prototype.initialize.call(this);
          _.bindAll(this, "newPairing");
-         this.model.bind('all', this.render);
          this.model.ingredients.bind('all', this.render);
          this.model.tags.bind('all', this.render);
          this.model.pairings.bind('all', this.render);
@@ -890,7 +896,7 @@ jQuery(function() {
             if (!fromChangeHandler)
                this.onChange();
          }
-      }
+      },
    })
    window.DishView = window.MealplannerView.extend({
       tagName : "div",
@@ -899,7 +905,6 @@ jQuery(function() {
          MealplannerView.prototype.initialize.call(this);
          _.bindAll(this, "edit");
          _.bindAll(this, "newPairing");
-         this.model.bind('all', this.render);
          this.model.tags.bind('all', this.render);
          this.model.ingredients.bind('all', this.render);
          this.model.pairings.bind('all', this.render);
@@ -1169,12 +1174,8 @@ jQuery(function() {
    window.IngredientListView = window.MealplannerView.extend({
       tagName : "ul",
       className : "ingredient-list",
-      initialize: function() {
-         MealplannerView.prototype.initialize.call(this);
-         this.model.bind('all', this.render);
-      },
       render : function() {
-         renderItemNameList.call(this, "ingredient", "viewIngredient", "ingredients");
+         this.renderItemNameList("ingredient", "viewIngredient", "ingredients");
          return this;
       },
    })
@@ -1184,7 +1185,6 @@ jQuery(function() {
       initialize: function() {
          var self = this;
          MealplannerView.prototype.initialize.call(this);
-         this.model.bind('all', this.render);
          this.model.tags.bind('all', this.render);
          if (this.model.tags.url && this.model.tags.length == 0)
             this.model.tags.fetch();
@@ -1262,7 +1262,6 @@ jQuery(function() {
          _.bindAll(this, "edit");
          _.bindAll(this, "dishesReceived");
          _.bindAll(this, "viewDish");
-         this.model.bind('all', this.render);
          this.model.tags.bind('all', this.render);
          if (this.model.tags.url && this.model.tags.length == 0)
             this.model.tags.fetch();
@@ -1339,8 +1338,6 @@ jQuery(function() {
       },
       initialize: function() {
          MealplannerView.prototype.initialize.call(this);
-         this.model.bind('all', this.render);
-         this.el.append("");
 
          this.el.append("<div class='name'><span class='ui-icon ui-icon-menu inline large'></span>Menus</div>");
          this.$menus = $("<input class='menu-combo' type='text' value='<New Menu>' size='15'></input>")
@@ -1384,7 +1381,6 @@ jQuery(function() {
          _.bindAll(this, "cloneMenu");
          _.bindAll(this, "addCurDish");
          _.bindAll(this, "newDish");
-         this.model.bind('all', this.render);
          Dishes.bind('all', this.render);
          this.$buttons = $("<div></div>")
             .appendTo(this.el);
@@ -1493,8 +1489,8 @@ jQuery(function() {
          // delay chart drawing, because it fails if the
          //  element isn't rooted in the document yet
          setTimeout( function() {
-            drawChart(self.$menuChart, "This Menu", veggies, protein, carbs);
-            drawChart(self.$targetChart, "Target", 2, 1, 1);
+            self.drawChart(self.$menuChart, "This Menu", veggies, protein, carbs);
+            self.drawChart(self.$targetChart, "Target", 2, 1, 1);
             }, 10);
          return this;
       },
@@ -1592,7 +1588,6 @@ jQuery(function() {
          _.bindAll(this, "clearMenu");
          _.bindAll(this, "cloneMenu");
          _.bindAll(this, "newDish");
-         this.model.bind('all', this.render);
          this.el.append("<span class='ui-icon ui-icon-menu inline large'></span>");
          this.$name = $("<span class='name'></span>")
             .appendTo(this.el);
@@ -1725,8 +1720,8 @@ jQuery(function() {
          // delay chart drawing, because it fails if the
          //  element isn't rooted in the document yet
          setTimeout( function() {
-            drawChart(self.$menuChart, "This Menu", veggies, protein, carbs);
-            drawChart(self.$targetChart, "Target", 2, 1, 1);
+            self.drawChart(self.$menuChart, "This Menu", veggies, protein, carbs);
+            self.drawChart(self.$targetChart, "Target", 2, 1, 1);
             }, 10);
          return this;
       },
