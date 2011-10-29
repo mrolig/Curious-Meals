@@ -161,9 +161,11 @@ jQuery(function() {
       validate: function(attrs) {
          if (attrs.Name && attrs.Name.length == 0)
             return "Must give your dish a name";
-         if (attrs.PrepTimeMinutes && attrs.PrepTimeMinutes == NaN)
+         if (attrs.PrepTimeMinutes != undefined
+               && isNaN(attrs.PrepTimeMinutes))
             return "Must give prep time in minutes";
-         if (attrs.CookTimeMinutes && attrs.CookTimeMinutes == NaN)
+         if (attrs.CookTimeMinutes != undefined
+               && isNaN(attrs.CookTimeMinutes))
             return "Must give cook time in minutes";
       },
       defaults : function() { return {
@@ -197,7 +199,7 @@ jQuery(function() {
       initialize: function() {
          this.tags = new WordList;
          if (this.id)
-            this.tags.url = "/dish/" + this.id + "/tags/";
+            this.tags.url = "/ingredient/" + this.id + "/tags/";
       },
       validate: function(attrs) {
          if (attrs.Name && attrs.Name.length == 0)
@@ -310,6 +312,68 @@ jQuery(function() {
          "mouseover .ingredient" : "onEnterIngredient",
          "mouseleave .ingredient" : "onHoverLeave",
          "click .ingredient" : "onHoverLeave",
+         "change input" : "onChange",
+         "autocompletechange input" : "onChange"
+      },
+      initialize : function() {
+         this.el = $(this.el);
+         this.dirty = 0;
+         _.bindAll(this, "render");
+         _.bindAll(this, "onChange");
+         _.bindAll(this, "save");
+         _.bindAll(this, "saveSuccess");
+         _.bindAll(this, "saveError");
+         _.bindAll(this, "del");
+         this.model.bind('error', this.saveError);
+      },
+      onChange : function() {
+         this.dirty++;
+         this.$error.hide();
+         this.setModels();
+         if (this.$error == undefined || this.$error.is(":hidden")) {
+            this.$save.button({disabled : false, label: "Save"}); 
+            this.saveTimeout = setTimeout(this.save, 5000);
+         }
+      },
+      save : function() {
+         if (this.dirty) {
+            this.dirty = 1;
+            if (this.$save)
+               this.$save.button({disabled : true, text : "Saving"}); 
+            this.model.save({},
+               {
+                  error : this.saveError,
+                  success : this.saveSuccess
+               });
+         }
+         else if (this.$error.is(":hidden"))
+         {
+            this.dirty = 1;
+            this.saveSuccess()
+         }
+      },
+      saveError : function(model, response) {
+         this.dirty = 0;
+         if (this.$save) {
+            this.$save.button({disabled : true, label : "Save Failed"}); 
+         }
+         if (this.$error) {
+            this.$error.text("Error: " + response);
+            this.$error.show();
+         }
+      },
+      saveSuccess : function(model, response) {
+         this.dirty--;
+         if (this.$error) {
+            this.$error.hide();
+         }
+         if (this.$save) {
+            this.$save.button({disabled : true, label : "Saved"}); 
+         }
+      },
+      del : function() {
+         this.model.destroy();
+         this.remove();
       },
       onHoverEnter : function(evt, viewCtor) {
          var target = evt.currentTarget;
@@ -368,8 +432,7 @@ jQuery(function() {
       tagName : "ul",
       className : "dish-list",
       initialize: function() {
-         this.el = $(this.el);
-         _.bindAll(this, "render");
+         MealplannerView.prototype.initialize.call(this);
          this.model.bind('all', this.render);
       },
       render : function() {
@@ -435,7 +498,8 @@ jQuery(function() {
          }
          if (nextTag.length > 0)
             if (! (nextTag in curTags)) {
-               var added = this.model.tags.create({Word:nextTag});
+               var added = this.model.tags.create({Word:nextTag},
+                  {error:this.saveError });
             }
    }
    function renderTags($tags, tags) {
@@ -550,26 +614,8 @@ jQuery(function() {
    window.DishEditView = window.MealplannerView.extend({
       tagName : "div",
       className : "dish-edit",
-      events : {
-         "mouseover .dish" : "onEnterDish",
-         "mouseleave .dish" : "onHoverLeave",
-         "click .dish" : "onHoverLeave",
-         "mouseover .ingredient" : "onEnterIngredient",
-         "mouseleave .ingredient" : "onHoverLeave",
-         "click .ingredient" : "onHoverLeave",
-        "change input" : "onChange",
-        "autocompletechange input" : "onChange",
-        "slidestop *" : "onChange"
-      },
       initialize: function() {
-         this.el = $(this.el);
-         this.dirty = 0;
-         _.bindAll(this, "render");
-         _.bindAll(this, "save");
-         _.bindAll(this, "del");
-         _.bindAll(this, "saveSuccess");
-         _.bindAll(this, "saveError");
-         _.bindAll(this, "onChange");
+         MealplannerView.prototype.initialize.call(this);
          _.bindAll(this, "newPairing");
          this.model.bind('all', this.render);
          this.model.ingredients.bind('all', this.render);
@@ -798,60 +844,7 @@ jQuery(function() {
       },
 		addPairing : addPairing,
 		newPairing : newPairing,
-      save : function() {
-         if (this.dirty) {
-            this.dirty = 1;
-            this.$save.button({disabled : true, text : "Saving"}); 
-            this.model.save( {},
-               {
-                  error : this.saveError,
-                  success : this.saveSuccess
-               });
-            /*if (this.model.ingredients.url)
-            {
-               var self = this;
-               this.model.ingredients.each(function(mi) {
-                  mi.save( {},
-                     {
-                        error : self.saveError,
-                        success : self.saveSuccess
-                     });
-                  });
-            }
-            if (this.model.tags.url)
-            {
-               var self = this;
-               this.model.tags.each(function(mi) {
-                  mi.save( {},
-                     {
-                        error : self.saveError,
-                        success : self.saveSuccess
-                     });
-                  });
-            }*/
-         }
-         else if (this.$error.is(":hidden"))
-         {
-            this.dirty = 1;
-            this.saveSuccess()
-         }
-      },
-      saveError : function(model, response) {
-         this.$save.button({disabled : true, label : "Save Failed"}); 
-         this.$error.text("Error: " + response);
-         this.$error.show();
-      },
-      saveSuccess : function(model, response) {
-         this.dirty--;
-         this.$error.hide();
-         this.$save.button({disabled : true, label : "Saved"}); 
-      },
-      del : function() {
-         this.model.destroy();
-         this.remove();
-      },
-      onChange : function() {
-         this.dirty++;
+      setModels : function() {
          this.model.set({"Name": this.$name.val(),
             "DishType": this.$type.val(),
             "PrepTimeMinutes": parseInt(this.$prepTime.val()),
@@ -871,13 +864,12 @@ jQuery(function() {
                || model.get("Instruction") != $instruction.val())
             {
                model.save({"Amount" : $amount.val(),
-                           "Instruction" : $instruction.val()});
+                           "Instruction" : $instruction.val()},
+                           { error: this.saveError });
             }
          }
          this.parseTags();
          this.addIngredient(true);
-         this.$save.button({disabled : false, label: "Save"}); 
-         setTimeout(this.save, 5000);
       },
       parseTags : parseTags,
       addIngredient : function(fromChangeHandler) {
@@ -906,10 +898,7 @@ jQuery(function() {
       tagName : "div",
       className : "dish-view",
       initialize: function() {
-         this.el = $(this.el);
-         this.dirty = 0;
-         _.bindAll(this, "render");
-         _.bindAll(this, "del");
+         MealplannerView.prototype.initialize.call(this);
          _.bindAll(this, "edit");
          _.bindAll(this, "newPairing");
          this.model.bind('all', this.render);
@@ -1116,7 +1105,7 @@ jQuery(function() {
       val : function(newVal) {
          if (newVal == undefined)
             return this.model.get(this.options.field);
-         if (newVal == NaN || newVal < 0)
+         if (isNaN(newVal) || newVal < 0)
             newVal = 0;
          if (newVal != this.model.get(this.options.field))
          {
@@ -1186,8 +1175,7 @@ jQuery(function() {
       tagName : "ul",
       className : "ingredient-list",
       initialize: function() {
-         this.el = $(this.el);
-         _.bindAll(this, "render");
+         MealplannerView.prototype.initialize.call(this);
          this.model.bind('all', this.render);
       },
       render : function() {
@@ -1198,25 +1186,9 @@ jQuery(function() {
    window.IngredientEditView = window.MealplannerView.extend({
       tagName : "div",
       className : "ingredient-edit",
-      events : {
-         "mouseover .dish" : "onEnterDish",
-         "mouseleave .dish" : "onHoverLeave",
-         "click .dish" : "onHoverLeave",
-         "mouseover .ingredient" : "onEnterIngredient",
-         "mouseleave .ingredient" : "onHoverLeave",
-         "click .ingredient" : "onHoverLeave",
-        "change input" : "onChange",
-        "autocompletechange input" : "onChange"
-      },
       initialize: function() {
          var self = this;
-         this.el = $(this.el);
-         this.dirty = 0;
-         _.bindAll(this, "render");
-         _.bindAll(this, "save");
-         _.bindAll(this, "del");
-         _.bindAll(this, "saveSuccess");
-         _.bindAll(this, "saveError");
+         MealplannerView.prototype.initialize.call(this);
          this.model.bind('all', this.render);
          this.model.tags.bind('all', this.render);
          if (this.model.tags.url && this.model.tags.length == 0)
@@ -1278,45 +1250,12 @@ jQuery(function() {
          this.$name.focus();
          this.$name.select();
       },
-      save : function() {
-         if (this.dirty) {
-            this.dirty = 1;
-            this.$save.button({disabled : true, text : "Saving"}); 
-            this.model.save( {},
-               {
-                  error : this.saveError,
-                  success : this.saveSuccess
-               });
-         }
-         else if (this.$error.is(":hidden"))
-         {
-            this.dirty = 1;
-            this.saveSuccess()
-         }
-      },
-      saveError : function(model, response) {
-         this.$save.button({disabled : true, label : "Save Failed"}); 
-         this.$error.text("Error: " + response);
-         this.$error.show();
-      },
-      saveSuccess : function(model, response) {
-         this.dirty--;
-         this.$error.hide();
-         this.$save.button({disabled : true, label : "Saved"}); 
-      },
-      del : function() {
-         this.model.destroy();
-         this.remove();
-      },
-      onChange : function() {
-         this.dirty++;
+      setModels: function() {
          this.model.set({"Name": this.$name.val(),
             "Category": this.$category.val(),
             "Source": this.$source.val()
             });
          this.parseTags(true)
-         this.$save.button({disabled : false, label: "Save"}); 
-         setTimeout(this.save, 5000);
       },
       parseTags : parseTags
    })
@@ -1324,11 +1263,8 @@ jQuery(function() {
       tagName : "div",
       className : "ingredient-view",
       initialize: function() {
+         MealplannerView.prototype.initialize.call(this);
          var self = this;
-         this.el = $(this.el);
-         this.dirty = 0;
-         _.bindAll(this, "render");
-         _.bindAll(this, "del");
          _.bindAll(this, "edit");
          _.bindAll(this, "dishesReceived");
          _.bindAll(this, "viewDish");
@@ -1408,8 +1344,7 @@ jQuery(function() {
          "autocompleteselect input" : "changeMenu"
       },
       initialize: function() {
-         this.el = $(this.el);
-         _.bindAll(this, "render");
+         MealplannerView.prototype.initialize.call(this);
          this.model.bind('all', this.render);
          this.el.append("");
 
@@ -1450,10 +1385,7 @@ jQuery(function() {
       tagName : "div",
       className : "menu-view",
       initialize: function() {
-         this.el = $(this.el);
-         this.dirty = 0;
-         _.bindAll(this, "render");
-         _.bindAll(this, "del");
+         MealplannerView.prototype.initialize.call(this);
          _.bindAll(this, "clearMenu");
          _.bindAll(this, "cloneMenu");
          _.bindAll(this, "addCurDish");
@@ -1662,9 +1594,7 @@ jQuery(function() {
       tagName : "div",
       className : "menu-view",
       initialize: function() {
-         this.el = $(this.el);
-         _.bindAll(this, "render");
-         _.bindAll(this, "del");
+         MealplannerView.prototype.initialize.call(this);
          _.bindAll(this, "clearMenu");
          _.bindAll(this, "cloneMenu");
          _.bindAll(this, "newDish");
