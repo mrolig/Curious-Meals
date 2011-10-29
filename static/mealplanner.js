@@ -21,6 +21,11 @@ google.load("visualization", "1", {packages:["corechart"]});
       this.css("top", options.top);
       return this; 
    }
+   $.fn.appendNew = function(tag, attributes, content) {
+      var $new = $.make(tag, attributes, content);
+      this.append($new);
+      return this;
+   }
    $.make = function(tag, attributes, content) {
       var $e = $(document.createElement(tag));
       if (attributes) {
@@ -80,105 +85,6 @@ google.load("visualization", "1", {packages:["corechart"]});
 
 jQuery(function() {
    "use strict";
-   function ServingDisplay(model, field, $parent, onChange) {
-      this.value = model.get(field);
-      this.model = model;
-      this.field = field;
-      this.onChange = onChange;
-      this.$div = $("<div class='serving'></div>")
-         .appendTo($parent);
-      this.inc = this.inc.bind(this);
-      this.sub = this.sub.bind(this);
-      this.$span = $("<div class='serving-value'></div>")
-         .appendTo(this.$div)
-         .html(this.htmlValue(this.value));
-      if (onChange) {
-         var $plus = $("<span class='ui-icon ui-icon-plus inline'></span>")
-            .appendTo(this.$div)
-            .hide()
-            .click(this.inc);
-         var $minus = $("<span class='ui-icon ui-icon-minus inline'></span>")
-            .appendTo(this.$div)
-            .hide()
-            .click(this.sub);
-         this.$div.hover(function() {
-               $plus.show();
-               $minus.show();
-            }, function() {
-               $plus.hide();
-               $minus.hide();
-            });
-      }
-   }
-   ServingDisplay.prototype.htmlValue = function(value) {
-      if (value == 0)
-         return "0";
-      if (value <= 0.26)
-         return "&frac14;";
-      if (value <= 0.34)
-         return "&frac13;";
-      if (value <= 0.5)
-         return "&frac12;";
-      if (value <= 0.67)
-         return "&frac23;";
-      if (value <= 0.76)
-         return "&frac34;";
-      var intPart = parseInt(value);
-      var fracPart = value - intPart;
-      if (fracPart < 0.1)
-         return "" + intPart;
-      return "" + intPart + this.htmlValue(fracPart);
-   }
-   ServingDisplay.prototype.sub = function() {
-      var val = this.value;
-      var intPart = parseInt(val);
-      var fracPart = val - intPart;
-      if (fracPart > 0.7) {
-         val = intPart + 0.5;
-      } else if (fracPart > 0.45) {
-         val = intPart + 0.25;
-      } else if (fracPart > 0.2) {
-         val = intPart;
-      } else {
-         val = (intPart-1)+0.75;
-      }
-      if (val < 0)
-         val = 0;
-      this.val(val);
-   }
-   ServingDisplay.prototype.inc = function() {
-      var val = this.value;
-      var intPart = parseInt(val);
-      var fracPart = val - intPart;
-      if (fracPart < 0.2) {
-         val = intPart + 0.25;
-      } else if (fracPart < 0.49) {
-         val = intPart + 0.5;
-      } else if (fracPart < 0.7) {
-         val = intPart + 0.75;
-      } else {
-         val = intPart + 1;
-      }
-      if (val > 3)
-         val = 3;
-      this.val(val);
-   }
-   ServingDisplay.prototype.val = function(newVal) {
-      if (newVal == undefined)
-         return this.value;
-      if (newVal == NaN || newVal < 0)
-         this.value = 0;
-      else
-         this.value = newVal;
-      if (this.value != this.model.get(this.field))
-      {
-         this.$span.html(this.htmlValue(this.value));
-         var vals = {};
-         vals[this.field] = this.value;
-         this.model.set(vals);
-         this.onChange();
-      }
-   }
    window.Word = Backbone.Model.extend({
       defaults : {
          Word : ""
@@ -791,17 +697,23 @@ jQuery(function() {
          var $td = $("<td></td>")
             .appendTo($tr);
 
-         this.veggies = new ServingDisplay(this.model, "ServingsVeggies", $td, this.onChange);
+         this.veggies = new ServingView({model: this.model,
+            field: "ServingsVeggies", el: $td, onChange: this.onChange});
          $tr = $("<tr><td>Protein</td></tr>")
             .appendTo($breakdown);
          $td = $("<td></td>")
             .appendTo($tr);
-         this.proteins = new ServingDisplay(this.model, "ServingsProtein", $td, this.onChange);
+         this.proteins = new ServingView({model: this.model,
+            field: "ServingsProtein", el: $td, onChange: this.onChange});
          $tr = $("<tr><td>Carbohydrates</td></tr>")
             .appendTo($breakdown);
          $td = $("<td></td>")
             .appendTo($tr);
-         this.carbs = new ServingDisplay(this.model, "ServingsCarb", $td, this.onChange);
+         this.carbs = new ServingView({model: this.model,
+            field: "ServingsCarb", el: $td, onChange: this.onChange});
+         this.veggies.render()
+         this.proteins.render()
+         this.carbs.render()
          
          this.el.append("<span class='field-head'>Tags</span>:<span class='ui-icon ui-icon-tag inline'></span>");
          this.$tags = $("<div class='tag-list'></div>")
@@ -869,9 +781,6 @@ jQuery(function() {
             else
                this.$stars.eq(i).addClass("disabled");
          }
-         this.veggies.val(this.model.get("ServingsVeggies"));
-         this.carbs.val(this.model.get("ServingsCarb"));
-         this.proteins.val(this.model.get("ServingsProtein"));
          var self = this;
          renderTags(this.$tags, this.model.tags);
          this.ingredients.gen++;
@@ -1117,17 +1026,23 @@ jQuery(function() {
          var $td = $("<td></td>")
             .appendTo($tr);
 
-         this.veggies = new ServingDisplay(this.model, "ServingsVeggies", $td);
+         this.veggies = new ServingView({model: this.model,
+            field: "ServingsVeggies", el: $td});
          $tr = $("<tr><td>Protein</td></tr>")
             .appendTo($breakdown);
          $td = $("<td></td>")
             .appendTo($tr);
-         this.proteins = new ServingDisplay(this.model, "ServingsProtein", $td);
+         this.proteins = new ServingView({model: this.model,
+            field: "ServingsProtein", el: $td});
          $tr = $("<tr><td>Carbohydrates</td></tr>")
             .appendTo($breakdown);
          $td = $("<td></td>")
             .appendTo($tr);
-         this.carbs = new ServingDisplay(this.model, "ServingsCarb", $td);
+         this.carbs = new ServingView({model: this.model,
+            field: "ServingsCarb", el: $td});
+         this.veggies.render()
+         this.proteins.render()
+         this.carbs.render()
 
          this.el.append("<span class='field-head'>Tags</span>:<span class='ui-icon ui-icon-tag inline'></span>");
          this.$tags = $("<div class='tag-list'></div>")
@@ -1164,9 +1079,6 @@ jQuery(function() {
          this.$type.text(this.model.get("DishType"));
          this.$prepTime.text(this.model.get("PrepTimeMinutes"));
          this.$cookTime.text(this.model.get("CookTimeMinutes"));
-         this.veggies.val(this.model.get("ServingsVeggies"));
-         this.carbs.val(this.model.get("ServingsCarb"));
-         this.proteins.val(this.model.get("ServingsProtein"));
          var source = this.model.get("Source");
          if (source.indexOf("http://") == 0 ||
             source.indexOf("https://") == 0)
@@ -1228,7 +1140,107 @@ jQuery(function() {
       },
 		addPairing : addPairing,
 		newPairing : newPairing,
-   })
+   });
+   window.ServingView = Backbone.View.extend({
+      initialize : function() {
+         _.bindAll(this, "inc");
+         _.bindAll(this, "sub");
+         _.bindAll(this, "render");
+         this.model.bind('all', this.render);
+         this.$div = $.make("div", {class:"serving"})
+            .appendTo(this.el);
+         this.$span = $.make("div", {class:"serving-value"})
+            .appendTo(this.$div);
+         if (this.options.onChange) {
+            var $plus = $("<span class='ui-icon ui-icon-plus inline'></span>")
+               .appendTo(this.$div)
+               .hide()
+               .click(this.inc);
+            var $minus = $("<span class='ui-icon ui-icon-minus inline'></span>")
+               .appendTo(this.$div)
+               .hide()
+               .click(this.sub);
+            this.$div.hover(function() {
+                  $plus.show();
+                  $minus.show();
+               }, function() {
+                  $plus.hide();
+                  $minus.hide();
+               });
+         }
+      },
+      render : function() {
+         this.$span.html(this.htmlValue(this.val()));
+      },
+      val : function(newVal) {
+         if (newVal == undefined)
+            return this.model.get(this.options.field);
+         if (newVal == NaN || newVal < 0)
+            newVal = 0;
+         if (newVal != this.model.get(this.options.field))
+         {
+            this.$span.html(this.htmlValue(newVal));
+            var vals = {};
+            vals[this.options.field] = newVal;
+            this.model.set(vals);
+            if (this.options.onChange)
+               this.options.onChange();
+         }
+      },
+      htmlValue : function(value) {
+         if (value == 0)
+            return "0";
+         if (value <= 0.26)
+            return "&frac14;";
+         if (value <= 0.34)
+            return "&frac13;";
+         if (value <= 0.5)
+            return "&frac12;";
+         if (value <= 0.67)
+            return "&frac23;";
+         if (value <= 0.76)
+            return "&frac34;";
+         var intPart = parseInt(value);
+         var fracPart = value - intPart;
+         if (fracPart < 0.1)
+            return "" + intPart;
+         return "" + intPart + this.htmlValue(fracPart);
+      },
+      sub : function() {
+         var val = this.val();
+         var intPart = parseInt(val);
+         var fracPart = val - intPart;
+         if (fracPart > 0.7) {
+            val = intPart + 0.5;
+         } else if (fracPart > 0.45) {
+            val = intPart + 0.25;
+         } else if (fracPart > 0.2) {
+            val = intPart;
+         } else {
+            val = (intPart-1)+0.75;
+         }
+         if (val < 0)
+            val = 0;
+         this.val(val);
+      },
+      inc : function() {
+         var val = this.val();
+         var intPart = parseInt(val);
+         var fracPart = val - intPart;
+         if (fracPart < 0.2) {
+            val = intPart + 0.25;
+         } else if (fracPart < 0.49) {
+            val = intPart + 0.5;
+         } else if (fracPart < 0.7) {
+            val = intPart + 0.75;
+         } else {
+            val = intPart + 1;
+         }
+         if (val > 3)
+            val = 3;
+         this.val(val);
+      },
+   });
    window.IngredientListView = window.MealplannerView.extend({
       tagName : "ul",
       className : "ingredient-list",
