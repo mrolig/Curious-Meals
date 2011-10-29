@@ -85,83 +85,68 @@ google.load("visualization", "1", {packages:["corechart"]});
 
 jQuery(function() {
    "use strict";
-   window.Word = Backbone.Model.extend({
-      defaults : {
-         Word : ""
-      },
+   window.MealplannerModel = Backbone.Model.extend({
+      // override parse, so that we can copy the "Id" to "id"
+      //  Go has to use upper case and backbone needs lower case
       parse : function(response) {
          var attrs = Backbone.Model.prototype.parse.call(this, response);
          attrs.id = attrs.Id;
+         if (attrs.id && this.collectionURLs)
+         {
+            for(var name in this.collectionURLs) {
+               this[name].url = this.url() + "/" + this.collectionURLs[name] + "/";
+            }
+         }
          return attrs;
       }
    });
-   window.WordList = Backbone.Collection.extend({
+   window.MealplannerCollection = Backbone.Collection.extend({
+      // override parse, so that we can copy the "Id" to "id"
+      //  Go has to use upper case and backbone needs lower case
+      parse : function(response) {
+         var models = Backbone.Collection.prototype.parse.call(this, response);
+         for (var m in models)
+         {
+            models[m].id = models[m].Id;
+         }
+         return models;
+      }
+   });
+   window.Word = MealplannerModel.extend({
+      defaults : {
+         Word : ""
+      }
+   });
+   window.WordList = MealplannerCollection.extend({
       model: Word,
       comparator : function(mi) {
          return mi.get("Word");
-      },
-      parse : function(response) {
-         var models = Backbone.Model.prototype.parse.call(this, response);
-         
-         for (var m in models)
-         {
-            models[m].id = models[m].Id;
-         }
-         return models;
       }
    })
-   window.Pairing = Backbone.Model.extend({
+   window.Pairing = MealplannerModel.extend({
       defaults : {
          Other : "",
 			Description : ""
-      },
-      parse : function(response) {
-         var attrs = Backbone.Model.prototype.parse.call(this, response);
-         attrs.id = attrs.Id;
-         return attrs;
       }
    });
-   window.PairingList = Backbone.Collection.extend({
-      model: Pairing,
-      parse : function(response) {
-         var models = Backbone.Model.prototype.parse.call(this, response);
-         
-         for (var m in models)
-         {
-            models[m].id = models[m].Id;
-         }
-         return models;
-      }
+   window.PairingList = MealplannerCollection.extend({
+      model: Pairing
    })
-   window.MeasuredIngredient = Backbone.Model.extend({
+   window.MeasuredIngredient = MealplannerModel.extend({
       defaults : {
          Ingredient : "",
          Amount : "",
          Instruction : "",
          Order : 0
-      },
-      parse : function(response) {
-         var attrs = Backbone.Model.prototype.parse.call(this, response);
-         attrs.id = attrs.Id;
-         return attrs;
       }
    });
-   window.MeasuredIngredientList = Backbone.Collection.extend({
+   window.MeasuredIngredientList = MealplannerCollection.extend({
       model: MeasuredIngredient,
       comparator : function(mi) {
          return mi.get("Order");
-      },
-      parse : function(response) {
-         var models = Backbone.Model.prototype.parse.call(this, response);
-         
-         for (var m in models)
-         {
-            models[m].id = models[m].Id;
-         }
-         return models;
       }
    })
-   window.Dish = Backbone.Model.extend({
+   window.Dish = MealplannerModel.extend({
       initialize: function() {
          this.ingredients = new MeasuredIngredientList;
          if (this.id)
@@ -195,35 +180,20 @@ jQuery(function() {
          ServingsVeggies : 0
        };
       },
-      parse : function(response) {
-         var attrs = Backbone.Model.prototype.parse.call(this, response);
-         attrs.id = attrs.Id;
-         if (attrs.id)
-         {
-            this.ingredients.url = "/dish/" + attrs.id + "/mi/";
-            this.tags.url = "/dish/" + attrs.id + "/tags/";
-            this.pairings.url = "/dish/" + attrs.id + "/pairing/";
-         }
-         return attrs;
+      collectionURLs : {
+         "ingredients" : "mi",
+         "tags" : "tags",
+         "pairings" : "pairing"
       }
    });
-   window.DishList = Backbone.Collection.extend({
+   window.DishList = MealplannerCollection.extend({
       url: "/dish/",
       model: Dish,
       comparator : function(dish) {
          return dish.get("Name");
-      },
-      parse : function(response) {
-         var models = Backbone.Model.prototype.parse.call(this, response);
-         
-         for (var m in models)
-         {
-            models[m].id = models[m].Id;
-         }
-         return models;
       }
    })
-   window.Ingredient = Backbone.Model.extend({
+   window.Ingredient = MealplannerModel.extend({
       initialize: function() {
          this.tags = new WordList;
          if (this.id)
@@ -239,41 +209,21 @@ jQuery(function() {
          Source : "Vegan",
          Tags : [] };
       },
-      parse : function(response) {
-         var attrs = Backbone.Model.prototype.parse.call(this, response);
-         attrs.id = attrs.Id;
-         if (attrs.id)
-         {
-            this.tags.url = "/ingredient/" + attrs.id + "/tags/";
-         }
-         return attrs;
+      collectionURLs : {
+         "tags" : "tags"
       }
    });
-   window.IngredientList = Backbone.Collection.extend({
+   window.IngredientList = MealplannerCollection.extend({
       url: "/ingredient/",
       model: Ingredient,
       comparator : function(ingredient) {
          return ingredient.get("Name");
-      },
-      parse : function(response) {
-         var models = Backbone.Model.prototype.parse.call(this, response);
-         
-         for (var m in models)
-         {
-            models[m].id = models[m].Id;
-         }
-         return models;
       }
    })
-   window.Menu = Backbone.Model.extend({
+   window.Menu = MealplannerModel.extend({
       defaults : {
 			Name : "<New Menu>",
          Dishes : []
-      },
-      parse : function(response) {
-         var attrs = Backbone.Model.prototype.parse.call(this, response);
-         attrs.id = attrs.Id;
-         return attrs;
       },
       hasDish : function (dish) {
          var dishes = this.get("Dishes");
@@ -293,18 +243,9 @@ jQuery(function() {
          this.save({Dishes:dishes});
       }
    });
-   window.MenuList = Backbone.Collection.extend({
+   window.MenuList = MealplannerCollection.extend({
       url: "/menu/",
       model: Menu,
-      parse : function(response) {
-         var models = Backbone.Model.prototype.parse.call(this, response);
-         
-         for (var m in models)
-         {
-            models[m].id = models[m].Id;
-         }
-         return models;
-      },
       getDraftMenu : function() {
          if (this.draft)
             return this.draft;
@@ -1925,11 +1866,11 @@ jQuery(function() {
       },
       
    })
-   window.User = Backbone.Model.extend({
+   window.User = MealplannerModel.extend({
       
    });
 
-   window.UserList = Backbone.Collection.extend({
+   window.UserList = MealplannerCollection.extend({
       url: "/users",
       model: User
    })
@@ -1969,7 +1910,7 @@ jQuery(function() {
       }
       });
 
-   window.Search = Backbone.Model.extend({
+   window.Search = MealplannerModel.extend({
       
    });
    window.SearchView = window.MealplannerView.extend({
