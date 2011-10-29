@@ -182,3 +182,10 @@ span.sample {
    border: solid thin black;
    margin: 1px 1px;
 }
+div.hover-view {
+   position: absolute;
+   /*border: solid thin black;*/
+   /*background: white;*/
+   padding: 5px;
+   border-radius: 3px;
+}

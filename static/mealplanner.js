@@ -14,6 +14,13 @@ google.load("visualization", "1", {packages:["corechart"]});
       }
       return this;
    }
+   $.fn.hoverView = function(options) {
+      this.addClass('hover-view');
+      this.addClass('ui-widget-content');
+      this.css("left", options.left);
+      this.css("top", options.top);
+      return this; 
+   }
    // do 'default' stying to a text input
    $.fn.textInput = function(options) {
       var defaults = { size: 20 };
@@ -436,11 +443,91 @@ jQuery(function() {
       }
       return this;
    }
-   window.DishListView = Backbone.View.extend({
+   window.MealplannerView = Backbone.View.extend({
+      events : {
+         "mouseover .dish" : "onEnterDish",
+         "mouseleave .dish" : "onLeaveDish",
+         "click .dish" : "onLeaveDish",
+         "mouseover .ingredient" : "onEnterIngredient",
+         "mouseleave .ingredient" : "onLeaveIngredient",
+         "click .ingredient" : "onLeaveIngredient",
+      },
+      onEnterDish : function (evt) {
+         if (this.viewHoverDish)
+            return false;
+         if (evt.currentTarget && evt.currentTarget.model) {
+            this.viewHoverDish = $("<div></div>");
+            var dv = new DishView({model : evt.currentTarget.model, readOnly : true});
+            this.viewHoverDish.append(dv.render().el);
+            this.viewHoverDish
+               .hoverView({left : $(evt.currentTarget).offset().left,
+                        top :$(evt.currentTarget).offset().top + $(evt.currentTarget).height() + 2})
+               .hide()
+               .appendTo(document.body);
+            var self = this;
+            setTimeout(function() {
+                  var view = self.viewHoverDish;
+                  if (view) {
+                     if (view.is(":hidden")) {
+                        view
+                           .show('blind')
+                           .delay(100);
+                     }
+                  }
+               }, 1000);
+            return false;
+         }
+         return false;
+      },
+      onLeaveDish : function (evt, ui) {
+         var view = this.viewHoverDish;
+         if (view) {
+            this.viewHoverDish = null;
+            view.hide(function() {
+               view.remove();
+            });
+         }
+      },
+      onEnterIngredient : function (evt) {
+         if (this.viewHoverIngredient)
+            return false;
+         if (evt.currentTarget && evt.currentTarget.model) {
+            this.viewHoverIngredient = $("<div></div>");
+            var dv = new IngredientView({model : evt.currentTarget.model, readOnly : true});
+            this.viewHoverIngredient.append(dv.render().el);
+            var self = this;
+            this.viewHoverIngredient
+               .hoverView({left : $(evt.currentTarget).offset().left,
+                        top :$(evt.currentTarget).offset().top + $(evt.currentTarget).height() + 2})
+               .hide()
+               .appendTo(document.body);
+            setTimeout(function() {
+                  var view = self.viewHoverIngredient;
+                  if (view) {
+                     if (view.is(":hidden")) {
+                        view
+                           .show('blind')
+                           .delay(100);
+                     }
+                  }
+               }, 1000);
+            return false;
+         }
+         return false;
+      },
+      onLeaveIngredient: function (evt, ui) {
+         var view = this.viewHoverIngredient;
+         if (view) {
+            this.viewHoverIngredient = null;
+            view.hide(function() {
+               view.remove();
+            });
+         }
+      }
+   });
+   window.DishListView = window.MealplannerView.extend({
       tagName : "ul",
       className : "dish-list",
-      events : {
-      },
       initialize: function() {
          this.el = $(this.el);
          _.bindAll(this, "render");
@@ -558,8 +645,9 @@ jQuery(function() {
 			var $ul = $("<ul class='pairing-list'></ul>")
 				.appendTo($pairings);
 			_.each(list, function(pairing, p) {
-         	var $pairing = $("<li class='pairing'><span class='ui-icon ui-icon-dish inline'></span></li>")
+         	var $pairing = $("<li class='pairing dish'><span class='ui-icon ui-icon-dish inline'></span></li>")
             	.appendTo($ul);
+            $pairing[0].model = pairing.other;
          	$("<a></a>")
             	.appendTo($pairing)
             	.text(pairing.other.get("Name"))
@@ -620,10 +708,16 @@ jQuery(function() {
          title : title, fontSize : 10, 
          colors : ["#459E00", "#B23500", "#770071"]});
    } 
-   window.DishEditView = Backbone.View.extend({
+   window.DishEditView = window.MealplannerView.extend({
       tagName : "div",
       className : "dish-edit",
       events : {
+         "mouseover .dish" : "onEnterDish",
+         "mouseleave .dish" : "onLeaveDish",
+         "click .dish" : "onLeaveDish",
+         "mouseover .ingredient" : "onEnterIngredient",
+         "mouseleave .ingredient" : "onLeaveIngredient",
+         "click .ingredient" : "onLeaveIngredient",
         "change input" : "onChange",
         "autocompletechange input" : "onChange",
         "slidestop *" : "onChange"
@@ -771,7 +865,6 @@ jQuery(function() {
             this.$save.button({disabled : false, label: "Save"}); 
          }
          this.$name.val(this.model.get("Name"));
-			document.title = this.model.get("Name");
          this.$type.val(this.model.get("DishType"));
          this.$prepTime.val(this.model.get("PrepTimeMinutes"));
          this.$cookTime.val(this.model.get("CookTimeMinutes"));
@@ -859,6 +952,7 @@ jQuery(function() {
       },
       focus : function() {
          this.$name.focus();
+         this.$name.select();
       },
 		addPairing : addPairing,
 		newPairing : newPairing,
@@ -966,7 +1060,7 @@ jQuery(function() {
          }
       }
    })
-   window.DishView = Backbone.View.extend({
+   window.DishView = window.MealplannerView.extend({
       tagName : "div",
       className : "dish-view",
       initialize: function() {
@@ -1066,11 +1160,15 @@ jQuery(function() {
          this.el.append("<br/>");
          this.$text = $("<div class='text'></div>")
             .appendTo(this.el); 
+         if (this.options.readOnly) {
+            this.$edit.hide();
+            this.$delete.hide();
+            this.$pairingsDrop.hide();
+         }
       },
       render : function() {
          var self = this;
          this.$name.text(this.model.get("Name"));
-			document.title = this.model.get("Name");
          this.$type.text(this.model.get("DishType"));
          this.$prepTime.text(this.model.get("PrepTimeMinutes"));
          this.$cookTime.text(this.model.get("CookTimeMinutes"));
@@ -1111,6 +1209,7 @@ jQuery(function() {
                $amount.text(i.get("Amount"));
                $instruction.text(i.get("Instruction"));
                var ingredient = Ingredients.get(i.get("Ingredient"));
+               $tr[0].model = ingredient;
                $("<a></a>")
                      .appendTo($name)
                      .text(ingredient.get("Name"))
@@ -1138,7 +1237,7 @@ jQuery(function() {
 		addPairing : addPairing,
 		newPairing : newPairing,
    })
-   window.IngredientListView = Backbone.View.extend({
+   window.IngredientListView = window.MealplannerView.extend({
       tagName : "ul",
       className : "ingredient-list",
       initialize: function() {
@@ -1151,10 +1250,16 @@ jQuery(function() {
          return this;
       },
    })
-   window.IngredientEditView = Backbone.View.extend({
+   window.IngredientEditView = window.MealplannerView.extend({
       tagName : "div",
       className : "ingredient-edit",
       events : {
+         "mouseover .dish" : "onEnterDish",
+         "mouseleave .dish" : "onLeaveDish",
+         "click .dish" : "onLeaveDish",
+         "mouseover .ingredient" : "onEnterIngredient",
+         "mouseleave .ingredient" : "onLeaveIngredient",
+         "click .ingredient" : "onLeaveIngredient",
         "change input" : "onChange",
         "autocompletechange input" : "onChange"
       },
@@ -1212,13 +1317,13 @@ jQuery(function() {
             })
             .appendTo(this.el);
          this.$name.focus();
+         this.$name.select();
       },
       render : function() {
          if (this.dirty) {
             this.$save.button({disabled : false, label: "Save"}); 
          }
          this.$name.val(this.model.get("Name"));
-			document.title = this.model.get("Name");
          this.$category.val(this.model.get("Category"));
          this.$source.val(this.model.get("Source"));
          renderTags(this.$tags, this.model.tags);
@@ -1226,6 +1331,7 @@ jQuery(function() {
       },
       focus : function() {
          this.$name.focus();
+         this.$name.select();
       },
       save : function() {
          if (this.dirty) {
@@ -1269,11 +1375,9 @@ jQuery(function() {
       },
       parseTags : parseTags
    })
-   window.IngredientView = Backbone.View.extend({
+   window.IngredientView = window.MealplannerView.extend({
       tagName : "div",
       className : "ingredient-view",
-      events : {
-      },
       initialize: function() {
          var self = this;
          this.el = $(this.el);
@@ -1299,6 +1403,10 @@ jQuery(function() {
             .button()
             .click(this.del)
             .appendTo(this.el);
+         if (this.options.readOnly) {
+            this.$edit.hide();
+            this.$delete.hide();
+         }
          this.el.append("<br/>");
          this.el.append("<br/><span class='field-head'>Category</span>: ");
          this.$category = $("<span></span>")
@@ -1315,7 +1423,6 @@ jQuery(function() {
       },
       render : function() {
          this.$name.text(this.model.get("Name"));
-			document.title = this.model.get("Name");
          this.$category.text(this.model.get("Category"));
          this.$source.text(this.model.get("Source"));
          renderTags(this.$tags, this.model.tags);
@@ -1342,10 +1449,16 @@ jQuery(function() {
          this.trigger("viewDish", ev);
       },
    })
-   window.MenuBarView = Backbone.View.extend({
+   window.MenuBarView = window.MealplannerView.extend({
       tagName : "div",
       className : "menubar",
       events : {
+         "mouseover .dish" : "onEnterDish",
+         "mouseleave .dish" : "onLeaveDish",
+         "click .dish" : "onLeaveDish",
+         "mouseover .ingredient" : "onEnterIngredient",
+         "mouseleave .ingredient" : "onLeaveIngredient",
+         "click .ingredient" : "onLeaveIngredient",
          "autocompletechange input" : "changeMenu",
          "autocompleteselect input" : "changeMenu"
       },
@@ -1388,7 +1501,7 @@ jQuery(function() {
          }
       }
    })
-   window.MenuView = Backbone.View.extend({
+   window.MenuView = window.MealplannerView.extend({
       tagName : "div",
       className : "menu-view",
       initialize: function() {
@@ -1600,12 +1713,11 @@ jQuery(function() {
          this.$add.button("option", "disabled", !showAdd);
       }
    })
-   window.MenuDetailView = Backbone.View.extend({
+   window.MenuDetailView = window.MealplannerView.extend({
       tagName : "div",
       className : "menu-view",
       initialize: function() {
          this.el = $(this.el);
-         this.dirty = 0;
          _.bindAll(this, "render");
          _.bindAll(this, "del");
          _.bindAll(this, "clearMenu");
@@ -1653,7 +1765,6 @@ jQuery(function() {
          var self = this;
          var name = this.model.get("Name");
          this.$name.text(name);
-			document.title = name;
          if (this.model == Menus.getDraftMenu()) {
             this.$delete.hide();
          } else {
@@ -1675,7 +1786,8 @@ jQuery(function() {
          var carbs = 0;
          var allIngredients = {};
          _.each(dishes, function(dish) {
-            if (dish.ingredients.length == 0) {
+            if (dish.ingredients.length == 0 && !dish.ingredients.menufetched) {
+               dish.ingredients.menufetched = true;
                dish.ingredients.fetch({success: self.render});
             }
             dish.ingredients.each(function(ingredient) {
@@ -1806,7 +1918,8 @@ jQuery(function() {
             this.model.save({Dishes:dishes});
             this.render();
          }
-      }
+      },
+      
    })
    window.User = Backbone.Model.extend({
       
@@ -1855,7 +1968,7 @@ jQuery(function() {
    window.Search = Backbone.Model.extend({
       
    });
-   window.SearchView = Backbone.View.extend({
+   window.SearchView = window.MealplannerView.extend({
       tagName : "div",
       className : "search-view",
       initialize : function() {
@@ -2062,6 +2175,7 @@ jQuery(function() {
             view.focus();
          if (view.model) {
             this.curContext = view.model;
+			   document.title = view.model.get("Name");
          }
          if (this.menuBarView) {
             this.menuBarView.setContext(view.model);
@@ -2097,8 +2211,9 @@ jQuery(function() {
          window.Workspace.navigate("search/" + tags + "/" + word + "/" + rating);
       },
       newDish : function() {
-         var nd = Dishes.create({});
-         this.editDish(nd)
+         var nd = Dishes.create({}, { success : function( model) {
+            this.editDish(model)
+         }.bind(this)});
       },
       viewDish : function(dish) {
          var viewDish = new DishView({model : dish})
@@ -2112,8 +2227,10 @@ jQuery(function() {
          window.Workspace.navigate("editDish/" + dish.id);
       },
       newIngredient : function() {
-         var nd = Ingredients.create({});
-         this.editIngredient(nd)
+         Ingredients.create({}, {success:
+            function(model) {
+               this.editIngredient(model)
+         }.bind(this)});
       },
       viewIngredient : function(ingredient) {
          var viewIngredient = new IngredientView({model : ingredient})
