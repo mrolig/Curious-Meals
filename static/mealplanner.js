@@ -120,6 +120,19 @@ jQuery(function() {
             models[m].id = models[m].Id;
          }
          return models;
+      },
+      fetch : function(options) {
+         if ((!jQuery.isFunction(this.url)) || this.url()) {
+            this.fetchCalled = true;
+         }
+         return Backbone.Collection.prototype.fetch.call(this, options);
+      },
+      // fetch only if we haven't fetched before
+      fetchOnce : function(options) {
+         if (this.fetchCalled) {
+            return;
+         }
+         return this.fetch(options);
       }
    });
    window.Word = MealplannerModel.extend({
@@ -738,12 +751,10 @@ jQuery(function() {
          this.model.tags.bind('all', this.render);
          this.model.ingredients.bind('all', this.render);
          this.model.pairings.bind('all', this.render);
-         if (this.model.ingredients.url && this.model.ingredients.length == 0)
-            this.model.ingredients.fetch();
-         if (this.model.tags.url && this.model.tags.length == 0)
-            this.model.tags.fetch();
-         if (this.model.pairings.url)
-            this.model.pairings.fetch();
+         this.model.ingredients.fetchOnce();
+         this.model.tags.fetchOnce();
+         // alway fetch pairings -- we don't always see them get added
+         this.model.pairings.fetch();
          this.createBasicView();
          this.$stars = this.newRatingField();
          this.$source = $("<span class='dish-source'></span>")
@@ -888,12 +899,10 @@ jQuery(function() {
          this.model.ingredients.bind('all', this.render);
          this.model.tags.bind('all', this.render);
          this.model.pairings.bind('all', this.render);
-         if (this.model.ingredients.url && this.model.ingredients.length == 0)
-            this.model.ingredients.fetch();
-         if (this.model.tags.url && this.model.tags.length == 0)
-            this.model.tags.fetch();
-         if (this.model.pairings.url)
-            this.model.pairings.fetch();
+         this.model.ingredients.fetchOnce();
+         this.model.tags.fetchOnce();
+         // always fetch pairings, a given dish may not see one added
+         this.model.pairings.fetch();
          this.ingredients = { gen : 0};
          this.createEditView();
          //  grey-out Save button when already saved (hasChanged == false)
@@ -1235,8 +1244,7 @@ jQuery(function() {
          var self = this;
          MealplannerView.prototype.initialize.call(this);
          this.model.tags.bind('all', this.render);
-         if (this.model.tags.url && this.model.tags.length == 0)
-            this.model.tags.fetch();
+         this.model.tags.fetchOnce();
          this.createEditView();
          //  grey-out Save button when already saved (hasChanged == false)
          this.$save = this.$title.find("button[value='Save']")
@@ -1287,8 +1295,7 @@ jQuery(function() {
          _.bindAll(this, "dishesReceived");
          _.bindAll(this, "viewDish");
          this.model.tags.bind('all', this.render);
-         if (this.model.tags.url && this.model.tags.length == 0)
-            this.model.tags.fetch();
+         this.model.tags.fetchOnce();
          this.createBasicView();
          this.$category = $("<span></span>")
             .appendTo(this.newField("Category"));
@@ -1643,10 +1650,7 @@ jQuery(function() {
          var carbs = 0;
          var allIngredients = {};
          _.each(dishes, function(dish) {
-            if (dish.ingredients.length == 0 && !dish.ingredients.menufetched) {
-               dish.ingredients.menufetched = true;
-               dish.ingredients.fetch({success: self.render});
-            }
+            dish.ingredients.fetchOnce({success: self.render});
             dish.ingredients.each(function(ingredient) {
                var model = Ingredients.get(ingredient.get("Ingredient"));
                if (model) {
