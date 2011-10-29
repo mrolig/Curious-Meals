@@ -179,7 +179,7 @@ jQuery(function() {
       model: MeasuredIngredient,
       comparator : function(mi) {
          return mi.get("Order");
-      }
+      },
    })
    window.Dish = MealplannerModel.extend({
       initialize: function() {
@@ -223,6 +223,17 @@ jQuery(function() {
       model: Dish,
       comparator : function(dish) {
          return dish.get("Name");
+      },
+      allDishTypes : function() {
+         var map = { Entree:1,Side:1,Appetizer:1,Dessert:1,Drink:1};
+         this.each(function(d) {
+            map[d.get("DishType")] = true;
+         });
+         var list = [];
+         for (var i in map) {
+            list.push(i);
+         }
+         return list.sort();
       }
    })
    window.Ingredient = MealplannerModel.extend({
@@ -249,6 +260,18 @@ jQuery(function() {
       model: Ingredient,
       comparator : function(ingredient) {
          return ingredient.get("Name");
+      },
+      // return a list of all distinct categories
+      allCategories : function() {
+         var map = { Carbohydrate : true, Protein : true, Vegetable : true, Fruit : true, Sweet : true, Spice : true, Fat: true, Herb: true};
+         this.each(function(ing) {
+            map[ing.get("Category")] = true;
+         });
+         var categories = [];
+         for (var cat in map) {
+            categories.push(cat);
+         }
+         return categories.sort();
       }
    })
    window.Menu = MealplannerModel.extend({
@@ -300,7 +323,8 @@ jQuery(function() {
          "mouseleave .ingredient" : "onHoverLeave",
          "click .ingredient" : "onHoverLeave",
          "change input" : "onChange",
-         "autocompletechange input" : "onChange"
+         "autocompletechange input" : "onChange",
+         "autocompleteselect input" : "onChange"
       },
       initialize : function() {
          this.el = $(this.el);
@@ -424,6 +448,37 @@ jQuery(function() {
             this.saveTimeout = setTimeout(this.save, 5000);
          }
       },
+      del : function() {
+         var self = this;
+         if (window.SuppressAreYouSure) {
+            this.model.destroy();
+            this.remove();
+            return;
+         }
+         var $dialog = $.make("div", "<p></p><p><input type='checkbox' name='suppress' checked class='ui-widget'></input> Always ask me before deleting.</p>")
+            .appendTo(document.body);
+         $dialog.find("p").first()
+            .text("You will permanently delete '" + this.model.get("Name") + "'.");
+         $dialog.find("input")
+            .change(function() {
+               window.SuppressAreYouSure = !this.checked;
+            });
+         $dialog
+            .dialog({
+               modal : true,
+               title : "Are you sure?",
+               buttons : {
+                  Yes : function() {
+                     self.model.destroy();
+                     self.remove();
+					      $(this).dialog("close");
+                  },
+                  No : function() {
+					      $(this).dialog("close");
+                  }
+               }
+            })
+      },
       save : function() {
          if (this.dirty) {
             this.dirty = 1;
@@ -459,10 +514,6 @@ jQuery(function() {
          if (this.$save) {
             this.$save.button({disabled : true, label : "Saved"}); 
          }
-      },
-      del : function() {
-         this.model.destroy();
-         this.remove();
       },
       onHoverEnter : function(evt, viewCtor) {
          var target = evt.currentTarget;
@@ -891,10 +942,6 @@ jQuery(function() {
          }
          return this;
       },
-      del : function() {
-         this.model.destroy();
-         this.remove();
-      },
       edit: function(ev) {
          this.trigger("editDish", this.model);
       },
@@ -929,7 +976,7 @@ jQuery(function() {
          this.$type = $("<input type='text'></input>")
             .appendTo(this.newField("Dish Type"))
             .textInput()
-            .combo({source:["Entree", "Side", "Appetizer", "Dessert", "Drink"], minLength:0});
+            .combo({source:Dishes.allDishTypes(), minLength:0});
          var $ptField = this.newField("Prep Time")
          this.$prepTime = $("<input type='text'></input>")
             .textInput({size:4})
@@ -938,7 +985,7 @@ jQuery(function() {
          var $ctField = this.newField("Cook Time");
          this.$cookTime = $("<input type='text'></input>")
             .textInput({size:4})
-            .appendTo(this.el);
+            .appendTo($ctField);
          $ctField.append(" minutes")
          var $breakdown = $("<table class='breakdown'></table>")
             .appendTo(this.newField("Breakdown of a single serving"));
@@ -972,8 +1019,10 @@ jQuery(function() {
                function(i) { return i.get("Name"); });
          var $lastRow = $("<tr></tr>")
             .appendTo(this.$mi);
+         var $addCell = $("<td colspan=3>")
+            .appendTo($lastRow);
          this.$addIngredient = $("<input type='text'></input>")
-            .appendTo($lastRow)
+            .appendTo($addCell)
             .combo({source: allIngredients})
             .bind('keypress', function (evt) {
                if (evt.which == 13) {
@@ -995,6 +1044,7 @@ jQuery(function() {
          this.$text = $("<textarea cols='50' rows='10'></textarea>")
             .appendTo(this.newField("Text"))
             .change(this.onChange);
+         this.$text.before("<br/>");
             
          if (!this.model.id)
             this.save();
@@ -1267,7 +1317,7 @@ jQuery(function() {
          this.$category = $("<input type='text'></input>")
             .textInput()
             .appendTo(this.newField("Category"))
-            .combo({source:["Carbohydrate", "Protein", "Vegetable", "Fruit", "Sweet", "Spice", "Fat", "Herb"], minLength:0});
+            .combo({source:Ingredients.allCategories(), minLength:0});
          this.$source= $("<input ></input>")
             .appendTo(this.newField("Source"))
             .combo({source:["Animal", "Vegan", "Vegetarian"], minLength:0});
@@ -1327,10 +1377,6 @@ jQuery(function() {
          this.$source.text(this.model.get("Source"));
          this.renderTags();
          return this;
-      },
-      del : function() {
-         this.model.destroy();
-         this.remove();
       },
       edit: function(ev) {
          this.trigger("editIngredient", this.model);
@@ -1511,10 +1557,6 @@ jQuery(function() {
             self.drawChart(self.$targetChart, "Target", 2, 1, 1);
             }, 10);
          return this;
-      },
-      del : function() {
-         this.model.destroy();
-         this.remove();
       },
       edit: function(ev) {
          this.trigger("editDish", this.model);
@@ -1735,10 +1777,6 @@ jQuery(function() {
             self.drawChart(self.$targetChart, "Target", 2, 1, 1);
             }, 10);
          return this;
-      },
-      del : function() {
-         this.model.destroy();
-         this.remove();
       },
       edit: function(ev) {
          this.trigger("editDish", this.model);
