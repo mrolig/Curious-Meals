@@ -3,6 +3,8 @@
 - if editing dish, add new ingredients rather than forcing separate add ingredient
 - show vegan/veg. icon
 
+- clean-up sign-out
+
 - add ACL to library
 - create method to share a library
 

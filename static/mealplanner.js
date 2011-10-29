@@ -21,6 +21,18 @@ google.load("visualization", "1", {packages:["corechart"]});
       this.css("top", options.top);
       return this; 
    }
+   $.make = function(tag, attributes, content) {
+      var $e = $(document.createElement(tag));
+      if (attributes) {
+         if (typeof(attributes) == "string") {
+            $e.html(attributes)
+         } else {
+            $e.attr(attributes);
+         }
+      }
+      if (content) $e.html(content);
+      return $e;
+   }
    // do 'default' stying to a text input
    $.fn.textInput = function(options) {
       var defaults = { size: 20 };
@@ -446,83 +458,63 @@ jQuery(function() {
    window.MealplannerView = Backbone.View.extend({
       events : {
          "mouseover .dish" : "onEnterDish",
-         "mouseleave .dish" : "onLeaveDish",
-         "click .dish" : "onLeaveDish",
+         "mouseleave .dish" : "onHoverLeave",
+         "click .dish" : "onHoverLeave",
          "mouseover .ingredient" : "onEnterIngredient",
-         "mouseleave .ingredient" : "onLeaveIngredient",
-         "click .ingredient" : "onLeaveIngredient",
+         "mouseleave .ingredient" : "onHoverLeave",
+         "click .ingredient" : "onHoverLeave",
+      },
+      onHoverEnter : function(evt, viewCtor) {
+         var target = evt.currentTarget;
+         // check if this item has a model to give us data
+         if (target && target.model) {
+            // check if we're already preparing a hover view
+            if (target.$hoverView)
+               return false;
+            target.$hoverView = $.make("div");
+            var view = new viewCtor({ el : target.$hoverView,
+                                     model: target.model,
+                                     readOnly: true});
+            view.render();
+            var $target = $(target);
+            var pos = $target.offset();
+            pos.top = pos.top + $target.height() + 2;
+            target.$hoverView
+               .hoverView(pos)
+               .hide()
+               .appendTo(document.body);
+            // delay showing for a second after hovering starts
+            setTimeout(function() {
+               var $hoverView = target.$hoverView;
+               if ($hoverView && $hoverView.is(":hidden")) {
+                  // after the timeout, show it, and add a delay so
+                  //  it will not be hidden immediately after appearing
+                  $hoverView.show('blind')
+                     .delay(100);
+                }
+            }, 1000);
+         }
+         return false;
+      },
+      onHoverLeave : function (evt, ui) {
+         var target = evt.currentTarget;
+         if (target && target.$hoverView) {
+            var $hoverView = target.$hoverView;
+            target.$hoverView = null;
+            // hide the view, and remove it when done
+            //  if we remove it right away, we may be interrupting
+            //  the animation when showing, the hide gets queued behind
+            //  the animation
+            $hoverView.hide(0, function() {
+               $hoverView.remove();
+            });
+         }
       },
       onEnterDish : function (evt) {
-         if (this.viewHoverDish)
-            return false;
-         if (evt.currentTarget && evt.currentTarget.model) {
-            this.viewHoverDish = $("<div></div>");
-            var dv = new DishView({model : evt.currentTarget.model, readOnly : true});
-            this.viewHoverDish.append(dv.render().el);
-            this.viewHoverDish
-               .hoverView({left : $(evt.currentTarget).offset().left,
-                        top :$(evt.currentTarget).offset().top + $(evt.currentTarget).height() + 2})
-               .hide()
-               .appendTo(document.body);
-            var self = this;
-            setTimeout(function() {
-                  var view = self.viewHoverDish;
-                  if (view) {
-                     if (view.is(":hidden")) {
-                        view
-                           .show('blind')
-                           .delay(100);
-                     }
-                  }
-               }, 1000);
-            return false;
-         }
-         return false;
-      },
-      onLeaveDish : function (evt, ui) {
-         var view = this.viewHoverDish;
-         if (view) {
-            this.viewHoverDish = null;
-            view.hide(function() {
-               view.remove();
-            });
-         }
+         return this.onHoverEnter(evt, DishView);
       },
       onEnterIngredient : function (evt) {
-         if (this.viewHoverIngredient)
-            return false;
-         if (evt.currentTarget && evt.currentTarget.model) {
-            this.viewHoverIngredient = $("<div></div>");
-            var dv = new IngredientView({model : evt.currentTarget.model, readOnly : true});
-            this.viewHoverIngredient.append(dv.render().el);
-            var self = this;
-            this.viewHoverIngredient
-               .hoverView({left : $(evt.currentTarget).offset().left,
-                        top :$(evt.currentTarget).offset().top + $(evt.currentTarget).height() + 2})
-               .hide()
-               .appendTo(document.body);
-            setTimeout(function() {
-                  var view = self.viewHoverIngredient;
-                  if (view) {
-                     if (view.is(":hidden")) {
-                        view
-                           .show('blind')
-                           .delay(100);
-                     }
-                  }
-               }, 1000);
-            return false;
-         }
-         return false;
-      },
-      onLeaveIngredient: function (evt, ui) {
-         var view = this.viewHoverIngredient;
-         if (view) {
-            this.viewHoverIngredient = null;
-            view.hide(function() {
-               view.remove();
-            });
-         }
+         return this.onHoverEnter(evt, IngredientView);
       }
    });
    window.DishListView = window.MealplannerView.extend({
@@ -713,11 +705,11 @@ jQuery(function() {
       className : "dish-edit",
       events : {
          "mouseover .dish" : "onEnterDish",
-         "mouseleave .dish" : "onLeaveDish",
-         "click .dish" : "onLeaveDish",
+         "mouseleave .dish" : "onHoverLeave",
+         "click .dish" : "onHoverLeave",
          "mouseover .ingredient" : "onEnterIngredient",
-         "mouseleave .ingredient" : "onLeaveIngredient",
-         "click .ingredient" : "onLeaveIngredient",
+         "mouseleave .ingredient" : "onHoverLeave",
+         "click .ingredient" : "onHoverLeave",
         "change input" : "onChange",
         "autocompletechange input" : "onChange",
         "slidestop *" : "onChange"
@@ -1255,11 +1247,11 @@ jQuery(function() {
       className : "ingredient-edit",
       events : {
          "mouseover .dish" : "onEnterDish",
-         "mouseleave .dish" : "onLeaveDish",
-         "click .dish" : "onLeaveDish",
+         "mouseleave .dish" : "onHoverLeave",
+         "click .dish" : "onHoverLeave",
          "mouseover .ingredient" : "onEnterIngredient",
-         "mouseleave .ingredient" : "onLeaveIngredient",
-         "click .ingredient" : "onLeaveIngredient",
+         "mouseleave .ingredient" : "onHoverLeave",
+         "click .ingredient" : "onHoverLeave",
         "change input" : "onChange",
         "autocompletechange input" : "onChange"
       },
@@ -1454,11 +1446,11 @@ jQuery(function() {
       className : "menubar",
       events : {
          "mouseover .dish" : "onEnterDish",
-         "mouseleave .dish" : "onLeaveDish",
-         "click .dish" : "onLeaveDish",
+         "mouseleave .dish" : "onHoverLeave",
+         "click .dish" : "onHoverLeave",
          "mouseover .ingredient" : "onEnterIngredient",
-         "mouseleave .ingredient" : "onLeaveIngredient",
-         "click .ingredient" : "onLeaveIngredient",
+         "mouseleave .ingredient" : "onHoverLeave",
+         "click .ingredient" : "onHoverLeave",
          "autocompletechange input" : "changeMenu",
          "autocompleteselect input" : "changeMenu"
       },
