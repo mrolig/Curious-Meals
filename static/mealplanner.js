@@ -43,11 +43,12 @@ google.load("visualization", "1", {packages:["corechart"]});
       var defaults = { size: 20 };
       var options = $.extend(defaults, options);
       this.addClass("ui-widget");
+      var self = this;
       // select content when focused
       this.focus(function() {
          setTimeout(function() {
-            this.select()
-         }.bind(this), 10);
+            self.select()
+         }, 10);
       });
       this.attr("size", options.size);
       return this;
@@ -287,6 +288,107 @@ jQuery(function() {
          _.bindAll(this, "del");
          this.model.bind('error', this.saveError);
          this.model.bind('all', this.render);
+      },
+      createBasicView : function () {
+         this.$title = $.make("div", {class:"title"})
+            .appendTo(this.el);
+         if (this.icon) {
+            this.makeIcon(this.icon, true)
+               .appendTo(this.$title);
+         }
+         this.$name = $.make("span", {class:"name"})
+            .appendTo(this.$title);
+         this.$title.append(" ");
+         if (this.buttons && !this.options.readOnly) {
+            this.$buttons = $.make("span", {class:"buttons"})
+               .appendTo(this.$title);
+            for (var b in this.buttons) {
+               var info = this.buttons[b];
+               $.make("button", {value:info.label, title:info.title}, info.label)
+                  .button({icons:info.icons})
+                  .click(this[info.click])
+                  .appendTo(this.$buttons);
+   
+            }
+            this.$buttons.buttonset();
+            // makeup for a defect in jquery ui putting rounded
+            //  edges on the wrong sides
+            this.$buttons.children().first()
+               .removeClass("ui-corner-right")
+               .addClass("ui-corner-left");
+            this.$buttons.children().last()
+               .removeClass("ui-corner-left")
+               .addClass("ui-corner-right");
+         }
+         this.$fields = $.make("div", {class:"fields"})
+            .appendTo(this.el);
+      },
+      makeIcon : function(iconClass, large) {
+         var $icon = $.make("span")
+            .addClass("ui-icon")
+            .addClass("inline")
+            .addClass(iconClass);
+         if (large) {
+            $icon.addClass("large")
+         }
+         return $icon;
+      },
+      newField : function(name, icon) {
+         var $field = $.make("div", {class: "field" } )
+            .appendTo(this.$fields);
+         if (name) {
+            $.make("span", {class: "field-head"})
+               .text(name)
+               .appendTo($field);
+            $field.append(": ");
+         }
+         if (icon) {
+            this.makeIcon(icon)
+               .appendTo($field);
+         }
+         return $field;
+      },
+      newRatingField : function () {
+         var $starField = this.newField("Rating");
+         for (var i = 0; i < 5; i++)
+         {
+            var self = this;
+            var $star = $("<span class='ui-icon ui-icon-star rating'></span>")
+               .appendTo($starField);
+            (function (rating) {
+               $star.click(function() {
+                     self.model.set({"Rating": rating});
+                  })
+            }) (i+1);
+         }
+         return $starField.find(".ui-icon-star");
+      },
+      newTagsEditField : function() {
+         var self = this;
+         var $tagField = this.newField("Tags", "ui-icon-tag");
+         this.$tags = $("<div class='tag-list'></div>")
+            .appendTo($tagField);
+         $tagField.append("<br/>Type new tags, separated by commas<br/>");
+         this.$newTags = $("<input type='text'></input>")
+            .bind('keypress', function (evt) {
+               if (evt.which == 13) {
+                  evt.preventDefault();
+                  self.parseTags()
+               }
+            })
+            .textInput({size:40})
+            .appendTo($tagField);
+         return $tagField;
+      },
+      createEditView : function () {
+         this.createBasicView();
+         var $oldName = this.$name;
+         this.$name = $("<input class='name' type='text'></input>")
+            .textInput();
+         $oldName.replaceWith(this.$name);
+         this.$error = $("<div class='error'></div>")
+                        .hide();
+         this.$title.after(this.$error);
       },
       onChange : function() {
          this.dirty++;
@@ -620,9 +722,166 @@ jQuery(function() {
          return this;
       }
    })
+   window.DishView = window.MealplannerView.extend({
+      tagName : "div",
+      className : "dish-view",
+      icon: "ui-icon-dish",
+      buttons : [
+         {label:"Edit", title: "Edit This Dish", click: "edit" },
+         {label:"Delete", title: "Delete This Dish", click: "del" },
+      ],
+      initialize: function() {
+         var self = this;
+         MealplannerView.prototype.initialize.call(this);
+         _.bindAll(this, "edit");
+         _.bindAll(this, "newPairing");
+         this.model.tags.bind('all', this.render);
+         this.model.ingredients.bind('all', this.render);
+         this.model.pairings.bind('all', this.render);
+         if (this.model.ingredients.url && this.model.ingredients.length == 0)
+            this.model.ingredients.fetch();
+         if (this.model.tags.url && this.model.tags.length == 0)
+            this.model.tags.fetch();
+         if (this.model.pairings.url)
+            this.model.pairings.fetch();
+         this.createBasicView();
+         this.$stars = this.newRatingField();
+         this.$source = $("<span class='dish-source'></span>")
+            .appendTo(this.newField("Source"));
+         this.$type = $("<span class='dish-type'></span>")
+            .appendTo(this.newField("Dish Type"));
+         var $ptField = this.newField("Prep Time")
+         this.$prepTime = $("<span class='dish-time'></span>")
+            .appendTo($ptField);
+         $ptField.append(" minutes")
+         var $ctField = this.newField("Cook Time");
+         this.$cookTime = $("<span class='dish-time'></span>")
+            .appendTo($ctField);
+         $ctField.append(" minutes")
+   
+         var $breakdown = $("<table class='breakdown'></table>")
+            .appendTo(this.newField("Breakdown of a single serving"));
+         var $tr = $("<tr><td>Fruits and Vegetables</td></tr>")
+            .appendTo($breakdown);
+         var $td = $("<td></td>")
+            .appendTo($tr);
+
+         this.veggies = new ServingView({model: this.model,
+            field: "ServingsVeggies", el: $td});
+         $tr = $("<tr><td>Protein</td></tr>")
+            .appendTo($breakdown);
+         $td = $("<td></td>")
+            .appendTo($tr);
+         this.proteins = new ServingView({model: this.model,
+            field: "ServingsProtein", el: $td});
+         $tr = $("<tr><td>Carbohydrates</td></tr>")
+            .appendTo($breakdown);
+         $td = $("<td></td>")
+            .appendTo($tr);
+         this.carbs = new ServingView({model: this.model,
+            field: "ServingsCarb", el: $td});
+         this.veggies.render()
+         this.proteins.render()
+         this.carbs.render()
+
+         this.$tags = $("<div class='tag-list'></div>")
+            .appendTo(this.newField("Tags", "ui-icon-tag"));
+         this.$mi = $("<table class='ingredients'><tr><th>Ingredient</th><th>Amount</th><th>Notes</th><th></th></tr></table>")
+            .appendTo(this.$fields);
+         var allIngredients = Ingredients.map(
+               function(i) { return i.get("Name"); });
+         var $lastRow = $("<tr></tr>")
+            .appendTo(this.$mi);
+         var $sugField = this.newField("Suggestions");
+
+         this.$pairings = $("<div class='pairing-list'></div>")
+            .appendTo($sugField);
+			this.$pairingsDrop = $("<div class='dish-drop ui-widget-content'>Drag dishes here to add a suggestion.</div>")
+				.appendTo($sugField)
+				.droppable({
+					accept: ".dish",
+					hoverClass : "ui-state-highlight drop-accept",
+					drop: this.newPairing
+				});
+         if (this.options.readOnly) {
+            this.$pairingsDrop.hide();
+         }
+         this.$text = $("<div class='text'></div>")
+            .appendTo(this.newField("Text")); 
+      },
+      render : function() {
+         var self = this;
+         this.$name.text(this.model.get("Name"));
+         this.$type.text(this.model.get("DishType"));
+         this.$prepTime.text(this.model.get("PrepTimeMinutes"));
+         this.$cookTime.text(this.model.get("CookTimeMinutes"));
+         var source = this.model.get("Source");
+         if (source.indexOf("http://") == 0 ||
+            source.indexOf("https://") == 0)
+         {
+            this.$source.html("<a class='external' target='_blank' href='" + source + "'>" + source + "</a>");
+         }
+         else
+         {
+            this.$source.text(source);
+         }
+         var rating = this.model.get("Rating");
+         for (var i = 0; i < 5; i ++)
+         {
+            if (rating >= (i+1))
+               this.$stars.eq(i).removeClass("disabled");
+            else
+               this.$stars.eq(i).addClass("disabled");
+         }
+         this.renderTags();
+         var self = this;
+         this.$mi.find("tr.ingredient").remove();
+         this.model.ingredients.each(function(i) {
+               var $tr = $("<tr class='ingredient'></tr>");
+               $tr.attr("id", i.id);
+               var $name = $("<td><span class='ui-icon ui-icon-ingredient inline'></span></td>").appendTo($tr);
+               var $amount = $("<td><span class='ingredient-amount'></span></td>")
+                  .appendTo($tr)
+                  .find("span");
+               var $instruction = $("<td><span class='ingredient-instruction'></span></td>")
+                  .appendTo($tr)
+                  .find("span");
+               $amount.text(i.get("Amount"));
+               $instruction.text(i.get("Instruction"));
+               var ingredient = Ingredients.get(i.get("Ingredient"));
+               $tr[0].model = ingredient;
+               $("<a></a>")
+                     .appendTo($name)
+                     .text(ingredient.get("Name"))
+                     .attr("href", "#viewIngredient/" + ingredient.id);
+               self.$mi.append($tr);
+         });
+         this.renderPairings();
+         this.$text.html("");
+         var lines = this.model.get("Text").split("\n");
+         for (var l in lines) {
+            var text = document.createTextNode(lines[l]);
+            this.$text.append(text);
+            this.$text.append("<br>");
+         }
+         return this;
+      },
+      del : function() {
+         this.model.destroy();
+         this.remove();
+      },
+      edit: function(ev) {
+         this.trigger("editDish", this.model);
+      },
+   });
    window.DishEditView = window.MealplannerView.extend({
       tagName : "div",
       className : "dish-edit",
+      icon : "ui-icon-dish",
+      buttons : [
+         {label:"Save", title: "Save this dish", click: "save" },
+         {label:"Delete", title: "Delete this dish", click: "del" },
+      ],
       initialize: function() {
          MealplannerView.prototype.initialize.call(this);
          _.bindAll(this, "newPairing");
@@ -636,57 +895,30 @@ jQuery(function() {
          if (this.model.pairings.url)
             this.model.pairings.fetch();
          this.ingredients = { gen : 0};
-         this.el.append("<span class='ui-icon ui-icon-dish inline large'></span>");
-         this.$name = $("<input class='name' type='text'></input>")
-            .textInput()
-            .appendTo(this.el);
-         this.el.append(" ");
+         this.createEditView();
          //  grey-out Save button when already saved (hasChanged == false)
-         this.$save = $("<input class='save' type='button' value='Save'></input>")
-            .button({disabled: true, label: "Saved"})
-            .click(this.save)
-            .appendTo(this.el);
-         this.$delete = $("<input class='delete' type='button' value='Delete'></input>")
-            .button()
-            .click(this.del)
-            .appendTo(this.el);
-         this.el.append("<br/>");
-         this.$error = $("<div class='error'></div>")
-                        .hide()
-                        .appendTo(this.el);
-         this.el.append("<br/><span class='field-head'>Rating</span>: ");
-         for (var i = 0; i < 5; i++)
-         {
-            var self = this;
-            var $star = $("<span class='ui-icon ui-icon-star rating'></span>")
-               .appendTo(this.el);
-            (function (rating) {
-               $star.click(function() {
-                     self.model.set({"Rating": rating});
-                  })
-            }) (i+1);
-         }
-         this.$stars = this.el.find(".ui-icon-star");
-         this.el.append("<br/><span class='field-head'>Source</span>: ");
+         this.$save = this.$title.find("button[value='Save']")
+               .button("option", "disabled", true);
+         this.$stars = this.newRatingField();
          this.$source = $("<input type='text'></input>")
             .textInput({size:50})
-            .appendTo(this.el);
-         this.el.append("<br/><span class='field-head'>Dish type</span>: ");
+            .appendTo(this.newField("Source"));
          this.$type = $("<input type='text'></input>")
-            .appendTo(this.el)
+            .appendTo(this.newField("Dish Type"))
             .textInput()
             .combo({source:["Entree", "Side", "Appetizer", "Dessert", "Drink"], minLength:0});
-         this.el.append("<br/><span class='field-head'>Prep time</span>: ");
+         var $ptField = this.newField("Prep Time")
          this.$prepTime = $("<input type='text'></input>")
             .textInput({size:4})
-            .appendTo(this.el);
-         this.el.append(" minutes<br/><span class='field-head'>Cook time</span>: ");
+            .appendTo($ptField);
+         $ptField.append(" minutes")
+         var $ctField = this.newField("Cook Time");
          this.$cookTime = $("<input type='text'></input>")
             .textInput({size:4})
             .appendTo(this.el);
-         this.el.append(" minutes<br/><span class='field-head'>Breakdown of a single serving</span>");
+         $ctField.append(" minutes")
          var $breakdown = $("<table class='breakdown'></table>")
-            .appendTo(this.el);
+            .appendTo(this.newField("Breakdown of a single serving"));
          var $tr = $("<tr><td>Fruits and Vegetables</td></tr>")
             .appendTo($breakdown);
          var $td = $("<td></td>")
@@ -710,22 +942,9 @@ jQuery(function() {
          this.proteins.render()
          this.carbs.render()
          
-         this.el.append("<span class='field-head'>Tags</span>:<span class='ui-icon ui-icon-tag inline'></span>");
-         this.$tags = $("<div class='tag-list'></div>")
-            .appendTo(this.el);
-         this.el.append("<br/>Type new tags, separated by commas<br/>");
-         this.$newTags = $("<input type='text'></input>")
-            .bind('keypress', function (evt) {
-               if (evt.which == 13) {
-                  evt.preventDefault();
-                  self.parseTags()
-               }
-            })
-            .textInput({size:40})
-            .appendTo(this.el);
-         this.el.append("<br/><span class='field-head'>Ingredients [Amount, extra instructions (chopped, peeled, etc.)]</span>:");
+         this.newTagsEditField();
          this.$mi = $("<table class='ingredients'><tr><th>Ingredient</th><th>Amount</th><th>Notes</th><th></th></tr></table>")
-            .appendTo(this.el);
+            .appendTo(this.newField("Ingredients [Amount, extra instructions (chopped, peeled, etc.)]"));
          var allIngredients = Ingredients.map(
                function(i) { return i.get("Name"); });
          var $lastRow = $("<tr></tr>")
@@ -739,20 +958,19 @@ jQuery(function() {
                   self.addIngredient(false)
                }
             })
-			this.el.append("<span class='field-head'>Suggestions</span>"); 
 
+         var $sugField = this.newField("Suggestions");
          this.$pairings = $("<div class='pairing-list'></div>")
-            .appendTo(this.el);
+            .appendTo($sugField);
 			this.$pairingsDrop = $("<div class='dish-drop ui-widget-content'>Drag dishes here to add a suggestion.</div>")
-				.appendTo(this.el)
+				.appendTo($sugField)
 				.droppable({
 					accept: ".dish",
 					hoverClass : "ui-state-highlight drop-accept",
 					drop: this.newPairing
 				});
-			this.el.append("<br/><span class='field-head'>Text</span>:<br/>"); 
          this.$text = $("<textarea cols='50' rows='10'></textarea>")
-            .appendTo(this.el)
+            .appendTo(this.newField("Text"))
             .change(this.onChange);
             
          if (!this.model.id)
@@ -847,7 +1065,6 @@ jQuery(function() {
       },
       focus : function() {
          this.$name.focus();
-         this.$name.select();
       },
       setModels : function() {
          this.model.set({"Name": this.$name.val(),
@@ -898,179 +1115,6 @@ jQuery(function() {
          }
       },
    })
-   window.DishView = window.MealplannerView.extend({
-      tagName : "div",
-      className : "dish-view",
-      initialize: function() {
-         MealplannerView.prototype.initialize.call(this);
-         _.bindAll(this, "edit");
-         _.bindAll(this, "newPairing");
-         this.model.tags.bind('all', this.render);
-         this.model.ingredients.bind('all', this.render);
-         this.model.pairings.bind('all', this.render);
-         if (this.model.ingredients.url && this.model.ingredients.length == 0)
-            this.model.ingredients.fetch();
-         if (this.model.tags.url && this.model.tags.length == 0)
-            this.model.tags.fetch();
-         if (this.model.pairings.url)
-            this.model.pairings.fetch();
-         this.el.append("<span class='ui-icon ui-icon-dish inline large'></span>");
-         this.$name = $("<span class='name'></span>")
-            .appendTo(this.el);
-         this.el.append(" ");
-         this.$edit = $("<button class='edit' type='button' value='Edit' title='Edit Dish'></button>")
-            .button({label: "Edit"})
-            .click(this.edit)
-            .appendTo(this.el);
-         this.$delete = $("<button class='delete' value='Delete'  title='Delete Dish'></button>")
-            .button({label:"Delete"})
-            .click(this.del)
-            .appendTo(this.el);
-         this.el.append("<br/><span class='field-head'>Rating</span>: ");
-         for (var i = 0; i < 5; i++)
-         {
-            var self = this;
-            var $star = $("<span class='ui-icon ui-icon-star rating'></span>")
-               .appendTo(this.el);
-            (function (rating) {
-               $star.click(function() {
-                     self.model.save({"Rating": rating});
-                  })
-            }) (i+1);
-         }
-         this.$stars = this.el.find(".ui-icon-star");
-         this.el.append("<br/><span class='field-head'>Source</span>: ");
-         this.$source = $("<span class='dish-source'></span>")
-            .appendTo(this.el);
-         this.el.append("<br/><span class='field-head'>Dish type</span>: ");
-         this.$type = $("<span class='dish-type'></span>")
-            .appendTo(this.el);
-         this.el.append("<br/><span class='field-head'>Prep time</span>: ");
-         this.$prepTime = $("<span class='dish-time'></span>")
-            .appendTo(this.el);
-         this.el.append(" minutes<br/><span class='field-head'>Cook time</span>: ");
-         this.$cookTime = $("<span class='dish-time'></span>")
-            .appendTo(this.el);
-         this.el.append(" minutes<br/><span class='field-head'>Breakdown of a single serving</span>");
-         var $breakdown = $("<table class='breakdown'></table>")
-            .appendTo(this.el);
-         var $tr = $("<tr><td>Fruits and Vegetables</td></tr>")
-            .appendTo($breakdown);
-         var $td = $("<td></td>")
-            .appendTo($tr);
-
-         this.veggies = new ServingView({model: this.model,
-            field: "ServingsVeggies", el: $td});
-         $tr = $("<tr><td>Protein</td></tr>")
-            .appendTo($breakdown);
-         $td = $("<td></td>")
-            .appendTo($tr);
-         this.proteins = new ServingView({model: this.model,
-            field: "ServingsProtein", el: $td});
-         $tr = $("<tr><td>Carbohydrates</td></tr>")
-            .appendTo($breakdown);
-         $td = $("<td></td>")
-            .appendTo($tr);
-         this.carbs = new ServingView({model: this.model,
-            field: "ServingsCarb", el: $td});
-         this.veggies.render()
-         this.proteins.render()
-         this.carbs.render()
-
-         this.el.append("<span class='field-head'>Tags</span>:<span class='ui-icon ui-icon-tag inline'></span>");
-         this.$tags = $("<div class='tag-list'></div>")
-            .appendTo(this.el);
-         this.$mi = $("<table class='ingredients'><tr><th>Ingredient</th><th>Amount</th><th>Notes</th><th></th></tr></table>")
-            .appendTo(this.el);
-         var allIngredients = Ingredients.map(
-               function(i) { return i.get("Name"); });
-         var $lastRow = $("<tr></tr>")
-            .appendTo(this.$mi);
-			this.el.append("<span class='field-head'>Suggestions</span>"); 
-
-         this.$pairings = $("<div class='pairing-list'></div>")
-            .appendTo(this.el);
-			this.$pairingsDrop = $("<div class='dish-drop ui-widget-content'>Drag dishes here to add a suggestion.</div>")
-				.appendTo(this.el)
-				.droppable({
-					accept: ".dish",
-					hoverClass : "ui-state-highlight drop-accept",
-					drop: this.newPairing
-				});
-         this.el.append("<br/>");
-         this.$text = $("<div class='text'></div>")
-            .appendTo(this.el); 
-         if (this.options.readOnly) {
-            this.$edit.hide();
-            this.$delete.hide();
-            this.$pairingsDrop.hide();
-         }
-      },
-      render : function() {
-         var self = this;
-         this.$name.text(this.model.get("Name"));
-         this.$type.text(this.model.get("DishType"));
-         this.$prepTime.text(this.model.get("PrepTimeMinutes"));
-         this.$cookTime.text(this.model.get("CookTimeMinutes"));
-         var source = this.model.get("Source");
-         if (source.indexOf("http://") == 0 ||
-            source.indexOf("https://") == 0)
-         {
-            this.$source.html("<a class='external' target='_blank' href='" + source + "'>" + source + "</a>");
-         }
-         else
-         {
-            this.$source.text(source);
-         }
-         var rating = this.model.get("Rating");
-         for (var i = 0; i < 5; i ++)
-         {
-            if (rating >= (i+1))
-               this.$stars.eq(i).removeClass("disabled");
-            else
-               this.$stars.eq(i).addClass("disabled");
-         }
-         this.renderTags();
-         var self = this;
-         this.$mi.find("tr.ingredient").remove();
-         this.model.ingredients.each(function(i) {
-               var $tr = $("<tr class='ingredient'></tr>");
-               $tr.attr("id", i.id);
-               var $name = $("<td><span class='ui-icon ui-icon-ingredient inline'></span></td>").appendTo($tr);
-               var $amount = $("<td><span class='ingredient-amount'></span></td>")
-                  .appendTo($tr)
-                  .find("span");
-               var $instruction = $("<td><span class='ingredient-instruction'></span></td>")
-                  .appendTo($tr)
-                  .find("span");
-               $amount.text(i.get("Amount"));
-               $instruction.text(i.get("Instruction"));
-               var ingredient = Ingredients.get(i.get("Ingredient"));
-               $tr[0].model = ingredient;
-               $("<a></a>")
-                     .appendTo($name)
-                     .text(ingredient.get("Name"))
-                     .attr("href", "#viewIngredient/" + ingredient.id);
-               self.$mi.append($tr);
-         });
-         this.renderPairings();
-         this.$text.html("");
-         var lines = this.model.get("Text").split("\n");
-         for (var l in lines) {
-            var text = document.createTextNode(lines[l]);
-            this.$text.append(text);
-            this.$text.append("<br>");
-         }
-         return this;
-      },
-      del : function() {
-         this.model.destroy();
-         this.remove();
-      },
-      edit: function(ev) {
-         this.trigger("editDish", this.model);
-      },
-   });
    window.ServingView = Backbone.View.extend({
       initialize : function() {
          _.bindAll(this, "inc");
@@ -1182,54 +1226,30 @@ jQuery(function() {
    window.IngredientEditView = window.MealplannerView.extend({
       tagName : "div",
       className : "ingredient-edit",
+      icon : "ui-icon-ingredient",
+      buttons : [
+         {label:"Save", title: "Save this ingredient", click: "save" },
+         {label:"Delete", title: "Delete this ingredient", click: "del" },
+      ],
       initialize: function() {
          var self = this;
          MealplannerView.prototype.initialize.call(this);
          this.model.tags.bind('all', this.render);
          if (this.model.tags.url && this.model.tags.length == 0)
             this.model.tags.fetch();
-         this.el.append("<span class='ui-icon ui-icon-ingredient inline large'></span>");
-         this.$name = $("<input class='name' type='text'></input>")
-            .textInput()
-            .appendTo(this.el);
-         this.el.append(" ");
+         this.createEditView();
          //  grey-out Save button when already saved (hasChanged == false)
-         this.$save = $("<input class='save' type='button' value='Save'></input>")
-            .button({disabled: true, label: "Saved"})
-            .click(this.save)
-            .appendTo(this.el);
-         this.$delete = $("<input class='delete' type='button' value='Delete'></input>")
-            .button()
-            .click(this.del)
-            .appendTo(this.el);
-         this.el.append("<br/>");
-         this.$error = $("<div class='error'></div>")
-                        .hide()
-                        .appendTo(this.el);
-         this.el.append("<br/><span class='field-head'>Category</span>: ");
+         this.$save = this.$title.find("button[value='Save']")
+               .button("option", "disabled", true);
+
          this.$category = $("<input type='text'></input>")
             .textInput()
-            .appendTo(this.el)
+            .appendTo(this.newField("Category"))
             .combo({source:["Carbohydrate", "Protein", "Vegetable", "Fruit", "Sweet", "Spice", "Fat", "Herb"], minLength:0});
-         this.el.append("<br/><span class='field-head'>Source</span>: ");
          this.$source= $("<input ></input>")
-            .appendTo(this.el)
+            .appendTo(this.newField("Source"))
             .combo({source:["Animal", "Vegan", "Vegetarian"], minLength:0});
-         this.el.append("<br/><span class='field-head'>Tags</span>:<span class='ui-icon ui-icon-tag inline'></span>");
-         this.$tags = $("<div class='tag-list'></div>")
-            .appendTo(this.el);
-         this.el.append("<br/>Type new tags, separated by commas<br/>");
-         this.$newTags = $("<input type='text'></input>")
-            .textInput({size:40})
-            .bind('keypress', function (evt) {
-               if (evt.which == 13) {
-                  evt.preventDefault();
-                  self.parseTags(false)
-               }
-            })
-            .appendTo(this.el);
-         this.$name.focus();
-         this.$name.select();
+         this.newTagsEditField();
       },
       render : function() {
          if (this.dirty) {
@@ -1243,7 +1263,6 @@ jQuery(function() {
       },
       focus : function() {
          this.$name.focus();
-         this.$name.select();
       },
       setModels: function() {
          this.model.set({"Name": this.$name.val(),
@@ -1256,6 +1275,11 @@ jQuery(function() {
    window.IngredientView = window.MealplannerView.extend({
       tagName : "div",
       className : "ingredient-view",
+      icon: "ui-icon-ingredient",
+      buttons : [
+         {label:"Edit", title: "Edit This Ingredient", click: "edit" },
+         {label:"Delete", title: "Delete This Ingredient", click: "del" },
+      ],
       initialize: function() {
          MealplannerView.prototype.initialize.call(this);
          var self = this;
@@ -1265,34 +1289,15 @@ jQuery(function() {
          this.model.tags.bind('all', this.render);
          if (this.model.tags.url && this.model.tags.length == 0)
             this.model.tags.fetch();
-         this.el.append("<span class='ui-icon ui-icon-ingredient inline large'></span>");
-         this.$name = $("<span class='name'></span>")
-            .appendTo(this.el);
-         this.el.append(" ");
-         this.$edit = $("<input class='edit' type='button' value='Edit'></input>")
-            .button({label: "Edit"})
-            .click(this.edit)
-            .appendTo(this.el);
-         this.$delete = $("<input class='delete' type='button' value='Delete'></input>")
-            .button()
-            .click(this.del)
-            .appendTo(this.el);
-         if (this.options.readOnly) {
-            this.$edit.hide();
-            this.$delete.hide();
-         }
-         this.el.append("<br/>");
-         this.el.append("<br/><span class='field-head'>Category</span>: ");
+         this.createBasicView();
          this.$category = $("<span></span>")
-            .appendTo(this.el);
-         this.el.append("<br/><span class='field-head'>Source</span>: ");
-         this.$source= $("<span></span>")
-            .appendTo(this.el)
-         this.el.append("<br/><span class='field-head'>Tags</span>: <span class='ui-icon ui-icon-tag inline'></span>");
+            .appendTo(this.newField("Category"));
+         this.$source = $("<span></span>")
+            .appendTo(this.newField("Source"));
          this.$tags = $("<div class='tag-list'></div>")
-            .appendTo(this.el);
-         this.el.append("<br/><span class='field-head'>Dishes with this ingredient</span>:");
-         this.$dishes = $("<div class='dishes'>Loading...</div>").appendTo(this.el);
+            .appendTo(this.newField("Tags", "ui-icon-tag"));
+         this.$dishes = $("<div class='dishes'>Loading...</div>")
+            .appendTo(this.newField("Dishes with this ingredient"));
          jQuery.getJSON(this.model.url() + "/in/", this.dishesReceived);
       },
       render : function() {
@@ -1327,12 +1332,6 @@ jQuery(function() {
       tagName : "div",
       className : "menubar",
       events : {
-         "mouseover .dish" : "onEnterDish",
-         "mouseleave .dish" : "onHoverLeave",
-         "click .dish" : "onHoverLeave",
-         "mouseover .ingredient" : "onEnterIngredient",
-         "mouseleave .ingredient" : "onHoverLeave",
-         "click .ingredient" : "onHoverLeave",
          "autocompletechange input" : "changeMenu",
          "autocompleteselect input" : "changeMenu"
       },
@@ -1375,6 +1374,14 @@ jQuery(function() {
    window.MenuView = window.MealplannerView.extend({
       tagName : "div",
       className : "menu-view",
+      buttons : [
+         {label:"Add", title: "Add to Menu", click: "addCurDish",
+            icons: {primary: "ui-icon-arrowthick-1-e"} },
+         {label:"Save", title: "Save Menu", click: "cloneMenu" },
+         {label:"Clear", title: "Remove All Ingredients From Menu",
+            click: "clearMenu" },
+         {label:"Delete", title: "Delete Menu", click: "del" }
+      ],
       initialize: function() {
          MealplannerView.prototype.initialize.call(this);
          _.bindAll(this, "clearMenu");
@@ -1382,36 +1389,26 @@ jQuery(function() {
          _.bindAll(this, "addCurDish");
          _.bindAll(this, "newDish");
          Dishes.bind('all', this.render);
-         this.$buttons = $("<div></div>")
-            .appendTo(this.el);
-         this.$add = $("<button class='add' value='Add To Menu' title='Add to Menu'>Add</button>")
-            .button({icons: {primary: "ui-icon-arrowthick-1-e"} })
-            .click(this.addCurDish)
-            .appendTo(this.$buttons);
-         this.$save = $("<button class='save' value='Save'  title='Save Menu'></button>")
-            .button({label:"Save"})
-            .click(this.cloneMenu)
-            .appendTo(this.$buttons);
-         this.$clear = $("<button class='clear' value='Clear'  title='Clear Menu'></button>")
-            .button({label:"Clear"})
-            .click(this.clearMenu)
-            .appendTo(this.$buttons);
-         this.$delete = $("<button class='delete' value='Delete'  title='Delete Dish'></button>")
-            .button({label:"Delete"})
-            .click(this.del)
-            .appendTo(this.$buttons);
-         this.$buttons.buttonset();
-         this.el.append("<div class='field-head'>Dishes</div>");
+
+         this.createBasicView();
+         // we don't show the name in this view, it's shown by parent
+         this.$name.remove();
+         this.$add = this.$buttons.find("button[value='Add']");
+         this.$save = this.$buttons.find("button[value='Save']");
+         // add rounding to clear, button set doesn't know only one
+         //  of delete and clear are visible at a time
+         this.$clear= this.$buttons.find("button[value='Clear']")
+            .addClass("ui-corner-right");
+      
+         this.$delete = this.$buttons.find("button[value='Delete']");
          this.$dishes = $("<ul class='dish-list'></ul>")
-            .appendTo(this.el);
+            .appendTo(this.newField("Dishes"));
          var $p = $("<p></p>")
-            .appendTo(this.el);
+            .appendTo(this.$fields);
             
          $("<a class='field-head'>Ingredients, etc. »</a>")
             .attr("href", "#viewMenu/" + this.model.id)
             .appendTo($p);
-         $("<div class='field-head'>Nutritional Balance</div>")
-            .appendTo(this.el);
          $(this.el)
 				.droppable({
 					accept: ".dish",
@@ -1419,7 +1416,7 @@ jQuery(function() {
 					drop: this.newDish
 				});
          var $charts = $("<div class='menu-chart'></div>")
-            .appendTo(this.el);
+            .appendTo(this.newField("Nutritional Balance"));
          this.$menuChart = $("<span>")
             .appendTo($charts);
          this.$targetChart = $("<span>")
@@ -1583,37 +1580,33 @@ jQuery(function() {
    window.MenuDetailView = window.MealplannerView.extend({
       tagName : "div",
       className : "menu-view",
+      icon : "ui-icon-menu",
+      buttons : [
+         {label:"Save", title: "Save Menu", click: "cloneMenu" },
+         {label:"Clear", title: "Remove All Ingredients From Menu",
+            click: "clearMenu" },
+         {label:"Delete", title: "Delete Menu", click: "del" }
+      ],
       initialize: function() {
          MealplannerView.prototype.initialize.call(this);
          _.bindAll(this, "clearMenu");
          _.bindAll(this, "cloneMenu");
          _.bindAll(this, "newDish");
-         this.el.append("<span class='ui-icon ui-icon-menu inline large'></span>");
-         this.$name = $("<span class='name'></span>")
-            .appendTo(this.el);
-         this.el.append(" ");
-         this.$save = $("<button class='save' value='Save'  title='Save Menu'></button>")
-            .button({label:"Save"})
-            .click(this.cloneMenu)
-            .appendTo(this.el);
-         this.$delete = $("<button class='delete' value='Delete'  title='Delete Dish'></button>")
-            .button({label:"Delete"})
-            .click(this.del)
-            .appendTo(this.el);
-         this.$clear = $("<button class='clear' value='Clear'  title='Clear Menu'></button>")
-            .button({label:"Clear"})
-            .click(this.clearMenu)
-            .appendTo(this.el);
-         this.el.append("<div class='field-head'>Dishes</div>");
+         this.createBasicView();
+         this.$save = this.$buttons.find("button[value='Save']");
+         // add rounding to clear, button set doesn't know only one
+         //  of delete and clear are visible at a time
+         this.$clear= this.$buttons.find("button[value='Clear']")
+            .addClass("ui-corner-right");
+      
+         this.$delete = this.$buttons.find("button[value='Delete']");
+
          this.$dishes = $("<ul class='dish-list'></ul>")
-            .appendTo(this.el);
-         this.el.append("<div class='field-head'>All Ingredients</div>");
+            .appendTo(this.newField("Dishes"));
          this.$ingredients= $("<ul class='ingredient-list'></ul>")
-            .appendTo(this.el);
-         $("<div class='field-head'>Nutritional Balance</div>")
-            .appendTo(this.el);
+            .appendTo(this.newField("All Ingredients"));
          var $charts = $("<div class='menu-chart'></div>")
-            .appendTo(this.el);
+            .appendTo(this.newField("Nutritional Balance"));
          this.$menuChart = $("<span>")
             .appendTo($charts);
          this.$targetChart = $("<span>")
@@ -1975,7 +1968,9 @@ jQuery(function() {
          $("#ingredients").append(this.ingredientListView.render().el);
          this.el.find(".add-ingredient")
                   .button()
-                  .click(this.newIngredient);
+                  .click(this.newIngredient)
+                  .parent()
+                     .buttonset();
          
          $("#br-controls")
             .autoHide({handle:$("#backup-restore")});

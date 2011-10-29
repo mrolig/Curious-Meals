@@ -184,8 +184,6 @@ span.sample {
 }
 div.hover-view {
    position: absolute;
-   /*border: solid thin black;*/
-   /*background: white;*/
    padding: 5px;
    border-radius: 3px;
 }
