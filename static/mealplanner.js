@@ -117,7 +117,11 @@ jQuery(function() {
          if (id && this.collectionURLs)
          {
             for(var name in this.collectionURLs) {
-               this[name].url = this.url() + "/" + this.collectionURLs[name] + "/";
+               var url = this.url();
+               if (url.substr(-1) === "/") {
+                  url += id;
+               }
+               this[name].url = url + "/" + this.collectionURLs[name] + "/";
             }
          }
       }
@@ -323,8 +327,7 @@ jQuery(function() {
          "mouseleave .ingredient" : "onHoverLeave",
          "click .ingredient" : "onHoverLeave",
          "change input" : "onChange",
-         "autocompletechange input" : "onChange",
-         "autocompleteselect input" : "onChange"
+         "autocompletechange input" : "onChange"
       },
       initialize : function() {
          this.el = $(this.el);
@@ -955,6 +958,7 @@ jQuery(function() {
          {label:"Delete", title: "Delete this dish", click: "del" },
       ],
       initialize: function() {
+         var self = this;
          MealplannerView.prototype.initialize.call(this);
          _.bindAll(this, "newPairing");
          this.model.ingredients.bind('all', this.render);
@@ -1035,7 +1039,8 @@ jQuery(function() {
          this.$pairings = $("<div class='pairing-list'></div>")
             .appendTo($sugField);
 			this.$pairingsDrop = $("<div class='dish-drop ui-widget-content'>Drag dishes here to add a suggestion.</div>")
-				.appendTo($sugField)
+				.appendTo($sugField);
+         this.el
 				.droppable({
 					accept: ".dish",
 					hoverClass : "ui-state-highlight drop-accept",
