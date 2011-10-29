@@ -28,6 +28,34 @@ google.load("visualization", "1", {packages:["corechart"]});
       this.attr("size", options.size);
       return this;
    }
+   $.fn.combo = function (options) {
+      options.minLength = 0;
+      this.autocomplete(options)
+         .addClass("ui-widget")
+         .addClass("ui-combo")
+         .css("margin-right", 0);
+      this.each(function(index, autocomplete) {
+         var $autocomplete = $(autocomplete);
+
+         $("<div></div>")
+            .insertAfter(this)
+            .button({
+               icons: {
+               primary: "ui-icon-triangle-1-s"
+               },
+               text: false,
+               label: "Show suggested values"
+            })
+            .removeClass( "ui-corner-all" )
+            .addClass( "ui-corner-right" )
+            .click(function() {
+               $(this).blur();
+               $autocomplete.autocomplete("search", "" );
+               $autocomplete.focus();
+            });
+      });
+      return this;
+   }
     
 })(jQuery);
 
@@ -132,28 +160,6 @@ jQuery(function() {
          this.onChange();
       }
    }
-   function makeCombo($autocomplete) {
-      $autocomplete
-         .addClass("ui-widget")
-         .addClass("ui-combo")
-         .css("margin-right", 0);
-      $("<div></div>")
-         .insertAfter($autocomplete)
-         .button({
-            icons: {
-            primary: "ui-icon-triangle-1-s"
-            },
-            text: false,
-            label: "Show suggested values"
-         })
-         .removeClass( "ui-corner-all" )
-         .addClass( "ui-corner-right" )
-         .click(function() {
-            $(this).blur();
-            $autocomplete.autocomplete("search", "" );
-            $autocomplete.focus();
-            });
-   }
    window.Word = Backbone.Model.extend({
       defaults : {
          Word : ""
@@ -245,9 +251,9 @@ jQuery(function() {
       validate: function(attrs) {
          if (attrs.Name && attrs.Name.length == 0)
             return "Must give your dish a name";
-         if (attrs.PrepTimeMin && attrs.PrepTimeMin == NaN)
+         if (attrs.PrepTimeMinutes && attrs.PrepTimeMinutes == NaN)
             return "Must give prep time in minutes";
-         if (attrs.CookTimeMin && attrs.CookTimeMin == NaN)
+         if (attrs.CookTimeMinutes && attrs.CookTimeMinutes == NaN)
             return "Must give cook time in minutes";
       },
       defaults : function() { return {
@@ -415,14 +421,14 @@ jQuery(function() {
          var $li = $("<li><table class='li'><tr><td><span class='ui-icon inline ui-icon-"+cssclass+"'></span></td><td></td></tr></li>")
             .appendTo(self.el)
             .addClass(cssclass)
-				.draggable({revert:true,helper:'clone'});
+				.draggable({revert:true,helper:'clone',appendTo:'body'});
          var $td = $li.find("td").eq(1);
          var name = dish.get("Name");
          $("<a></a>")
                .appendTo($td)
                .text(name)
                .attr("href", "#" + viewLink + "/" + dish.id);
-			$li.attr("model", dish);
+			$li[0].model = dish;
       });
       if (filtered.length == 0) {
          var $li = $("<li>[No "+englishPlural+"]</li>")
@@ -576,7 +582,7 @@ jQuery(function() {
 		this.model.pairings.create({Other : other.id, Description : desc });
 	}
 	function newPairing(evt, ui) { 
-		var other = ui.draggable.attr("model");
+		var other = ui.draggable[0].model;
 		var self = this;
 		var $dialog =$("<div></div>").appendTo(document.body);
 		$dialog.text("For " + self.model.get("Name") + " and " + other.get("Name") + "?")
@@ -598,28 +604,6 @@ jQuery(function() {
 			}
 		});
 	}
-   function toggleMenu() {
-      var menu = Menus.getDraftMenu();
-      var list = menu.get("Dishes");
-      var added = false;
-      if (menu.hasDish(this.model)) {
-         for(var i in list) {
-            if (list[i] == this.model.id) {
-               list.splice(i, 1);
-               break;
-            }
-         }
-      } else {
-         list.push(this.model.id);
-         added = true;
-      }
-      menu.save({"Dishes": list});
-      if (added) {
-         App.viewMenu(menu);
-      } else {
-         this.render();
-      }
-   }
    function drawChart($dest, title, veggies, protein, carbs) {
       var data = new google.visualization.DataTable();
       data.addColumn('string', 'Type');
@@ -633,6 +617,7 @@ jQuery(function() {
       data.setValue(2,1, carbs);
       var chart = new google.visualization.PieChart($dest[0]);
       chart.draw(data, {width: 100, height: 100, legend:'none',
+         title : title, fontSize : 10, 
          colors : ["#459E00", "#B23500", "#770071"]});
    } 
    window.DishEditView = Backbone.View.extend({
@@ -653,7 +638,6 @@ jQuery(function() {
          _.bindAll(this, "saveError");
          _.bindAll(this, "onChange");
          _.bindAll(this, "newPairing");
-         _.bindAll(this, "toggleMenu");
          this.model.bind('all', this.render);
          this.model.ingredients.bind('all', this.render);
          this.model.tags.bind('all', this.render);
@@ -670,13 +654,6 @@ jQuery(function() {
             .textInput()
             .appendTo(this.el);
          this.el.append(" ");
-         this.$menu = $("<button value='menu' title='Add to menu'>&nbsp;</button>")
-            .button({
-               icons : {primary:'ui-icon-arrowthick-1-e', secondary:'ui-icon-menu'},
-               text : false
-            })
-            .click(this.toggleMenu)
-            .appendTo(this.el);
          //  grey-out Save button when already saved (hasChanged == false)
          this.$save = $("<input class='save' type='button' value='Save'></input>")
             .button({disabled: true, label: "Saved"})
@@ -705,14 +682,13 @@ jQuery(function() {
          this.$stars = this.el.find(".ui-icon-star");
          this.el.append("<br/><span class='field-head'>Source</span>: ");
          this.$source = $("<input type='text'></input>")
-            .textInput({size:75})
+            .textInput({size:50})
             .appendTo(this.el);
          this.el.append("<br/><span class='field-head'>Dish type</span>: ");
          this.$type = $("<input type='text'></input>")
             .appendTo(this.el)
             .textInput()
-            .autocomplete({source:["Entree", "Side", "Appetizer", "Dessert", "Drink"], minLength:0});
-         makeCombo(this.$type);
+            .combo({source:["Entree", "Side", "Appetizer", "Dessert", "Drink"], minLength:0});
          this.el.append("<br/><span class='field-head'>Prep time</span>: ");
          this.$prepTime = $("<input type='text'></input>")
             .textInput({size:4})
@@ -763,15 +739,13 @@ jQuery(function() {
             .appendTo(this.$mi);
          this.$addIngredient = $("<input type='text'></input>")
             .appendTo($lastRow)
-            .textInput()
-            .autocomplete({source: allIngredients, minLength:0})
+            .combo({source: allIngredients})
             .bind('keypress', function (evt) {
                if (evt.which == 13) {
                   evt.preventDefault();
                   self.addIngredient(false)
                }
             })
-         makeCombo(this.$addIngredient);
 			this.el.append("<span class='field-head'>Suggestions</span>"); 
 
          this.$pairings = $("<div class='pairing-list'></div>")
@@ -784,7 +758,7 @@ jQuery(function() {
 					drop: this.newPairing
 				});
 			this.el.append("<br/><span class='field-head'>Text</span>:<br/>"); 
-         this.$text = $("<textarea cols='80' rows='10'></textarea>")
+         this.$text = $("<textarea cols='50' rows='10'></textarea>")
             .appendTo(this.el)
             .change(this.onChange);
             
@@ -793,13 +767,6 @@ jQuery(function() {
       },
       render : function() {
          var self = this;
-         if (Menus.getDraftMenu().hasDish(this.model)) {
-            this.$menu.addClass("menu-active");
-            this.$menu.button("option", "icons", {primary:'ui-icon-arrowthick-1-w', secondary:'ui-icon-menu'});
-         } else {
-            this.$menu.removeClass("menu-active");
-            this.$menu.button("option", "icons", {primary:'ui-icon-arrowthick-1-e', secondary:'ui-icon-menu'});
-         }
          if (this.dirty) {
             this.$save.button({disabled : false, label: "Save"}); 
          }
@@ -977,7 +944,6 @@ jQuery(function() {
          setTimeout(this.save, 5000);
       },
       parseTags : parseTags,
-      toggleMenu : toggleMenu,
       addIngredient : function(fromChangeHandler) {
          if (this.$addIngredient.val()) {
             var newName = this.$addIngredient.val();
@@ -1010,7 +976,6 @@ jQuery(function() {
          _.bindAll(this, "del");
          _.bindAll(this, "edit");
          _.bindAll(this, "newPairing");
-         _.bindAll(this, "toggleMenu");
          this.model.bind('all', this.render);
          this.model.tags.bind('all', this.render);
          this.model.ingredients.bind('all', this.render);
@@ -1025,13 +990,6 @@ jQuery(function() {
          this.$name = $("<span class='name'></span>")
             .appendTo(this.el);
          this.el.append(" ");
-         this.$menu = $("<button value='menu' title='Add to menu'>&nbsp;</button>")
-            .button({
-               icons : {primary:'ui-icon-arrowthick-1-e', secondary:'ui-icon-menu'},
-               text : false
-            })
-            .click(this.toggleMenu)
-            .appendTo(this.el);
          this.$edit = $("<button class='edit' type='button' value='Edit' title='Edit Dish'></button>")
             .button({label: "Edit"})
             .click(this.edit)
@@ -1111,13 +1069,6 @@ jQuery(function() {
       },
       render : function() {
          var self = this;
-         if (Menus.getDraftMenu().hasDish(this.model)) {
-            this.$menu.addClass("menu-active");
-            this.$menu.button("option", "icons", {primary:'ui-icon-arrowthick-1-w', secondary:'ui-icon-menu'});
-         } else {
-            this.$menu.removeClass("menu-active");
-            this.$menu.button("option", "icons", {primary:'ui-icon-arrowthick-1-e', secondary:'ui-icon-menu'});
-         }
          this.$name.text(this.model.get("Name"));
 			document.title = this.model.get("Name");
          this.$type.text(this.model.get("DishType"));
@@ -1186,7 +1137,6 @@ jQuery(function() {
       },
 		addPairing : addPairing,
 		newPairing : newPairing,
-      toggleMenu : toggleMenu
    })
    window.IngredientListView = Backbone.View.extend({
       tagName : "ul",
@@ -1243,13 +1193,11 @@ jQuery(function() {
          this.$category = $("<input type='text'></input>")
             .textInput()
             .appendTo(this.el)
-            .autocomplete({source:["Carbohydrate", "Protein", "Vegetable", "Fruit", "Sweet", "Spice", "Fat", "Herb"], minLength:0});
-         makeCombo(this.$category);
+            .combo({source:["Carbohydrate", "Protein", "Vegetable", "Fruit", "Sweet", "Spice", "Fat", "Herb"], minLength:0});
          this.el.append("<br/><span class='field-head'>Source</span>: ");
          this.$source= $("<input ></input>")
-            .autocomplete({source:["Animal", "Vegan", "Vegetarian"], minLength:0})
             .appendTo(this.el)
-         makeCombo(this.$source);
+            .combo({source:["Animal", "Vegan", "Vegetarian"], minLength:0});
          this.el.append("<br/><span class='field-head'>Tags</span>:<span class='ui-icon ui-icon-tag inline'></span>");
          this.$tags = $("<div class='tag-list'></div>")
             .appendTo(this.el);
@@ -1394,18 +1342,51 @@ jQuery(function() {
          this.trigger("viewDish", ev);
       },
    })
-   window.MenuListView = Backbone.View.extend({
-      tagName : "ul",
-      className : "menu-list",
+   window.MenuBarView = Backbone.View.extend({
+      tagName : "div",
+      className : "menubar",
+      events : {
+         "autocompletechange input" : "changeMenu",
+         "autocompleteselect input" : "changeMenu"
+      },
       initialize: function() {
          this.el = $(this.el);
          _.bindAll(this, "render");
          this.model.bind('all', this.render);
+         this.el.append("");
+
+         this.el.append("<div class='name'><span class='ui-icon ui-icon-menu inline large'></span>Menus</div>");
+         this.$menus = $("<input class='menu-combo' type='text' value='<New Menu>' size='15'></input>")
+               .appendTo(this.el)
+               .combo({source:[]});
       },
       render : function() {
-         renderItemNameList.call(this, "menu", "viewMenu", "menus");
+         var menus = this.model.map(function(item) { return item.get("Name"); });
+         this.$menus.autocomplete("option", "source", menus);
+         this.changeMenu();
          return this;
       },
+      changeMenu : function(e, ui) {
+         var self = this;
+         var menuName = this.$menus.val();
+         if (ui && ui.item) {
+            menuName = ui.item.value;
+         }
+         this.model.each(function(model) {
+            if (model.get("Name") == menuName) {
+               if (self.menuView) {
+                  self.menuView.remove();
+               }
+               self.menuView = new MenuView({model: model});
+               self.el.append(self.menuView.render().el);
+            }
+         });
+      },
+      setContext : function(model) {
+         if (this.menuView) {
+            this.menuView.setContext(model);
+         }
+      }
    })
    window.MenuView = Backbone.View.extend({
       tagName : "div",
@@ -1417,52 +1398,61 @@ jQuery(function() {
          _.bindAll(this, "del");
          _.bindAll(this, "clearMenu");
          _.bindAll(this, "cloneMenu");
+         _.bindAll(this, "addCurDish");
          _.bindAll(this, "newDish");
          this.model.bind('all', this.render);
-         this.el.append("<span class='ui-icon ui-icon-menu inline large'></span>");
-         this.$name = $("<span class='name'></span>")
+         Dishes.bind('all', this.render);
+         this.$buttons = $("<div></div>")
             .appendTo(this.el);
-         this.el.append(" ");
-         this.$delete = $("<button class='delete' value='Delete'  title='Delete Dish'></button>")
-            .button({label:"Delete"})
-            .click(this.del)
-            .appendTo(this.el);
+         this.$add = $("<button class='add' value='Add To Menu' title='Add to Menu'>Add</button>")
+            .button({icons: {primary: "ui-icon-arrowthick-1-e"} })
+            .click(this.addCurDish)
+            .appendTo(this.$buttons);
          this.$save = $("<button class='save' value='Save'  title='Save Menu'></button>")
             .button({label:"Save"})
             .click(this.cloneMenu)
-            .appendTo(this.el)
-            .hide();
+            .appendTo(this.$buttons);
          this.$clear = $("<button class='clear' value='Clear'  title='Clear Menu'></button>")
             .button({label:"Clear"})
             .click(this.clearMenu)
-            .appendTo(this.el)
-            .hide();
-         this.el.append("<br/><br/>");
+            .appendTo(this.$buttons);
+         this.$delete = $("<button class='delete' value='Delete'  title='Delete Dish'></button>")
+            .button({label:"Delete"})
+            .click(this.del)
+            .appendTo(this.$buttons);
+         this.$buttons.buttonset();
+         this.el.append("<div class='field-head'>Dishes</div>");
+         this.$dishes = $("<ul class='dish-list'></ul>")
+            .appendTo(this.el);
+         var $p = $("<p></p>")
+            .appendTo(this.el);
+            
+         $("<a class='field-head'>Ingredients, etc. »</a>")
+            .attr("href", "#viewMenu/" + this.model.id)
+            .appendTo($p);
+         $("<div class='field-head'>Nutritional Balance</div>")
+            .appendTo(this.el);
+         $(this.el)
+				.droppable({
+					accept: ".dish",
+					hoverClass : "ui-state-highlight drop-accept",
+					drop: this.newDish
+				});
          var $charts = $("<div class='menu-chart'></div>")
             .appendTo(this.el);
          this.$menuChart = $("<span>")
             .appendTo($charts);
          this.$targetChart = $("<span>")
             .appendTo($charts);
-         this.$dishes = $("<ul class='dish-list'></ul>")
-            .appendTo(this.el);
-			this.$dishDrop = $("<div class='dish-drop ui-widget-content'>Drag dishes here to add to the menu.</div>")
-				.appendTo(this.el)
-				.droppable({
-					accept: ".dish",
-					hoverClass : "ui-state-highlight drop-accept",
-					drop: this.newDish
-				});
+         $charts.append("<div class='legend'><span class='sample' style='background:#459E00;'></span> Fruits &amp; Veggetables<br><span class='sample' style='background:#B23500'></span> Protein<br><span class='sample' style='background:#770071'></span> Carbohydrates</div>");
       },
       render : function() {
          var self = this;
          var name = this.model.get("Name");
-         this.$name.text(name);
-			document.title = name;
          if (this.model == Menus.getDraftMenu()) {
             this.$delete.hide();
-            this.$save.show();
-            this.$clear.show();
+         } else {
+            this.$clear.hide();
          }
          var self = this;
          this.$dishes.children().remove();
@@ -1481,13 +1471,13 @@ jQuery(function() {
          _.each(dishes, function(dish) {
             var $li = $("<li class='dish'><span class='ui-icon inline ui-icon-dish'></span></li>")
                .appendTo(self.$dishes)
-               .draggable({revert:true,helper:'clone'});
+               .draggable({revert:true,helper:'clone',appendTo:'body'});
             var name = dish.get("Name");
             $("<a></a>")
                   .appendTo($li)
                   .text(name)
                   .attr("href", "#viewDish/" + dish.id);
-			   $li.attr("model", dish);
+			   $li[0].model = dish;
             var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
                .appendTo($li)
                .click(function () {
@@ -1504,11 +1494,23 @@ jQuery(function() {
             protein += dish.get("ServingsProtein");  
             carbs += dish.get("ServingsCarb");  
          });
+         if (dishes.length == 0) {
+            self.$dishes.append("<li class='dish'>Drag dishes here to add them to the menu, or click the 'Add' button above.</li>");
+         }
+         if (this.curDish()) {
+            if (this.model.hasDish(this.curDish())) {
+               this.$add.button("option", "disabled", true);
+            } else {
+               this.$add.button("option", "disabled", false);
+            }
+         } else {
+            this.$add.button("option", "disabled", false);
+         }
          // delay chart drawing, because it fails if the
          //  element isn't rooted in the document yet
          setTimeout( function() {
-            drawChart(self.$menuChart, "Menu Balance", veggies, protein, carbs);
-            drawChart(self.$targetChart, "Target Balance", 2, 1, 1);
+            drawChart(self.$menuChart, "This Menu", veggies, protein, carbs);
+            drawChart(self.$targetChart, "Target", 2, 1, 1);
             }, 10);
          return this;
       },
@@ -1562,7 +1564,242 @@ jQuery(function() {
             });
       },
       newDish : function(evt, ui) {
-		   var other = ui.draggable.attr("model");
+		   var other = ui.draggable[0].model;
+         if (other && !this.model.hasDish(other)) {
+            var dishes = this.model.get("Dishes");
+            dishes.push(other.id);
+            this.model.save({Dishes:dishes});
+            this.render();
+         }
+      },
+      curDish : function() {
+         if (App.curContext) {
+            if (App.curContext.defaults == Dish.prototype.defaults)
+               return App.curContext;
+         }
+         return null;
+      },
+      addCurDish : function() {
+		   var other = this.curDish();
+         if (other && !this.model.hasDish(other)) {
+            var dishes = this.model.get("Dishes");
+            dishes.push(other.id);
+            this.model.save({Dishes:dishes});
+         }
+         this.render();
+      },
+      setContext : function(model) {
+         var showAdd = true;
+         if (model.defaults == Dish.prototype.defaults) {
+            if (this.model.hasDish(model)) {
+               showAdd= false;
+            }
+         } else {
+            showAdd = false;
+         }
+         this.$add.button("option", "disabled", !showAdd);
+      }
+   })
+   window.MenuDetailView = Backbone.View.extend({
+      tagName : "div",
+      className : "menu-view",
+      initialize: function() {
+         this.el = $(this.el);
+         this.dirty = 0;
+         _.bindAll(this, "render");
+         _.bindAll(this, "del");
+         _.bindAll(this, "clearMenu");
+         _.bindAll(this, "cloneMenu");
+         _.bindAll(this, "newDish");
+         this.model.bind('all', this.render);
+         this.el.append("<span class='ui-icon ui-icon-menu inline large'></span>");
+         this.$name = $("<span class='name'></span>")
+            .appendTo(this.el);
+         this.el.append(" ");
+         this.$save = $("<button class='save' value='Save'  title='Save Menu'></button>")
+            .button({label:"Save"})
+            .click(this.cloneMenu)
+            .appendTo(this.el);
+         this.$delete = $("<button class='delete' value='Delete'  title='Delete Dish'></button>")
+            .button({label:"Delete"})
+            .click(this.del)
+            .appendTo(this.el);
+         this.$clear = $("<button class='clear' value='Clear'  title='Clear Menu'></button>")
+            .button({label:"Clear"})
+            .click(this.clearMenu)
+            .appendTo(this.el);
+         this.el.append("<div class='field-head'>Dishes</div>");
+         this.$dishes = $("<ul class='dish-list'></ul>")
+            .appendTo(this.el);
+         this.el.append("<div class='field-head'>All Ingredients</div>");
+         this.$ingredients= $("<ul class='ingredient-list'></ul>")
+            .appendTo(this.el);
+         $("<div class='field-head'>Nutritional Balance</div>")
+            .appendTo(this.el);
+         var $charts = $("<div class='menu-chart'></div>")
+            .appendTo(this.el);
+         this.$menuChart = $("<span>")
+            .appendTo($charts);
+         this.$targetChart = $("<span>")
+            .appendTo($charts);
+         $charts.append("<div class='legend'><span class='sample' style='background:#459E00;'></span> Fruits &amp; Veggetables<br><span class='sample' style='background:#B23500'></span> Protein<br><span class='sample' style='background:#770071'></span> Carbohydrates</div>");
+         this.el.droppable({
+					accept: ".dish",
+					hoverClass : "ui-state-highlight drop-accept",
+					drop: this.newDish
+				});
+      },
+      render : function() {
+         var self = this;
+         var name = this.model.get("Name");
+         this.$name.text(name);
+			document.title = name;
+         if (this.model == Menus.getDraftMenu()) {
+            this.$delete.hide();
+         } else {
+            this.$clear.hide();
+         }
+         var self = this;
+         this.$dishes.children().remove();
+         var dishIds = this.model.get("Dishes");
+         var dishes = _.map(dishIds, function(id) {
+               return Dishes.get(id);
+            });
+         // remove any missing dishes
+         dishes = _.compact(dishes);
+         dishes = _.sortBy(dishes, function(dish) {
+               return dish.get("Name");
+            });
+         var veggies = 0;
+         var protein = 0;
+         var carbs = 0;
+         var allIngredients = {};
+         _.each(dishes, function(dish) {
+            if (dish.ingredients.length == 0) {
+               dish.ingredients.fetch({success: self.render});
+            }
+            dish.ingredients.each(function(ingredient) {
+               var model = Ingredients.get(ingredient.get("Ingredient"));
+               if (model) {
+                  if (model.id in allIngredients) {
+                     allIngredients[model.id].dishes.push(dish.get("Name")); 
+                  } else {
+                     allIngredients[model.id] = {ingredient : model, dishes : [dish.get("Name")]};
+                  }
+               }
+            });
+            var $li = $("<li class='dish'><span class='ui-icon inline ui-icon-dish'></span></li>")
+               .appendTo(self.$dishes)
+               .draggable({revert:true,helper:'clone',appendTo:'body'});
+			   $li[0].model= dish;
+            var name = dish.get("Name");
+            $("<a></a>")
+                  .appendTo($li)
+                  .text(name)
+                  .attr("href", "#viewDish/" + dish.id);
+            $li.append( " " + dish.get("PrepTimeMinutes") + " + " + dish.get("CookTimeMinutes") + " = " + (parseInt(dish.get("PrepTimeMinutes")) + parseInt(dish.get("CookTimeMinutes"))) + " minutes");
+            var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
+               .appendTo($li)
+               .click(function () {
+                     self.model.removeDish(dish);
+                     self.render();
+                  })
+               .hide();
+            $li.hover(function() {
+                  $delTag.show();
+               }, function() {
+                  $delTag.hide();
+               });
+            veggies += dish.get("ServingsVeggies");  
+            protein += dish.get("ServingsProtein");  
+            carbs += dish.get("ServingsCarb");  
+         });
+
+         this.$ingredients.children().remove();
+         var ingredients = _.sortBy(allIngredients, function(ing) {
+               return ing.ingredient.get("Name");
+            });
+         _.each(ingredients, function(ing) {
+            var ingredient = ing.ingredient;
+            var $li = $("<li class='ingredient'><span class='ui-icon inline ui-icon-ingredient'></span></li>")
+               .appendTo(self.$ingredients)
+               .draggable({revert:true,helper:'clone',appendTo:'body'});
+			   $li[0].model= ingredient;
+            var name = ingredient.get("Name");
+            $("<a></a>")
+                  .appendTo($li)
+                  .attr("href", "#viewIngredient/" + ingredient.id)
+                  .text(name);
+            _.each(ing.dishes, function(dishName, index) {
+               if (index > 0) {
+                  $li.append(", ");
+               } else {
+                  $li.append(" (");
+                  }
+                  $li.append(dishName);
+               });
+               $li.append(")");
+         });
+         
+         // delay chart drawing, because it fails if the
+         //  element isn't rooted in the document yet
+         setTimeout( function() {
+            drawChart(self.$menuChart, "This Menu", veggies, protein, carbs);
+            drawChart(self.$targetChart, "Target", 2, 1, 1);
+            }, 10);
+         return this;
+      },
+      del : function() {
+         this.model.destroy();
+         this.remove();
+      },
+      edit: function(ev) {
+         this.trigger("editDish", this.model);
+      },
+      clearMenu : function() {
+         this.model.save({Dishes:[]});
+         this.render();
+      },
+      cloneMenu : function() {
+         var self = this;
+         var $dialog = $("<div><input type='text'></input></div>");
+         var save = function() {
+            var $input = $dialog.find("input");
+            if ($input.val().length > 0 &&
+                $input.val() != "<New Menu>")
+            {
+               var newAttrs = {Name:$input.val(),
+                  Dishes:self.model.get("Dishes")};
+               var newMenu = Menus.create(newAttrs, {
+                  success : function(model, resp, shr) {
+                     $dialog.dialog("close");
+                     App.viewMenu(newMenu);
+                     // empty the draft menu
+                     self.model.save({Dishes: [] });
+                  }});
+            }
+         }
+         $dialog.appendTo(this.el)
+            .dialog({
+               modal: true,
+               title: "Menu Name?",
+               buttons : {
+                  Save : save,
+                  Cancel : function() {
+					      $(this).dialog("close");
+                  }
+               }});
+         $dialog.find("input")
+            .textInput({size:30})
+            .bind('keypress', function (evt) {
+               if (evt.which == 13) {
+                  evt.preventDefault();
+                  save();
+               }
+            });
+      },
+      newDish : function(evt, ui) {
+		   var other = ui.draggable[0].model;
          if (other && !this.model.hasDish(other)) {
             var dishes = this.model.get("Dishes");
             dishes.push(other.id);
@@ -1737,6 +1974,7 @@ jQuery(function() {
          _.bindAll(this, "renderTags");
          _.bindAll(this, "restore");
          _.bindAll(this, "onFetched");
+         _.bindAll(this, "onMenuFetched");
          _.bindAll(this, "textSearch");
          this.userView = new UserView({model : Users});
          this.dishListView = new DishListView({model : Dishes});
@@ -1758,8 +1996,6 @@ jQuery(function() {
          this.ingredientListView = new IngredientListView({model : Ingredients});
          this.ingredientListView.bind("selected", this.viewIngredient);
          $("#ingredients").append(this.ingredientListView.render().el);
-         this.menuListView = new MenuListView({model: Menus});
-         $("#menu-tab").append(this.menuListView.render().el);
          this.el.find(".add-ingredient")
                   .button()
                   .click(this.newIngredient);
@@ -1772,11 +2008,16 @@ jQuery(function() {
          });
          this.fetched = 0;
          this.show(new LoadingView());
-         Menus.fetch({success:this.onFetched, error:this.onFetched});
+         Menus.fetch({success:this.onMenuFetched, error:this.onFetched});
          Users.fetch({success:this.onFetched, error:this.onFetched});
          Dishes.fetch({success:this.onFetched, error:this.onFetched});
          Ingredients.fetch({success:this.onFetched, error:this.onFetched});
          jQuery.getJSON("/tags", this.renderTags);
+      },
+      onMenuFetched : function() {
+         this.menuBarView = new MenuBarView({model: Menus});
+         $("#menubar").append(this.menuBarView.render().el);
+         this.onFetched();
       },
       onFetched : function() {
          this.fetched++;
@@ -1819,6 +2060,12 @@ jQuery(function() {
          $("#main").append(view.render().el);
          if (view.focus)
             view.focus();
+         if (view.model) {
+            this.curContext = view.model;
+         }
+         if (this.menuBarView) {
+            this.menuBarView.setContext(view.model);
+         }
       },
       textSearch : function() {
          this.search(new Search({Word: $("#search").val()}));
@@ -1875,7 +2122,7 @@ jQuery(function() {
          window.Workspace.navigate("viewIngredient/" + ingredient.id);
       },
       viewMenu : function(model) {
-         var viewMenu = new MenuView({model : model})
+         var viewMenu = new MenuDetailView({model : model})
          this.show(viewMenu);
          window.Workspace.navigate("viewMenu/" + model.id);
       },

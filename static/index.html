@@ -16,50 +16,44 @@
    <script type="text/javascript" src="mealplanner.js"></script>
    <div id="app">
       <div class="sidebar">
-      <div>
-      <button class='add-dish' title="Create a new dish.">New Dish</button>
-      <button class='add-ingredient' title="Create a new ingredient.">New Ingredient</button>
-      </div>
-		<div id="side-tabs">
-      <ul>
-         <li><a href="#search-tab"><span class='ui-icon ui-icon-search'></span></a></li>
-         <li><a href="#dishes"><span class='ui-icon ui-icon-dish'></span></a></li>
-         <li><a href="#ingredients"><span class='ui-icon ui-icon-ingredient'></span></a></li>
-         <li><a href="#tags-tab"><span class='ui-icon ui-icon-tag'></span></a></li>
-         <li><a href="#menu-tab"><span class='ui-icon ui-icon-menu'></span></a></li>
-      </ul>
-      <div id="search-tab">
-		   <input type="text" id="search" class="ui-widget"></input>
-		   <input type="button" id="doSearch" value="Search"></input>
-         <div id="search-results"></div>
-      </div>
-      <div id="dishes"><div class='field-head'>Dishes</div></div>
-      <div id="ingredients"><div class='field-head'>Ingredients</div></div>
-      <div id="tags-tab">
-         <div class='field-head'>Tags</div>
-      <ul id="tags">
-         
-      </ul>
-      </div>
-      <div id="menu-tab"><div class='field-head'>Menus</div></div>
-      </div>
-      <div id="backup-restore">
-         <h4>Backup/Restore</h4>
-         <div id='br-controls'>
-		   <a href="/backup">Backup</a><br/>
-		   <form id="restore-form" action="/restore" method="POST" enctype="multipart/form-data">
-		   Restore:<br/><input type="file" name="restore-file" id="restore-file"></input>
+         <div>
+            <button class='add-dish' title="Create a new dish.">New Dish</button>
+            <button class='add-ingredient' title="Create a new ingredient.">New Ingredient</button>
          </div>
-      </div>
-		</form>
+		   <div id="side-tabs">
+            <ul>
+               <li><a href="#search-tab"><span class='ui-icon ui-icon-search'></span></a></li>
+               <li><a href="#dishes"><span class='ui-icon ui-icon-dish'></span></a></li>
+               <li><a href="#ingredients"><span class='ui-icon ui-icon-ingredient'></span></a></li>
+               <li><a href="#tags-tab"><span class='ui-icon ui-icon-tag'></span></a></li>
+            </ul>
+            <div id="search-tab">
+		         <input type="text" id="search" class="ui-widget"></input>
+		         <input type="button" id="doSearch" value="Search"></input>
+               <div id="search-results"></div>
+            </div>
+            <div id="dishes"><div class='field-head'>Dishes</div></div>
+            <div id="ingredients"><div class='field-head'>Ingredients</div></div>
+            <div id="tags-tab">
+               <div class='field-head'>Tags</div>
+               <ul id="tags"></ul>
+            </div>
+            <div id="backup-restore">
+               <h4>Backup/Restore</h4>
+               <div id='br-controls'>
+		            <a href="/backup">Backup</a><br/>
+		            <form id="restore-form" action="/restore" method="POST" enctype="multipart/form-data">
+		            Restore:<br/><input type="file" name="restore-file" id="restore-file"></input>
+		            </form>
+               </div>
+            </div>
+         </div>
       </div>
       <div id="main">
       </div>
-   </div>
-   <div id="menubar">
-      <div id="user">
+      <div id="menubar">
+         <div id="user"></div>
       </div>
-      Menubar
    </div>
 </body>
 </html>

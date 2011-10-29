@@ -2,11 +2,12 @@ body, #app {
    margin: 0px;
    padding: 0px;
    font-size: 10pt;
-   font-family: 'Droid Sans','MS Trebuchet',Verdana,Arial,sans-serif;
+   font-family: 'MS Trebuchet',Verdana,Arial,sans-serif;
 }
 div#main {
    margin-left: 16em;
    margin-right: 16em;
+   overflow: auto;
 }
 .sidebar {
    left:0px;
@@ -109,7 +110,7 @@ div.tag-list {
 #side-tabs {
    margin-top: 0.3em;
 }
-#side-tabs a {
+#side-tabs .ui-tabs-nav a {
    padding: 3px 6px;
 }
 ul#tags{
@@ -143,9 +144,6 @@ ul.dish-list, ul.ingredient-list, ul.pairing-list, ul.menu-list{
 .menu-active a, .menu-active a:link, .menu-active a:visited { color: #459e00; text-decoration: none; }
 .menu-active .ui-icon {background-image: url(images/ui-icons_8dc262_256x240.png); }
 
-.menu-chart {
-   float: right;
-}
 div.serving {
    padding-right: 5px;
    font-size: 16px;
@@ -164,4 +162,23 @@ table.li {
 table.li td {
    vertical-align: top;
 }
-
+.ui-button-icon-only {
+   width: 1.5em;
+   height: 1.75em;
+}
+.menubar {
+   min-height: 50%;
+   background:white;
+}
+.menu-combo {
+   font-size: 125%;
+   font-weight: bold;
+}
+span.sample {
+   display: inline-block;
+   vertical-align: top;
+   width: 1em;
+   height: 1em;
+   border: solid thin black;
+   margin: 1px 1px;
+}
