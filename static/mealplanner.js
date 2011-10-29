@@ -91,13 +91,16 @@ jQuery(function() {
       parse : function(response) {
          var attrs = Backbone.Model.prototype.parse.call(this, response);
          attrs.id = attrs.Id;
-         if (attrs.id && this.collectionURLs)
+         this.setCollectionURLs(attrs.id);
+         return attrs;
+      },
+      setCollectionURLs : function(id) {
+         if (id && this.collectionURLs)
          {
             for(var name in this.collectionURLs) {
                this[name].url = this.url() + "/" + this.collectionURLs[name] + "/";
             }
          }
-         return attrs;
       }
    });
    window.MealplannerCollection = Backbone.Collection.extend({
@@ -149,14 +152,9 @@ jQuery(function() {
    window.Dish = MealplannerModel.extend({
       initialize: function() {
          this.ingredients = new MeasuredIngredientList;
-         if (this.id)
-            this.ingredients.url = "/dish/" + this.id + "/mi/";
          this.tags = new WordList;
-         if (this.id)
-            this.tags.url = "/dish/" + this.id + "/tags/";
 			this.pairings = new PairingList;
-         if (this.id)
-            this.pairings.url = "/dish/" + this.id + "/pairing/";
+         this.setCollectionURLs(this.id);
       },
       validate: function(attrs) {
          if (attrs.Name && attrs.Name.length == 0)
@@ -198,8 +196,7 @@ jQuery(function() {
    window.Ingredient = MealplannerModel.extend({
       initialize: function() {
          this.tags = new WordList;
-         if (this.id)
-            this.tags.url = "/ingredient/" + this.id + "/tags/";
+         this.setCollectionURLs(this.id);
       },
       validate: function(attrs) {
          if (attrs.Name && attrs.Name.length == 0)
@@ -426,7 +423,167 @@ jQuery(function() {
       },
       onEnterIngredient : function (evt) {
          return this.onHoverEnter(evt, IngredientView);
-      }
+      },
+      parseTags : function () {
+            var newTags = this.$newTags.val();
+            if (newTags.length == 0)
+               return
+            this.$newTags.val("");
+            var quote = -1;
+            var c = 0;
+            var nextTag = ""
+            var curTags = {};
+            this.model.tags.each(function(tag) {
+               var w = tag.get("Word");
+               curTags[w] = w;
+            })
+            while (c < newTags.length)
+            {
+               if (quote >= 0)
+               {
+                  if (newTags[c] == '"')
+                  {
+                     if (nextTag.length > 0)
+                     {
+                        if (! (nextTag in curTags)) {
+                           var added = this.model.tags.create({Word:nextTag});
+                        }
+                        nextTag = "";
+                     }
+                     quote = -1;
+                  }
+                  else
+                  {
+                     nextTag += newTags[c];
+                  }
+               }
+               else if (newTags[c] == "," || newTags[c] == "\r" || newTags[c] == "\n" || newTags[c] == "\t")
+               {
+                  if (nextTag.length > 0)
+                  {
+                     if (! (nextTag in curTags)) {
+                        var added = this.model.tags.create({Word:nextTag});
+                     }
+                     nextTag = "";
+                  }
+               }
+               else if (newTags[c] == '"') {
+                  quote = c;
+               }
+               else if (newTags[c] == " ") {
+                  if (nextTag.length > 0)
+                     nextTag += " ";
+               }
+               else
+               {
+                  nextTag += newTags[c];
+               }
+               c++;
+            }
+            if (nextTag.length > 0)
+               if (! (nextTag in curTags)) {
+                  var added = this.model.tags.create({Word:nextTag},
+                     {error:this.saveError });
+               }
+      },
+      renderTags : function () {
+         var $tags = this.$tags;
+         var tags = this.model.tags;
+         $tags.html("");
+         if ((!tags) || tags.length == 0)
+            $tags.append("[none]");
+         tags.each(function(tag, t) {
+            if (t > 0)
+               $tags.append(", ");
+            var $tag = $("<div class='tag'></div>")
+               .appendTo($tags);
+            var $text = $("<a></a>")
+               .appendTo($tag)
+               .text(tag.get("Word"))
+               .attr("href", "#search/" + tag.get("Word") + "//");
+            var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
+               .appendTo($tag)
+               .click(function () {
+                     tag.destroy();
+                  })
+               .hide();
+            $tag.hover(function() {
+                  $delTag.show();
+               }, function() {
+                  $delTag.hide();
+               });
+         });
+      },
+      renderPairings: function () {
+         var $pairings = this.$pairings;
+         var pairings = this.model.pairings;
+         var collection = window.Dishes;
+         $pairings.html("");
+         if ((!pairings) || pairings.length == 0)
+            return;
+		   var map = {};
+         pairings.each(function(pairing, t) {
+			   var desc = pairing.get("Description");
+			   if (!(desc in map))
+				   map[desc] = []
+			   var item = collection.get(pairing.get("Other"));
+			   if (item)
+				   map[desc].push({other: item, pairing: pairing});
+		   });
+         _.each(map, function(list, desc) {
+			   $("<div class='pairing-head'></div>")
+				   .text(desc)
+				   .appendTo($pairings);
+			   var $ul = $("<ul class='pairing-list'></ul>")
+				   .appendTo($pairings);
+			   _.each(list, function(pairing, p) {
+         	   var $pairing = $("<li class='pairing dish'><span class='ui-icon ui-icon-dish inline'></span></li>")
+            	   .appendTo($ul);
+               $pairing[0].model = pairing.other;
+         	   $("<a></a>")
+            	   .appendTo($pairing)
+            	   .text(pairing.other.get("Name"))
+            	   .attr("href", "#viewDish/" + pairing.other.id);
+         	   var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
+            	   .appendTo($pairing)
+            	   .click(function () {
+                  	   pairing.pairing.destroy();
+                  })
+                  .hide();
+               $pairing.hover(function() {
+                     $delTag.show();
+                  }, function() {
+                     $delTag.hide();
+                  });
+			   });
+         });
+      },
+	   addPairing : function (desc, other) {
+		   this.model.pairings.create({Other : other.id, Description : desc });
+	   },
+	   newPairing : function (evt, ui) { 
+		   var other = ui.draggable[0].model;
+		   var self = this;
+		   var $dialog =$("<div></div>").appendTo(document.body);
+		   $dialog.text("For " + self.model.get("Name") + " and " + other.get("Name") + "?")
+		   $dialog.dialog({
+			   title : "What kind of suggestion?",
+			   modal: true,
+			   buttons : {
+				   Together : function() {
+					   self.addPairing("Together", other);
+					   $(this).dialog("close");
+				   },
+				   Alternative : function() {
+					   self.addPairing("Alternative", other);
+					   $(this).dialog("close");
+				   },
+				   Cancel : function() {
+					   $(this).dialog("close");
+				   }
+			   }
+		   });
+	   }
    });
    window.DishListView = window.MealplannerView.extend({
       tagName : "ul",
@@ -440,161 +597,6 @@ jQuery(function() {
          return this;
       }
    })
-   function parseTags() {
-         var newTags = this.$newTags.val();
-         if (newTags.length == 0)
-            return
-         this.$newTags.val("");
-         var quote = -1;
-         var c = 0;
-         var nextTag = ""
-         var curTags = {};
-         this.model.tags.each(function(tag) {
-            var w = tag.get("Word");
-            curTags[w] = w;
-         })
-         while (c < newTags.length)
-         {
-            if (quote >= 0)
-            {
-               if (newTags[c] == '"')
-               {
-                  if (nextTag.length > 0)
-                  {
-                     if (! (nextTag in curTags)) {
-                        var added = this.model.tags.create({Word:nextTag});
-                     }
-                     nextTag = "";
-                  }
-                  quote = -1;
-               }
-               else
-               {
-                  nextTag += newTags[c];
-               }
-            }
-            else if (newTags[c] == "," || newTags[c] == "\r" || newTags[c] == "\n" || newTags[c] == "\t")
-            {
-               if (nextTag.length > 0)
-               {
-                  if (! (nextTag in curTags)) {
-                     var added = this.model.tags.create({Word:nextTag});
-                  }
-                  nextTag = "";
-               }
-            }
-            else if (newTags[c] == '"') {
-               quote = c;
-            }
-            else if (newTags[c] == " ") {
-               if (nextTag.length > 0)
-                  nextTag += " ";
-            }
-            else
-            {
-               nextTag += newTags[c];
-            }
-            c++;
-         }
-         if (nextTag.length > 0)
-            if (! (nextTag in curTags)) {
-               var added = this.model.tags.create({Word:nextTag},
-                  {error:this.saveError });
-            }
-   }
-   function renderTags($tags, tags) {
-      $tags.html("");
-      if ((!tags) || tags.length == 0)
-         $tags.append("[none]");
-      tags.each(function(tag, t) {
-         if (t > 0)
-            $tags.append(", ");
-         var $tag = $("<div class='tag'></div>")
-            .appendTo($tags);
-         var $text = $("<a></a>")
-            .appendTo($tag)
-            .text(tag.get("Word"))
-            .attr("href", "#search/" + tag.get("Word") + "//");
-         var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
-            .appendTo($tag)
-            .click(function () {
-                  tag.destroy();
-               })
-            .hide();
-         $tag.hover(function() {
-               $delTag.show();
-            }, function() {
-               $delTag.hide();
-            });
-      });
-   }
-   function renderPairings($pairings, pairings, collection) {
-      $pairings.html("");
-      if ((!pairings) || pairings.length == 0)
-         return;
-		var map = {};
-      pairings.each(function(pairing, t) {
-			var desc = pairing.get("Description");
-			if (!(desc in map))
-				map[desc] = []
-			var item = collection.get(pairing.get("Other"));
-			if (item)
-				map[desc].push({other: item, pairing: pairing});
-		});
-      _.each(map, function(list, desc) {
-			$("<div class='pairing-head'></div>")
-				.text(desc)
-				.appendTo($pairings);
-			var $ul = $("<ul class='pairing-list'></ul>")
-				.appendTo($pairings);
-			_.each(list, function(pairing, p) {
-         	var $pairing = $("<li class='pairing dish'><span class='ui-icon ui-icon-dish inline'></span></li>")
-            	.appendTo($ul);
-            $pairing[0].model = pairing.other;
-         	$("<a></a>")
-            	.appendTo($pairing)
-            	.text(pairing.other.get("Name"))
-            	.attr("href", "#viewDish/" + pairing.other.id);
-         	var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
-            	.appendTo($pairing)
-            	.click(function () {
-                  	pairing.pairing.destroy();
-               })
-               .hide();
-            $pairing.hover(function() {
-                  $delTag.show();
-               }, function() {
-                  $delTag.hide();
-               });
-			});
-      });
-   }
-	function addPairing (desc, other) {
-		this.model.pairings.create({Other : other.id, Description : desc });
-	}
-	function newPairing(evt, ui) { 
-		var other = ui.draggable[0].model;
-		var self = this;
-		var $dialog =$("<div></div>").appendTo(document.body);
-		$dialog.text("For " + self.model.get("Name") + " and " + other.get("Name") + "?")
-		$dialog.dialog({
-			title : "What kind of suggestion?",
-			modal: true,
-			buttons : {
-				Together : function() {
-					self.addPairing("Together", other);
-					$(this).dialog("close");
-				},
-				Alternative : function() {
-					self.addPairing("Alternative", other);
-					$(this).dialog("close");
-				},
-				Cancel : function() {
-					$(this).dialog("close");
-				}
-			}
-		});
-	}
    function drawChart($dest, title, veggies, protein, carbs) {
       var data = new google.visualization.DataTable();
       data.addColumn('string', 'Type');
@@ -769,7 +771,7 @@ jQuery(function() {
                this.$stars.eq(i).addClass("disabled");
          }
          var self = this;
-         renderTags(this.$tags, this.model.tags);
+         this.renderTags();
          this.ingredients.gen++;
          var nextIngredients = {};
          this.model.ingredients.each(function(i) {
@@ -833,8 +835,7 @@ jQuery(function() {
          for (var r in remove) {
             delete this.ingredients[remove[r]];
          }
-         renderPairings(this.$pairings, this.model.pairings,
-				window.Dishes);
+         this.renderPairings();
          this.$text.val(this.model.get("Text"));
          return this;
       },
@@ -842,8 +843,6 @@ jQuery(function() {
          this.$name.focus();
          this.$name.select();
       },
-		addPairing : addPairing,
-		newPairing : newPairing,
       setModels : function() {
          this.model.set({"Name": this.$name.val(),
             "DishType": this.$type.val(),
@@ -871,7 +870,6 @@ jQuery(function() {
          this.parseTags();
          this.addIngredient(true);
       },
-      parseTags : parseTags,
       addIngredient : function(fromChangeHandler) {
          if (this.$addIngredient.val()) {
             var newName = this.$addIngredient.val();
@@ -1027,7 +1025,7 @@ jQuery(function() {
             else
                this.$stars.eq(i).addClass("disabled");
          }
-         renderTags(this.$tags, this.model.tags);
+         this.renderTags();
          var self = this;
          this.$mi.find("tr.ingredient").remove();
          this.model.ingredients.each(function(i) {
@@ -1050,8 +1048,7 @@ jQuery(function() {
                      .attr("href", "#viewIngredient/" + ingredient.id);
                self.$mi.append($tr);
          });
-         renderPairings(this.$pairings, this.model.pairings,
-				window.Dishes);
+         this.renderPairings();
          this.$text.html("");
          var lines = this.model.get("Text").split("\n");
          for (var l in lines) {
@@ -1068,8 +1065,6 @@ jQuery(function() {
       edit: function(ev) {
          this.trigger("editDish", this.model);
       },
-		addPairing : addPairing,
-		newPairing : newPairing,
    });
    window.ServingView = Backbone.View.extend({
       initialize : function() {
@@ -1243,7 +1238,7 @@ jQuery(function() {
          this.$name.val(this.model.get("Name"));
          this.$category.val(this.model.get("Category"));
          this.$source.val(this.model.get("Source"));
-         renderTags(this.$tags, this.model.tags);
+         this.renderTags();
          return this;
       },
       focus : function() {
@@ -1257,7 +1252,6 @@ jQuery(function() {
             });
          this.parseTags(true)
       },
-      parseTags : parseTags
    })
    window.IngredientView = window.MealplannerView.extend({
       tagName : "div",
@@ -1306,7 +1300,7 @@ jQuery(function() {
          this.$name.text(this.model.get("Name"));
          this.$category.text(this.model.get("Category"));
          this.$source.text(this.model.get("Source"));
-         renderTags(this.$tags, this.model.tags);
+         this.renderTags();
          return this;
       },
       del : function() {
