@@ -17,8 +17,20 @@ google.load("visualization", "1", {packages:["corechart"]});
    $.fn.hoverView = function(options) {
       this.addClass('hover-view');
       this.addClass('ui-widget-content');
-      this.css("left", options.left);
-      this.css("top", options.top);
+      if ("left" in options && "right" in options) {
+         if (options.left < 200) {
+            this.css("left", options.left);
+         } else {
+            this.css("right", options.right);
+         }
+      } else if ("left" in options) {
+         this.css("left", options.left);
+      } else if ("right" in options) {
+         this.css("right", options.right);
+      }
+      if ("top" in options) {
+         this.css("top", options.top);
+      }
       return this; 
    }
    $.fn.appendNew = function(tag, attributes, content) {
@@ -467,6 +479,7 @@ jQuery(function() {
             var $target = $(target);
             var pos = $target.offset();
             pos.top = pos.top + $target.height() + 2;
+            pos.right = $(window).width() - (pos.left + $target.width());
             target.$hoverView
                .hoverView(pos)
                .hide()
@@ -808,7 +821,8 @@ jQuery(function() {
          this.$pairings = $("<div class='pairing-list'></div>")
             .appendTo($sugField);
 			this.$pairingsDrop = $("<div class='dish-drop ui-widget-content'>Drag dishes here to add a suggestion.</div>")
-				.appendTo($sugField)
+				.appendTo($sugField);
+         this.el
 				.droppable({
 					accept: ".dish",
 					hoverClass : "ui-state-highlight drop-accept",
@@ -1965,13 +1979,13 @@ jQuery(function() {
             });
          $("#dishes").append(this.dishListView.render().el);
          this.el.find(".add-dish")
-                  .button()
+                  .button({icons : {primary:"ui-icon-pencil"}})
                   .click(this.newDish);
          this.ingredientListView = new IngredientListView({model : Ingredients});
          this.ingredientListView.bind("selected", this.viewIngredient);
          $("#ingredients").append(this.ingredientListView.render().el);
          this.el.find(".add-ingredient")
-                  .button()
+                  .button({icons : {primary:"ui-icon-pencil"}})
                   .click(this.newIngredient)
                   .parent()
                      .buttonset();
@@ -1980,8 +1994,7 @@ jQuery(function() {
             .autoHide({handle:$("#backup-restore")});
 			$("#restore-file")
             .change(this.restore);
-         $("#side-tabs").tabs({
-         });
+         $("#side-tabs").tabs({ });
          this.fetched = 0;
          this.show(new LoadingView());
          Menus.fetch({success:this.onMenuFetched, error:this.onFetched});

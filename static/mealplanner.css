@@ -187,3 +187,10 @@ div.hover-view {
    padding: 5px;
    border-radius: 3px;
 }
+.ui-button-text-only .ui-button-text { padding: .3em .75em; }
+.ui-button-icon-only .ui-button-text, .ui-button-icons-only .ui-button-text { padding: .3em; }
+.ui-button-text-icon-primary .ui-button-text, .ui-button-text-icons .ui-button-text { padding: .3em .75em .3em 1.7em; }
+.ui-button-text-icon-secondary .ui-button-text, .ui-button-text-icons .ui-button-text { padding: .3em 1.7em .3em .75em; }
+.ui-button-text-icons .ui-button-text { padding-left: 1.7em; padding-right: 1.7em; }
+/* no icon support for input elements, provide padding by default */
+input.ui-button { padding: .3em .75em; }
