@@ -1,9 +1,10 @@
 - add menus to search
-- filter search on rating
 - show vegan/veg. icon
 
 - add ACL to library
 - create method to share a library
+
+- create "tutorial" intro page
 
 - build a "starter" library when newly created
 - fix bug where tags aren't indexed for search during restore

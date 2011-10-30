@@ -664,46 +664,89 @@ func addResults(keys []*datastore.Key, results map[string]map[string] uint) {
 		addResult(key, results)
 	}
 }
+// take the results from /count/ queries from the /resultsChannel/
+//  and perform an intersection
+func mergeResults(resultsChannel chan map[string]map[string] uint,
+							count uint) map[string]map[string] uint {
+	if count == 0 {
+		return make(map[string]map[string] uint )
+	}
+	// start with the first map we get
+	results := <- resultsChannel
+	count--
+	for count > 0 {
+		results2 := <- resultsChannel
+		results1 := results
+		results = make(map[string]map[string] uint )
+		for kind, ids1 := range results1 {
+			if ids2, ok := results2[kind]; ok {
+				ids := make(map[string]uint)
+				for id1, cnt1 := range ids1 {
+					if cnt2, ok := ids2[id1]; ok {
+						ids[id1] = cnt1 + cnt2
+					}
+				}
+				results[kind] = ids
+			}
+		}
+		count--
+	}
+	return results;
+}
 
 func searchHandler(c *context) {
 	sp := searchParams{}
 	readJSON(c.r, &sp)
-	results := make(map[string]map[string] uint)
+	resultsChannel := make(chan map[string]map[string] uint)
+	var queries uint = 0
 
-	// TODO parallelize
-	for _, target :=range sp.Tags {
-		query := c.NewQuery("Tags").Filter("Word=", target).KeysOnly()
-		keys, err := query.GetAll(c.c, nil)
-		check(err)
-		addResults(keys, results)
+	if (len(sp.Tags) > 0 ) {
+		// start a search for items with all specified tags
+		go func() {
+			query := c.NewQuery("Tags").KeysOnly()
+			for _, target :=range sp.Tags {
+				query.Filter("Word=", target)
+			}
+			keys, err := query.GetAll(c.c, nil)
+			check(err)
+			results := make(map[string]map[string] uint)
+			addResults(keys, results)
+			resultsChannel <- results
+		} ()
+		queries++
 	}
 
 	// handle word search
 	if len(sp.Word) > 0 {
-		// break the query into words
-		terms := make(map[string]bool)
-		addWords(sp.Word, terms)
-		// search for each word
-		for target, _ :=range terms {
-			query := c.NewQuery("Keyword").Filter("Word=", target).KeysOnly()
-			keys, err := query.GetAll(c.c, nil)
-			check(err)
-			addResults(keys, results)
-		}
+		go func() {
+			results := make(map[string]map[string] uint)
+			// break the query into words
+			terms := make(map[string]bool)
+			addWords(sp.Word, terms)
+			// search for each word
+			for target, _ :=range terms {
+				query := c.NewQuery("Keyword").Filter("Word=", target).KeysOnly()
+				keys, err := query.GetAll(c.c, nil)
+				check(err)
+				addResults(keys, results)
+			}
+			if ings, ok := results["Ingredient"]; ok {
+				for ing, _ := range ings {
+					ingKey, err := datastore.DecodeKey(ing)
+					check(err)
+					// carry results forward to list dishes that have the ingredients that matched
+					query := c.NewQuery("MeasuredIngredient").Filter("Ingredient =", ingKey).KeysOnly()
+					keys, err := query.GetAll(c.c, nil)
+					check(err)
+					addResults(keys, results)
+				}
+			}
+			resultsChannel <- results
+		} ()
+		queries++
 	}
 
-	if ings, ok := results["Ingredient"]; ok {
-		for ing, _ := range ings {
-			ingKey, err := datastore.DecodeKey(ing)
-			check(err)
-			// carry results forward to list dishes that have the ingredients that matched
-			query := c.NewQuery("MeasuredIngredient").Filter("Ingredient =", ingKey).KeysOnly()
-			keys, err := query.GetAll(c.c, nil)
-			check(err)
-			addResults(keys, results)
-		}
-	}
-
+	results := mergeResults(resultsChannel, queries)
 	sendJSON(c.w, results)
 }
 

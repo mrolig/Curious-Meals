@@ -162,6 +162,14 @@ jQuery(function() {
       model: Word,
       comparator : function(mi) {
          return mi.get("Word");
+      },
+      hasWord : function( target ) {
+         for (var w = 0; w < this.length; w++) {
+            if (this.at(w).get("Word") == target) {
+               return true;
+            }
+         }
+         return false;
       }
    })
    window.Pairing = MealplannerModel.extend({
@@ -405,14 +413,15 @@ jQuery(function() {
          }
          return $icon;
       },
-      newField : function(name, icon) {
+      newField : function(name, icon, separator) {
+         separator = separator || ": ";
          var $field = $.make("div", {class: "field" } )
             .appendTo(this.$fields);
          if (name) {
             $.make("span", {class: "field-head"})
                .text(name)
                .appendTo($field);
-            $field.append(": ");
+            $field.append(separator);
          }
          if (icon) {
             this.makeIcon(icon)
@@ -420,8 +429,8 @@ jQuery(function() {
          }
          return $field;
       },
-      newRatingField : function () {
-         var $starField = this.newField("Rating");
+      newRatingField : function (separator) {
+         var $starField = this.newField("Rating", null, separator);
          for (var i = 0; i < 5; i++)
          {
             var self = this;
@@ -429,7 +438,13 @@ jQuery(function() {
                .appendTo($starField);
             (function (rating) {
                $star.click(function() {
-                     self.model.set({"Rating": rating});
+                     var newRating = rating;
+                     // if they click the star for the current rating,
+                     //  reset to none
+                     if (newRating == self.model.get("Rating")) {
+                        newRating = 0;
+                     }
+                     self.model.set({"Rating": newRating});
                   })
             }) (i+1);
          }
@@ -438,7 +453,7 @@ jQuery(function() {
       newTagsEditField : function() {
          var self = this;
          var $tagField = this.newField("Tags", "ui-icon-tag");
-         this.$tags = $("<div class='tag-list'></div>")
+         this.$tags = $("<span class='tag-list'></span>")
             .appendTo($tagField);
          $tagField.append("<br/>Type new tags, separated by commas<br/>");
          this.$newTags = $("<input type='text'></input>")
@@ -448,7 +463,7 @@ jQuery(function() {
                   self.parseTags()
                }
             })
-            .textInput({size:40})
+            .textInput()
             .appendTo($tagField);
          return $tagField;
       },
@@ -612,10 +627,29 @@ jQuery(function() {
             var c = 0;
             var nextTag = ""
             var curTags = {};
-            this.model.tags.each(function(tag) {
-               var w = tag.get("Word");
-               curTags[w] = w;
-            })
+            var self = this;
+            var createTag;
+            if (this.model.tags) {
+               createTag  = function(tag) {
+                  self.model.tags.create({Word:tag});
+               }
+               this.model.tags.each(function(tag) {
+                  var w = tag.get("Word");
+                  curTags[w] = w;
+               })
+            } else {
+               createTag = function(tag) {
+                  var tags = self.model.get("Tags");
+                  if (!tags) tags = [];
+                  else tags = tags.slice(0);
+                  tags.push(tag)
+                  self.model.set({Tags: tags});
+               }
+               var tags = self.model.get("Tags");
+               _.each(tags, function(tag) {
+                  curTags[tag] = tag;
+               });
+            }
             while (c < newTags.length)
             {
                if (quote >= 0)
@@ -625,7 +659,7 @@ jQuery(function() {
                      if (nextTag.length > 0)
                      {
                         if (! (nextTag in curTags)) {
-                           var added = this.model.tags.create({Word:nextTag});
+                           createTag(nextTag);
                         }
                         nextTag = "";
                      }
@@ -641,7 +675,7 @@ jQuery(function() {
                   if (nextTag.length > 0)
                   {
                      if (! (nextTag in curTags)) {
-                        var added = this.model.tags.create({Word:nextTag});
+                        createTag(nextTag);
                      }
                      nextTag = "";
                   }
@@ -661,8 +695,7 @@ jQuery(function() {
             }
             if (nextTag.length > 0)
                if (! (nextTag in curTags)) {
-                  var added = this.model.tags.create({Word:nextTag},
-                     {error:this.saveError });
+                  createTag(nextTag);
                }
       },
       // render the tags from the tags collection in the $tags element
@@ -824,8 +857,11 @@ jQuery(function() {
          var filtered;
          if (this.options.searchResults != undefined) {
             var results = this.options.searchResults;
+            var minRating = this.options.minRating || 0;
+         
             filtered = this.model.filter(function(item) {
-                  return item.id in results;
+                  var rating = item.get("Rating") || 0;
+                  return (item.id in results) && rating >= minRating;
                });
             filtered = _.sortBy(filtered, function(item) {
                   var key = $.zfill(9999 - results[item.id], 4);
@@ -846,6 +882,10 @@ jQuery(function() {
                   .appendTo($td)
                   .text(name)
                   .attr("href", "#" + viewLink + "/" + dish.id);
+            var rating = dish.get("Rating");
+            if (rating && rating > 0) {
+               $td.append("<span class='summary'><span class='ui-icon ui-icon-star rating count'></span>"+rating+"</span>");
+            }
 			   $li[0].model = dish;
          });
          if (filtered.length == 0) {
@@ -938,7 +978,7 @@ jQuery(function() {
          this.proteins.render()
          this.carbs.render()
 
-         this.$tags = $("<div class='tag-list'></div>")
+         this.$tags = $("<span class='tag-list'></span>")
             .appendTo(this.newField("Tags", "ui-icon-tag"));
          this.$mi = $("<table class='ingredients'><tr><th>Ingredient</th><th>Amount</th><th>Notes</th><th></th></tr></table>")
             .appendTo(this.$fields);
@@ -1472,7 +1512,7 @@ jQuery(function() {
             .appendTo(this.newField("Category"));
          this.$source = $("<span></span>")
             .appendTo(this.newField("Source"));
-         this.$tags = $("<div class='tag-list'></div>")
+         this.$tags = $("<span class='tag-list'></span>")
             .appendTo(this.newField("Tags", "ui-icon-tag"));
          this.$dishes = $("<div class='dishes'>Loading...</div>")
             .appendTo(this.newField("Dishes with this ingredient"));
@@ -1495,7 +1535,6 @@ jQuery(function() {
             searchResults[id] = 1;
          });
          this.dishListView = new DishListView({model : window.Dishes, searchResults : searchResults});
-         this.dishListView.bind("selected", this.viewDish);
          this.$dishes.append(this.dishListView.render().el);
       },
       viewDish: function(ev) {
@@ -1962,7 +2001,7 @@ jQuery(function() {
          if (this.model.length > 0) {
             var user = this.model.at(0);
             this.el.text(user.get("Name"));
-            this.el.append("&#9660;");
+            this.el.prepend("<span class='ui-icon inline ui-icon-triangle-1-e'></span>");
             $.make("div")
                .addClass("signout")
                .append($.make("a", {href:user.get("logoutURL")},
@@ -1986,7 +2025,7 @@ jQuery(function() {
       });
 
    window.Search = MealplannerModel.extend({
-      
+      defaults : {Rating: 0}
    });
    window.SearchView = window.MealplannerView.extend({
       tagName : "div",
@@ -1998,44 +2037,201 @@ jQuery(function() {
          _.bindAll(this, "searchComplete");
          _.bindAll(this, "dishSelected");
          _.bindAll(this, "ingredientSelected");
+         _.bindAll(this, "textSearch");
+         _.bindAll(this, "search");
+         _.bindAll(this, "addSearchSuggestions");
+         _.bindAll(this, "parseTags");
+         if (!this.model) {
+            this.model = new Search();
+         }
          this.model.bind('change', this.startSearch);
+         this.$words = $.make("input", {type:"text"})
+               .textInput({size:15})
+               .appendTo(this.el);
+         jQuery.getJSON("/tags", this.addSearchSuggestions);
+         this.$doSearch = $.make("button")
+               .button({title: "Start Search",
+                        text: false,
+                        icons: {primary: "ui-icon-search"}})
+               .click(this.textSearch)
+               .appendTo(this.el);
+         var self = this;
+         /*this.$words
+            .bind('keypress', function (evt) {
+               if (evt.which == 13) {
+                  evt.preventDefault();
+                  $(this).autocomplete("close");
+                  self.textSearch();
+               }
+            });*/
+         this.$words
+            .bind('autocompletechange', this.textSearch)
+            .bind('change', this.textSearch);
+         this.$fields= $.make("div")
+            .appendTo(this.el);
+         this.$stars = this.newRatingField(" &ge; ");
+         var $tagField = this.newField("Tags", "ui-icon-tag");
+         this.$tags = $("<span class='tag-list'></span>")
+            .appendTo($tagField);
+         this.$newTags = $("<input type='text'></input>")
+            .bind('keypress', function (evt) {
+               if (evt.which == 13) {
+                  //evt.preventDefault();
+                  self.parseTags()
+               }
+            })
+            .textInput()
+            .bind('autocompletechange', this.parseTags)
+            .bind('change', this.parseTags)
+            .appendTo($tagField);
+         this.$results = $.make("div")
+            .appendTo(this.el);
+         this.dishListView = new DishListView({
+            model : window.Dishes,
+            searchResults: [],
+            minRating : this.model.get("Rating"),
+         });
+         this.ingredientListView = new IngredientListView({
+            model : window.Ingredients,
+            searchResults: [],
+         });
          this.startSearch();
       },
+      search : function(model) {
+         if (!model) return;
+         if (this.model) {
+            this.model.destroy();
+         }
+         this.model = model;
+         this.model.bind('change', this.startSearch);
+         this.startSearch();
+         this.render();
+      },
+      textSearch : function() {
+         this.model.set({Word: this.$words.val()});
+      },
       startSearch : function() {
-         jQuery.post("/search", JSON.stringify(this.model.attributes), this.searchComplete);
+         this.parseTags();
+         var attrs = $.extend({}, this.model.attributes);
+         delete attrs["Rating"];
+         /*if ( attrs.Tags && attrs.Tags.length > 0
+               && ((!attrs.Word) || attrs.Word.length == 0)) {
+            attrs.Word = attrs.Tags.join();
+            delete attrs["Tags"];
+         }*/
+         var query = JSON.stringify(attrs);
+         if (this.lastResults && this.lastQuery == query) {
+            this.searchComplete(this.lastResults);
+            return;
+         }
+         this.lastQuery = query;
+         if (this.model) {
+            var tags = this.model.get("Tags");
+            var word = this.model.get("Word");
+            if ( ((!tags) || tags.length == 0) 
+                && ((!word) || word.length == 0)) {
+               if (Dishes.length > 0 && Ingredients.length > 0) {
+                  var dishes = {};
+                  Dishes.each(function(i) { return dishes[i.id] = 1; })
+                  var ings = {};
+                  Ingredients.each(function(i) { return ings[i.id] = 1;})
+                  this.searchComplete({
+                     Dish : dishes,
+                     Ingredient : ings
+                  });
+               }
+            } else {
+               jQuery.post("/search", query, this.searchComplete);
+            }
+         }
       },
       searchComplete :  function(results) {
+         this.lastResults = results;
          if (! ("Dish" in results)) {
             results.Dish = {};
          }
          if (! ("Ingredient" in results)) {
             results.Ingredient = {};
          }
-         this.dishListView = new DishListView({model : window.Dishes, searchResults: results["Dish"]});
-         this.dishListView.bind("selected", this.dishSelected)
-         this.ingredientListView = new IngredientListView({model : window.Ingredients, searchResults:results["Ingredient"]});
-         this.ingredientListView.bind("selected", this.ingredientSelected)
+         this.dishListView.options.searchResults = results.Dish;
+         this.dishListView.options.minRating = this.model.get("Rating");
+         this.ingredientListView.options.searchResults
+            = results.Ingredient;
          this.render();
       },
       render : function() {
-         this.el.html("");
+         var rating = this.model.get("Rating");
+         for (var i = 0; i < 5; i ++)
+         {
+            if (rating >= (i+1))
+               this.$stars.eq(i).removeClass("disabled");
+            else
+               this.$stars.eq(i).addClass("disabled");
+         }
+         this.renderTags();
+         this.$results.html("");
          if (this.dishListView || this.ingredientListView) {
-            this.el.append("<div class='field-head'>Dishes</div>");
-            if (this.dishListView)
-               this.el.append(this.dishListView.render().el);
-            this.el.append("<div class='field-head'>Ingredients</div>");
-            if (this.ingredientListView)
-               this.el.append(this.ingredientListView.render().el);
+            this.$results.append("<div class='field-head'>Dishes</div>");
+            this.$results.append(this.dishListView.render().el);
+            this.$results.append("<div class='field-head'>Ingredients</div>");
+            this.$results.append(this.ingredientListView.render().el);
          } else {
-            this.el.html("Searching...");
+            this.$results.html("Searching...");
+         }
+         if (this.model) {
+			   var words = "";
+			   if (this.model.get("Word"))
+				   words = this.model.get("Word");
+			   /*if (this.model.get("Tags"))
+				   words = this.model.get("Tags")
+                  .reduce(function(prevValue, curValue, index, array) {
+					      return prevValue + " " + curValue;
+				      }, words)*/
+			   this.$words.val($.trim(words))
          }
          return this;
+      },
+      renderTags : function () {
+         var self = this;
+         var $tags = this.$tags;
+         var tags = this.model.get("Tags");
+         $tags.html("");
+         if ((!tags) || tags.length == 0)
+            $tags.append("[none]");
+         _.each(tags, function(tag, t) {
+            if (t > 0)
+               $tags.append(", ");
+            var $tag = $("<div class='tag'></div>")
+               .appendTo($tags);
+            var $text = $("<span></span>")
+               .appendTo($tag)
+               .text(tag);
+            var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
+               .appendTo($tag)
+               .click(function () {
+                     var newTags = self.model.get("Tags");
+                     newTags = _.filter(newTags, function(ftag) {
+                           return ftag != tag;
+                        });
+                     self.model.set({Tags: newTags});
+                  })
+               .hide();
+            $tag.hover(function() {
+                  $delTag.show();
+               }, function() {
+                  $delTag.hide();
+               });
+         });
       },
       dishSelected : function(dish) {
          this.trigger('selecteddish', dish);
       },
       ingredientSelected : function(dish) {
          this.trigger('selectedingredient', dish);
+      },
+      addSearchSuggestions : function(tags) {
+         this.$words.autocomplete({source: tags});
+         this.$newTags.autocomplete({source: tags});
       }
    })
 
@@ -2092,9 +2288,6 @@ jQuery(function() {
    window.Workspace = new Router();
    window.AppView = Backbone.View.extend({
       el : $("#app"),
-      events : {
-         "click #doSearch":   "textSearch",
-      },
       initialize : function() {
          _.bindAll(this, "render");
          _.bindAll(this, "newDish");
@@ -2108,26 +2301,15 @@ jQuery(function() {
          _.bindAll(this, "restore");
          _.bindAll(this, "onFetched");
          _.bindAll(this, "onMenuFetched");
-         _.bindAll(this, "textSearch");
          this.userView = new UserView({model : Users});
+         this.searchView = new SearchView({el: $("#search-tab")}).render();
          this.dishListView = new DishListView({model : Dishes});
-         this.dishListView.bind("selected", this.viewDish);
          this.mainView = null;
-         var self = this;
-         $("#doSearch").button();
-         $("#search")
-            .bind('keypress', function (evt) {
-               if (evt.which == 13) {
-                  evt.preventDefault();
-                  self.textSearch();
-               }
-            });
          $("#dishes").append(this.dishListView.render().el);
          this.el.find(".add-dish")
                   .button({icons : {primary:"ui-icon-pencil"}})
                   .click(this.newDish);
          this.ingredientListView = new IngredientListView({model : Ingredients});
-         this.ingredientListView.bind("selected", this.viewIngredient);
          $("#ingredients").append(this.ingredientListView.render().el);
          this.el.find(".add-ingredient")
                   .button({icons : {primary:"ui-icon-pencil"}})
@@ -2202,34 +2384,9 @@ jQuery(function() {
             this.menuBarView.setContext(view.model);
          }
       },
-      textSearch : function() {
-         this.search(new Search({Word: $("#search").val()}));
-      },
       search : function (search) {
          $("#side-tabs").tabs('select', 0);
-			var words = "";
-			if (search.get("Word"))
-				words = search.get("Word");
-			if (search.get("Tags"))
-				words = search.get("Tags").reduce(function(prevValue, curValue, index, array) {
-					return prevValue + " " + curValue;
-				}, words)
-			$("#search").val(words)
-         var searchView = new SearchView({ model: search });
-         searchView.bind("selecteddish", this.viewDish);
-         searchView.bind("selectedingredient", this.viewIngredient);
-			$("#search-results").html("")
-				.append(searchView.render().el);
-         var tags = "";
-         if (search.get("Tags") && search.get("Tags").length > 0)
-            tags = search.get("Tags")[0];
-         var word = "";
-         if (search.get("Word"))
-            word = search.get("Word");
-         var rating = "";
-         if (search.get("Rating"))
-            name = search.get("Rating");
-         window.Workspace.navigate("search/" + tags + "/" + word + "/" + rating);
+         this.searchView.search(search);
       },
       newDish : function() {
          var nd = Dishes.create({}, { success : function( model) {

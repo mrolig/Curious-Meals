@@ -28,11 +28,7 @@
                <li><a href="#ingredients" title="List All Ingredients"><span class='ui-icon ui-icon-ingredient'></span></a></li>
                <li><a href="#tags-tab" title="List All Tags"><span class='ui-icon ui-icon-tag'></span></a></li>
             </ul>
-            <div id="search-tab">
-		         <input type="text" id="search" class="ui-widget"></input>
-		         <input type="button" id="doSearch" value="Search"></input>
-               <div id="search-results"></div>
-            </div>
+            <div id="search-tab"></div>
             <div id="dishes"><div class='field-head'>Dishes</div></div>
             <div id="ingredients"><div class='field-head'>Ingredients</div></div>
             <div id="tags-tab">
@@ -41,7 +37,7 @@
             </div>
          </div>
          <div id="backup-restore">
-            <h4>Backup/Restore &#9660;</h4>
+            <h4><span class='ui-icon inline ui-icon-triangle-1-e'></span> Backup/Restore</h4>
             <div id='br-controls'>
 		         <a href="/backup" title="Save this file to backup the database.">Backup</a><br/>
 		         <form id="restore-form" action="/restore" method="POST" enctype="multipart/form-data">
