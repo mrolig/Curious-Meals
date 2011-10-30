@@ -35,10 +35,8 @@ div#main {
    margin-right: 0px;
 }
 #user {
-   background: #444;
-   color: white;
    padding: 3px;
-   vertical-align: bottom;
+   font-weight: bold;
 }
 div.signout {
    background:white;
@@ -123,7 +121,7 @@ ul#tags{
 
 .dish-drop {
    margin: 0.3em 0px;
-   padding: 1em;
+   padding: 0.5em;
    display: inline-block;
 }
 th {

@@ -238,6 +238,21 @@ jQuery(function() {
             list.push(i);
          }
          return list.sort();
+      },
+      allDishNames : function() {
+         var list = [];
+         this.each(function(d) {
+            list.push(d.get("Name"));
+         });
+         return list.sort();
+      },
+      getDishByName : function(name) {
+         var dish = null;
+         this.each(function(d) {
+            if (d.get("Name") == name)
+               dish = d;
+         });
+         return dish;
       }
    })
    window.Ingredient = MealplannerModel.extend({
@@ -338,6 +353,9 @@ jQuery(function() {
          _.bindAll(this, "saveSuccess");
          _.bindAll(this, "saveError");
          _.bindAll(this, "del");
+         _.bindAll(this, "newPairingDrop");
+         _.bindAll(this, "newPairing");
+         _.bindAll(this, "addPairingEvent");
          this.model.bind('error', this.saveError);
          this.model.bind('all', this.render);
       },
@@ -443,6 +461,7 @@ jQuery(function() {
          this.$title.after(this.$error);
       },
       onChange : function() {
+         if (this.$save == undefined) return;
          this.dirty++;
          this.$error.hide();
          this.setModels();
@@ -671,6 +690,58 @@ jQuery(function() {
                });
          });
       },
+      addPairingEvent: function(e, ui) {
+         var dishName = "";
+         if (ui && ui.item) {
+            dishName = ui.item.value;
+         }
+         if (dishName.length > 0) {
+            var dish = Dishes.getDishByName(dishName);
+            if (dish) {
+               this.newPairing(dish);
+               $(this).val("");
+            }
+         }
+         e.returnValue = "";
+         return false;
+      },
+      initPairings: function() {
+         var $sugField = this.newField("Suggestions");
+         this.$pairings = $("<div class='pairing-list'></div>")
+            .appendTo($sugField);
+			this.$pairingsDrop = $("<div class='dish-drop ui-widget-content'>Drag dishes here to add a suggestion<br/> or type the dish name below.<br></div>")
+				.appendTo($sugField);
+         this.el
+				.droppable({
+					accept: ".dish",
+					hoverClass : "ui-state-highlight drop-accept",
+					drop: this.newPairingDrop
+				});
+         
+         var self = this;
+         $("<input type='text'>")
+            .appendTo(this.$pairingsDrop)
+            .textInput()
+            .combo({source:Dishes.allDishNames()})
+            .bind('change', this.addPairingEvent)
+            .bind('autocompletechange', this.addPairingEvent)
+            .bind('autocompleteselect', this.addPairingEvent)
+            .bind('keypress', function (evt) {
+               if (evt.which == 13) {
+                  evt.preventDefault();
+                  if ($(this).val().length > 0) {
+                     var dish = Dishes.getDishByName($(this).val());
+                     if (dish) {
+                        self.newPairing(dish);
+                        $(this).val("");
+                     }
+                  }
+               }
+            });
+         if (this.options.readOnly) {
+            this.$pairingsDrop.hide();
+         }
+      },
       renderPairings: function () {
          var $pairings = this.$pairings;
          var pairings = this.model.pairings;
@@ -718,8 +789,10 @@ jQuery(function() {
 	   addPairing : function (desc, other) {
 		   this.model.pairings.create({Other : other.id, Description : desc });
 	   },
-	   newPairing : function (evt, ui) { 
-		   var other = ui.draggable[0].model;
+	   newPairingDrop : function (evt, ui) {
+         return this.newPairing(ui.draggable[0].model);
+      },
+	   newPairing : function (other) {
 		   var self = this;
 		   var $dialog =$("<div></div>").appendTo(document.body);
 		   $dialog.text("For " + self.model.get("Name") + " and " + other.get("Name") + "?")
@@ -814,7 +887,6 @@ jQuery(function() {
          var self = this;
          MealplannerView.prototype.initialize.call(this);
          _.bindAll(this, "edit");
-         _.bindAll(this, "newPairing");
          this.model.tags.bind('all', this.render);
          this.model.ingredients.bind('all', this.render);
          this.model.pairings.bind('all', this.render);
@@ -870,21 +942,7 @@ jQuery(function() {
                function(i) { return i.get("Name"); });
          var $lastRow = $("<tr></tr>")
             .appendTo(this.$mi);
-         var $sugField = this.newField("Suggestions");
-
-         this.$pairings = $("<div class='pairing-list'></div>")
-            .appendTo($sugField);
-			this.$pairingsDrop = $("<div class='dish-drop ui-widget-content'>Drag dishes here to add a suggestion.</div>")
-				.appendTo($sugField);
-         this.el
-				.droppable({
-					accept: ".dish",
-					hoverClass : "ui-state-highlight drop-accept",
-					drop: this.newPairing
-				});
-         if (this.options.readOnly) {
-            this.$pairingsDrop.hide();
-         }
+         this.initPairings();
          this.$text = $("<div class='text'></div>")
             .appendTo(this.newField("Text")); 
       },
@@ -960,6 +1018,7 @@ jQuery(function() {
       initialize: function() {
          var self = this;
          MealplannerView.prototype.initialize.call(this);
+         _.bindAll(this, "newPairingDrop");
          _.bindAll(this, "newPairing");
          this.model.ingredients.bind('all', this.render);
          this.model.tags.bind('all', this.render);
@@ -980,7 +1039,7 @@ jQuery(function() {
          this.$type = $("<input type='text'></input>")
             .appendTo(this.newField("Dish Type"))
             .textInput()
-            .combo({source:Dishes.allDishTypes(), minLength:0});
+            .combo({source:Dishes.allDishTypes()});
          var $ptField = this.newField("Prep Time")
          this.$prepTime = $("<input type='text'></input>")
             .textInput({size:4})
@@ -1035,17 +1094,7 @@ jQuery(function() {
                }
             })
 
-         var $sugField = this.newField("Suggestions");
-         this.$pairings = $("<div class='pairing-list'></div>")
-            .appendTo($sugField);
-			this.$pairingsDrop = $("<div class='dish-drop ui-widget-content'>Drag dishes here to add a suggestion.</div>")
-				.appendTo($sugField);
-         this.el
-				.droppable({
-					accept: ".dish",
-					hoverClass : "ui-state-highlight drop-accept",
-					drop: this.newPairing
-				});
+         this.initPairings();
          this.$text = $("<textarea cols='50' rows='10'></textarea>")
             .appendTo(this.newField("Text"))
             .change(this.onChange);
@@ -1322,10 +1371,10 @@ jQuery(function() {
          this.$category = $("<input type='text'></input>")
             .textInput()
             .appendTo(this.newField("Category"))
-            .combo({source:Ingredients.allCategories(), minLength:0});
+            .combo({source:Ingredients.allCategories()});
          this.$source= $("<input ></input>")
             .appendTo(this.newField("Source"))
-            .combo({source:["Animal", "Vegan", "Vegetarian"], minLength:0});
+            .combo({source:["Animal", "Vegan", "Vegetarian"]});
          this.newTagsEditField();
       },
       render : function() {
