@@ -138,8 +138,10 @@ jQuery(function() {
          return models;
       },
       fetch : function(options) {
-         if ((!jQuery.isFunction(this.url)) || this.url()) {
+         if (this.url && ((!jQuery.isFunction(this.url)) || this.url())) {
             this.fetchCalled = true;
+         } else {
+            return;
          }
          return Backbone.Collection.prototype.fetch.call(this, options);
       },
@@ -503,6 +505,8 @@ jQuery(function() {
       },
       save : function() {
          if (this.dirty) {
+            if (this.url == undefined)
+               return;
             this.dirty = 1;
             if (this.$save)
                this.$save.button({disabled : true, text : "Saving"}); 
@@ -986,11 +990,15 @@ jQuery(function() {
                $amount.text(i.get("Amount"));
                $instruction.text(i.get("Instruction"));
                var ingredient = Ingredients.get(i.get("Ingredient"));
-               $tr[0].model = ingredient;
-               $("<a></a>")
-                     .appendTo($name)
-                     .text(ingredient.get("Name"))
-                     .attr("href", "#viewIngredient/" + ingredient.id);
+               if (ingredient) {
+                  $tr[0].model = ingredient;
+                  $("<a></a>")
+                        .appendTo($name)
+                        .text(ingredient.get("Name"))
+                        .attr("href", "#viewIngredient/" + ingredient.id);
+               } else {
+                  $name.text("[missing]");
+               }
                self.$mi.append($tr);
          });
          if (this.model.ingredients.length == 0) {
@@ -1175,7 +1183,12 @@ jQuery(function() {
             if (changed) {
                ing.$amount.val(i.get("Amount"));
                ing.$instruction.val(i.get("Instruction"));
-               ing.$name.text(Ingredients.get(i.get("Ingredient")).get("Name"));
+               var ingredient = Ingredients.get(i.get("Ingredient"));
+               if (ingredient) {
+                  ing.$name.text(ingredient.get("Name"));
+               } else {
+                  ing.$name.text("[missing]");
+               }
             }
          });
          var remove = [];
@@ -1224,6 +1237,8 @@ jQuery(function() {
          this.addIngredient(true);
       },
       addIngredient : function(fromChangeHandler) {
+         // skip this if we have an add dialog up
+         if (this.$addDialog) return;
          if (this.$addIngredient.val()) {
             var newName = this.$addIngredient.val();
             var key = null;
@@ -1239,9 +1254,44 @@ jQuery(function() {
                      Ingredient : key,
                      Order : this.model.ingredients.length
                   });
+               if (!fromChangeHandler)
+                  this.onChange();
+            } else {
+               var self = this;
+               var $dialog = $.make("div")
+                  .appendTo(document.body);
+               this.$addDialog = $dialog;
+               var newIngredient = Ingredients.create({Name:newName });
+               var ingredientEdit = new IngredientEditView({
+                     model:newIngredient,
+                     el: $dialog })
+                  .render();
+               $dialog.find("button[value='Delete']").hide();
+               $dialog.find("button[value='Save']").hide();
+               $dialog.dialog({
+                  modal: true,
+                  title: "Create New Ingredient '" + $("<div>").text(newName).html() + "'?",
+                  width: self.$title.width(),
+                  close : function () {
+                     self.$addDialog = null;
+                     if (newIngredient) {
+                        newIngredient.destroy();
+                     }
+                  },
+                  buttons : {
+                     Yes : function() {
+                        ingredientEdit.save();
+                        newIngredient = null;
+                        self.$addDialog = null;
+                        self.addIngredient(false);
+					         $(this).dialog("close");
+                     },
+                     No : function() {
+					         $(this).dialog("close");
+                     }
+                  }
+               });
             }
-            if (!fromChangeHandler)
-               this.onChange();
          }
       },
    })
