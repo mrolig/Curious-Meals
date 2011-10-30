@@ -11,7 +11,7 @@
 			"ServingsCarb": 0,
 			"ServingsProtein": 0.5,
 			"ServingsVeggies": 0,
-			"Text": ""
+			"Text": "Use food processor"
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyFwsSB0xpYnJhcnkYAQwLEgREaXNoGAwM",
@@ -551,8 +551,8 @@
 			"Name": "Basmati Rice",
 			"DishType": "Side",
 			"PrepTimeMinutes": 0,
-			"CookTimeMinutes": 0,
-			"Rating": 0,
+			"CookTimeMinutes": 20,
+			"Rating": 5,
 			"Source": "",
 			"ServingsCarb": 1,
 			"ServingsProtein": 0,
@@ -1174,6 +1174,12 @@
 			"Source": "Vegan"
 		},
 		{
+			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GPkFDA",
+			"Name": "Bread",
+			"Category": "Carbohydrate",
+			"Source": "Vegan"
+		},
+		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GP0FDA",
 			"Name": "Bananas",
 			"Category": "Fruit",
@@ -1282,6 +1288,12 @@
 			"Source": "Vegan"
 		},
 		{
+			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GM8GDA",
+			"Name": "Fish",
+			"Category": "Protein",
+			"Source": "Animal"
+		},
+		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GNEGDA",
 			"Name": "Curry Leaf",
 			"Category": "Spice",
@@ -1292,6 +1304,12 @@
 			"Name": "Asafetida Powder",
 			"Category": "Spice",
 			"Source": "Vegan"
+		},
+		{
+			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GNgGDA",
+			"Name": "Salmon",
+			"Category": "Protein",
+			"Source": "Animal"
 		},
 		{
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GNsGDA",
@@ -3827,6 +3845,13 @@
 				"Amount": "1 cup",
 				"Instruction": "",
 				"Order": 0
+			},
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyMQsSB0xpYnJhcnkYAQwLEgREaXNoGPMJDAsSEk1lYXN1cmVkSW5ncmVkaWVudBj4BQw",
+				"Ingredient": "ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GKsDDA",
+				"Amount": "1.5 cups",
+				"Instruction": "",
+				"Order": 1
 			}
 		],
 		"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGPYBDA": [
@@ -4365,6 +4390,10 @@
 			{
 				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyKQsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GLgDDAsSBFRhZ3MYvAMM",
 				"Word": "Pork"
+			},
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyKQsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GLgDDAsSBFRhZ3MY1gYM",
+				"Word": "Meat"
 			}
 		],
 		"ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GLgFDA": [
@@ -4395,6 +4424,12 @@
 			{
 				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyKQsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GM8FDAsSBFRhZ3MY0wUM",
 				"Word": "Canned"
+			}
+		],
+		"ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GM8GDA": [
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyKQsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GM8GDAsSBFRhZ3MY0wYM",
+				"Word": "Meat"
 			}
 		],
 		"ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GMEDDA": [
@@ -4545,6 +4580,16 @@
 				"Word": "Spice"
 			}
 		],
+		"ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GNgGDA": [
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyKQsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GNgGDAsSBFRhZ3MY3QYM",
+				"Word": "Fish"
+			},
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyKQsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GNgGDAsSBFRhZ3MY3wYM",
+				"Word": "Meat"
+			}
+		],
 		"ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GNoDDA": [
 			{
 				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyKQsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GNoDDAsSBFRhZ3MY3QMM",
@@ -4613,6 +4658,10 @@
 			{
 				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyKQsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GOgDDAsSBFRhZ3MY6wMM",
 				"Word": "Nut"
+			},
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyKQsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GOgDDAsSBFRhZ3MYlgYM",
+				"Word": "Tree Nut"
 			}
 		],
 		"ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GOkEDA": [
@@ -4703,6 +4752,12 @@
 				"Word": "Spice"
 			}
 		],
+		"ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GPkFDA": [
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyKQsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GPkFDAsSBFRhZ3MY_gUM",
+				"Word": "Bread"
+			}
+		],
 		"ag9kZXZ-bWVhbHBsYW5uZXJyHgsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GPoEDA": [
 			{
 				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyKQsSB0xpYnJhcnkYAQwLEgpJbmdyZWRpZW50GPoEDAsSBFRhZ3MY_QQM",
@@ -4735,6 +4790,11 @@
 				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyJgsSB0xpYnJhcnkYAQwLEgREaXNoGIUBDAsSB1BhaXJpbmcYogUM",
 				"Other": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGJgBDA",
 				"Description": "Alternative"
+			},
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyJgsSB0xpYnJhcnkYAQwLEgREaXNoGIUBDAsSB1BhaXJpbmcYnQYM",
+				"Other": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGKoBDA",
+				"Description": "Together"
 			}
 		],
 		"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGJgBDA": [
@@ -4744,11 +4804,39 @@
 				"Description": "Alternative"
 			}
 		],
+		"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGKoBDA": [
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyJgsSB0xpYnJhcnkYAQwLEgREaXNoGKoBDAsSB1BhaXJpbmcYngYM",
+				"Other": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGIUBDA",
+				"Description": "Together"
+			}
+		],
 		"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGLQFDA": [
 			{
 				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyJgsSB0xpYnJhcnkYAQwLEgREaXNoGLQFDAsSB1BhaXJpbmcY6QUM",
 				"Other": "ag9kZXZ-bWVhbHBsYW5uZXJyFwsSB0xpYnJhcnkYAQwLEgREaXNoGGMM",
 				"Description": "Alternative"
+			}
+		],
+		"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGN8BDA": [
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyJgsSB0xpYnJhcnkYAQwLEgREaXNoGN8BDAsSB1BhaXJpbmcYzgYM",
+				"Other": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGMcGDA",
+				"Description": "Alternative"
+			}
+		],
+		"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGO4BDA": [
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyJgsSB0xpYnJhcnkYAQwLEgREaXNoGO4BDAsSB1BhaXJpbmcY9wUM",
+				"Other": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGPMJDA",
+				"Description": "Together"
+			}
+		],
+		"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGPMJDA": [
+			{
+				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyJgsSB0xpYnJhcnkYAQwLEgREaXNoGPMJDAsSB1BhaXJpbmcY9gUM",
+				"Other": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGO4BDA",
+				"Description": "Together"
 			}
 		]
 	},
@@ -4772,9 +4860,9 @@
 			"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgRNZW51GPkJDA",
 			"Name": "Indian",
 			"Dishes": [
-				"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGIgCDA",
 				"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGO4BDA",
-				"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGPMJDA"
+				"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGPMJDA",
+				"ag9kZXZ-bWVhbHBsYW5uZXJyGAsSB0xpYnJhcnkYAQwLEgREaXNoGIgCDA"
 			]
 		},
 		{
