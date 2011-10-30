@@ -1860,11 +1860,11 @@ jQuery(function() {
          if (this.model.length > 0) {
             var user = this.model.at(0);
             this.el.text(user.get("Name"));
-            this.el.append(" ");
-            $("<a>Sign out</a>")
+            this.el.append("&#9660;");
+            $.make("div")
                .addClass("signout")
-               .button()
-               .attr("href", user.get("logoutURL"))
+               .append($.make("a", {href:user.get("logoutURL")},
+                              "Sign out"))
                .autoHide({handle:this.el})
                .appendTo(this.el);
          }

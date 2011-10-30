@@ -38,9 +38,13 @@ div#main {
    background: #444;
    color: white;
    padding: 3px;
-   height: 2.5em;
-   line-height: 2em;
    vertical-align: bottom;
+}
+div.signout {
+   background:white;
+   padding: 0.3em;
+   border: solid thin black;
+   margin: 0px -3px -3px -3px;
 }
 .error {
    background: #C88;

@@ -38,14 +38,14 @@
                <div class='field-head'>Tags</div>
                <ul id="tags"></ul>
             </div>
-            <div id="backup-restore">
-               <h4>Backup/Restore</h4>
-               <div id='br-controls'>
-		            <a href="/backup">Backup</a><br/>
-		            <form id="restore-form" action="/restore" method="POST" enctype="multipart/form-data">
-		            Restore:<br/><input type="file" name="restore-file" id="restore-file"></input>
-		            </form>
-               </div>
+         </div>
+         <div id="backup-restore">
+            <h4>Backup/Restore &#9660;</h4>
+            <div id='br-controls'>
+		         <a href="/backup" title="Save this file to backup the database.">Backup</a><br/>
+		         <form id="restore-form" action="/restore" method="POST" enctype="multipart/form-data">
+		         <span title="Choose a backup file below.">Restore</span>:<br/><input type="file" name="restore-file" id="restore-file"></input>
+		         </form>
             </div>
          </div>
       </div>
