@@ -993,6 +993,9 @@ jQuery(function() {
                      .attr("href", "#viewIngredient/" + ingredient.id);
                self.$mi.append($tr);
          });
+         if (this.model.ingredients.length == 0) {
+            this.$mi.append("<tr class='ingredient'><td>[none]</td></tr>");
+         }
          this.renderPairings();
          this.$text.html("");
          var lines = this.model.get("Text").split("\n");
