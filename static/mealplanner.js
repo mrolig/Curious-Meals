@@ -822,6 +822,26 @@ jQuery(function() {
                   });
 			   });
          });
+         var dishId = this.model.id;
+         var menus = Menus.filter(function(menu) {
+            return _.indexOf(menu.get("Dishes"), dishId) != -1;
+         });
+         if (menus.length > 0) {
+			   $("<div class='pairing-head'></div>")
+				   .text("Menus")
+				   .appendTo($pairings);
+			   var $ul = $("<ul class='pairing-list'></ul>")
+				   .appendTo($pairings);
+            _.each(menus, function(menu) {
+         	   var $pairing = $("<li class='pairing menu'><span class='ui-icon ui-icon-menu inline'></span></li>")
+            	   .appendTo($ul);
+               $pairing[0].model = menu;
+         	   $("<a></a>")
+            	   .appendTo($pairing)
+            	   .text(menu.get("Name"))
+            	   .attr("href", "#viewMenu/" + menu.id);
+            });
+         }
       },
 	   addPairing : function (desc, other) {
 		   this.model.pairings.create({Other : other.id, Description : desc });
