@@ -47,6 +47,20 @@ div.signout {
 .error {
    background: #C88;
 }
+.ui-icon-vegetarian {
+   display: inline-block;
+   background-image: url(images/vegetarian_32.png); 
+   width: 32px;
+   height: 32px;
+   vertical-align: top;
+}
+.ui-icon-vegan {
+   display: inline-block;
+   background-image: url(images/vegan_32.png); 
+   width: 32px;
+   height: 32px;
+   vertical-align: top;
+}
 .rating.ui-icon-star.disabled {
    background-image: url(images/ui-icons_454545_256x240.png); 
 }

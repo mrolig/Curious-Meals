@@ -957,6 +957,7 @@ jQuery(function() {
       ],
       initialize: function() {
          var self = this;
+         this.$vegIcon = null;
          MealplannerView.prototype.initialize.call(this);
          _.bindAll(this, "edit");
          this.model.tags.bind('all', this.render);
@@ -1020,6 +1021,17 @@ jQuery(function() {
       },
       render : function() {
          var self = this;
+         if (this.$vegIcon == null && this.model.tags.fetched) {
+            if (this.model.tags.hasWord("Vegan")) {
+               this.$vegIcon = $("<span class='ui-icon ui-icon-vegan' title='Vegan'></span>");
+               this.$name.before(this.$vegIcon);
+                  
+            } else if (this.model.tags.hasWord("Vegetarian")) {
+               this.$vegIcon = $("<span class='ui-icon ui-icon-vegetarian' title='Vegetarian'></span>");
+               this.$name.before(this.$vegIcon);
+                  
+            }
+         }
          this.$name.text(this.model.get("Name"));
          this.$type.text(this.model.get("DishType"));
          this.$prepTime.text(this.model.get("PrepTimeMinutes"));
