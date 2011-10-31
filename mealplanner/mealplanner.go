@@ -724,18 +724,18 @@ func searchHandler(c *context) {
 
 	if len(sp.Tags) > 0 {
 		// start a search for items with all specified tags
-		go func() {
-			query := c.NewQuery("Tags").KeysOnly()
-			for _, target := range sp.Tags {
+		for _, target := range sp.Tags {
+			go func() {
+				query := c.NewQuery("Tags").KeysOnly()
 				query.Filter("Word=", target)
-			}
-			keys, err := query.GetAll(c.c, nil)
-			check(err)
-			results := make(map[string]map[string]uint)
-			addResults(keys, results)
-			resultsChannel <- results
-		}()
-		queries++
+				keys, err := query.GetAll(c.c, nil)
+				check(err)
+				results := make(map[string]map[string]uint)
+				addResults(keys, results)
+				resultsChannel <- results
+			}()
+			queries++
+		}
 	}
 
 	// handle word search
