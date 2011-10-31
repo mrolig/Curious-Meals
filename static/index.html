@@ -20,6 +20,7 @@
          <div>
             <button class='add-dish' title="Create a new dish.">Dish</button>
             <button class='add-ingredient' title="Create a new ingredient.">Ingredient</button>
+				<button class='refresh' title="Refresh"></button>
          </div>
 		   <div id="side-tabs">
             <ul>
@@ -34,15 +35,6 @@
             <div id="tags-tab">
                <div class='field-head'>Tags</div>
                <ul id="tags"></ul>
-            </div>
-         </div>
-         <div id="backup-restore">
-            <h4><span class='ui-icon inline ui-icon-triangle-1-e'></span> Backup/Restore</h4>
-            <div id='br-controls'>
-		         <a href="/backup" title="Save this file to backup the database.">Backup</a><br/>
-		         <form id="restore-form" action="/restore" method="POST" enctype="multipart/form-data">
-		         <span title="Choose a backup file below.">Restore</span>:<br/><input type="file" name="restore-file" id="restore-file"></input>
-		         </form>
             </div>
          </div>
       </div>

@@ -14,6 +14,34 @@ google.load("visualization", "1", {packages:["corechart"]});
       }
       return this;
    }
+   // make the element appear only when the handele is clicked
+   $.fn.mpmenu = function(options) {
+      if (options.handle) {
+			var $icon = $("<span class='ui-icon inline ui-icon-triangle-1-e'></span>");
+			options.handle.prepend($icon);
+         // start hidden, attach to body to avoid a clipping parent
+         this.hide()
+				.appendTo(document.body)
+				.addClass("menu")
+				.addClass("ui-corner-bottom");
+         // unhide when the handle hovers
+         options.handle.click(function() {
+				if (this.is(":hidden")) {
+					var pos = options.handle.offset();
+					this.css("top", pos.top + options.handle.height());
+					this.css("left", pos.left);
+					$icon.addClass("ui-icon-triangle-1-s");
+					$icon.removeClass("ui-icon-triangle-1-e");
+            	this.show('blind');
+				} else {
+					$icon.addClass("ui-icon-triangle-1-e");
+					$icon.removeClass("ui-icon-triangle-1-s");
+            	this.hide('blind');
+				}
+         }.bind(this));
+      }
+      return this;
+   }
    $.fn.hoverView = function(options) {
       this.addClass('hover-view');
       this.addClass('ui-widget-content');
@@ -444,17 +472,21 @@ jQuery(function() {
             var self = this;
             var $star = $("<span class='ui-icon ui-icon-star rating'></span>")
                .appendTo($starField);
-            (function (rating) {
-               $star.click(function() {
-                     var newRating = rating;
-                     // if they click the star for the current rating,
-                     //  reset to none
-                     if (newRating == self.model.get("Rating")) {
-                        newRating = 0;
-                     }
-                     self.model.set({"Rating": newRating});
-                  })
-            }) (i+1);
+				// add a click handler to set the rating when they click
+				//  on a star
+				if (!this.options.readOnly) {
+            	(function (rating) {
+               	$star.click(function() {
+                     	var newRating = rating;
+                     	// if they click the star for the current rating,
+                     	//  reset to none
+                     	if (newRating == self.model.get("Rating")) {
+                        	newRating = 0;
+                     	}
+                     	self.model.save({"Rating": newRating});
+                  	})
+            	}) (i+1);
+				}
          }
          return $starField.find(".ui-icon-star");
       },
@@ -708,6 +740,7 @@ jQuery(function() {
       },
       // render the tags from the tags collection in the $tags element
       renderTags : function () {
+			var self = this;
          var $tags = this.$tags;
          var tags = this.model.tags;
          $tags.html("");
@@ -722,17 +755,14 @@ jQuery(function() {
                .appendTo($tag)
                .text(tag.get("Word"))
                .attr("href", "#search/" + tag.get("Word") + "//");
-            var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
-               .appendTo($tag)
-               .click(function () {
-                     tag.destroy();
-                  })
-               .hide();
-            $tag.hover(function() {
-                  $delTag.show();
-               }, function() {
-                  $delTag.hide();
-               });
+				if (!self.options.readOnly) {
+            	var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
+               	.appendTo($tag)
+               	.click(function () {
+                     	tag.destroy();
+                  	})
+               	.autoHide({handle:$tag});
+				}
          });
       },
       addPairingEvent: function(e, ui) {
@@ -803,6 +833,7 @@ jQuery(function() {
 			   if (item)
 				   map[desc].push({other: item, pairing: pairing});
 		   });
+			var self = this;
          _.each(map, function(list, desc) {
 			   $("<div class='pairing-head'></div>")
 				   .text(desc)
@@ -817,17 +848,14 @@ jQuery(function() {
             	   .appendTo($pairing)
             	   .text(pairing.other.get("Name"))
             	   .attr("href", "#viewDish/" + pairing.other.id);
-         	   var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
-            	   .appendTo($pairing)
-            	   .click(function () {
-                  	   pairing.pairing.destroy();
-                  })
-                  .hide();
-               $pairing.hover(function() {
-                     $delTag.show();
-                  }, function() {
-                     $delTag.hide();
-                  });
+					if(!self.options.readOnly) {
+         	   	var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
+            	   	.appendTo($pairing)
+            	   	.click(function () {
+                  	   	pairing.pairing.destroy();
+                  	})
+                  	.autoHide({handle:$pairing});
+					}
 			   });
          });
          var dishId = this.model.id;
@@ -841,7 +869,7 @@ jQuery(function() {
 			   var $ul = $("<ul class='pairing-list'></ul>")
 				   .appendTo($pairings);
             _.each(menus, function(menu) {
-         	   var $pairing = $("<li class='pairing menu'><span class='ui-icon ui-icon-menu inline'></span></li>")
+         	   var $pairing = $("<li class='pairing mpmenu'><span class='ui-icon ui-icon-menu inline'></span></li>")
             	   .appendTo($ul);
                $pairing[0].model = menu;
          	   $("<a></a>")
@@ -1023,11 +1051,11 @@ jQuery(function() {
          var self = this;
          if (this.$vegIcon == null && this.model.tags.fetched) {
             if (this.model.tags.hasWord("Vegan")) {
-               this.$vegIcon = $("<img style='vertical-align:top;' src='images/vegan_32.png' title='Vegan'></imp>");
+               this.$vegIcon = $("<img src='images/vegan_32.png' title='Vegan'></imp>");
                this.$name.before(this.$vegIcon);
                   
             } else if (this.model.tags.hasWord("Vegetarian")) {
-               this.$vegIcon = $("<img style='vertical-align:top;' src='images/vegetarian_32.png' title='Vegetarian'></imp>");
+               this.$vegIcon = $("<img src='images/vegetarian_32.png' title='Vegetarian'></imp>");
                this.$name.before(this.$vegIcon);
                   
             }
@@ -1663,7 +1691,8 @@ jQuery(function() {
                if (self.menuView) {
                   self.menuView.remove();
                }
-               self.menuView = new MenuView({model: model});
+               self.menuView = new MenuView({model: model,
+						readOnly: App.readOnly});
                self.el.append(self.menuView.render().el);
             }
          });
@@ -1696,14 +1725,16 @@ jQuery(function() {
          this.createBasicView();
          // we don't show the name in this view, it's shown by parent
          this.$name.remove();
-         this.$add = this.$buttons.find("button[value='Add']");
-         this.$save = this.$buttons.find("button[value='Save']");
-         // add rounding to clear, button set doesn't know only one
-         //  of delete and clear are visible at a time
-         this.$clear= this.$buttons.find("button[value='Clear']")
-            .addClass("ui-corner-right");
-      
-         this.$delete = this.$buttons.find("button[value='Delete']");
+			if (!this.options.readOnly) {
+         	this.$add = this.$buttons.find("button[value='Add']");
+         	this.$save = this.$buttons.find("button[value='Save']");
+         	// add rounding to clear, button set doesn't know only one
+         	//  of delete and clear are visible at a time
+         	this.$clear= this.$buttons.find("button[value='Clear']")
+            	.addClass("ui-corner-right");
+      	
+         	this.$delete = this.$buttons.find("button[value='Delete']");
+			}
          this.$dishes = $("<ul class='dish-list'></ul>")
             .appendTo(this.newField("Dishes"));
          var $p = $("<p></p>")
@@ -1729,11 +1760,13 @@ jQuery(function() {
       render : function() {
          var self = this;
          var name = this.model.get("Name");
-         if (this.model == Menus.getDraftMenu()) {
-            this.$delete.hide();
-         } else {
-            this.$clear.hide();
-         }
+			if (!this.options.readOnly) {
+         	if (this.model == Menus.getDraftMenu()) {
+            	this.$delete.hide();
+         	} else {
+            	this.$clear.hide();
+         	}
+			}
          var self = this;
          this.$dishes.children().remove();
          var dishIds = this.model.get("Dishes");
@@ -1758,18 +1791,15 @@ jQuery(function() {
                   .text(name)
                   .attr("href", "#viewDish/" + dish.id);
 			   $li[0].model = dish;
-            var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
-               .appendTo($li)
-               .click(function () {
-                     self.model.removeDish(dish);
-                     self.render();
-                  })
-               .hide();
-            $li.hover(function() {
-                  $delTag.show();
-               }, function() {
-                  $delTag.hide();
-               });
+				if (!self.options.readOnly) {
+            	var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
+               	.appendTo($li)
+               	.click(function () {
+                     	self.model.removeDish(dish);
+                     	self.render();
+                  	})
+               	.autoHide({handle:$li});
+				}
             veggies += dish.get("ServingsVeggies");  
             protein += dish.get("ServingsProtein");  
             carbs += dish.get("ServingsCarb");  
@@ -1777,14 +1807,16 @@ jQuery(function() {
          if (dishes.length == 0) {
             self.$dishes.append("<li class='dish'>Drag dishes here to add them to the menu, or click the 'Add' button above.</li>");
          }
-         if (this.curDish()) {
-            if (this.model.hasDish(this.curDish())) {
-               this.$add.button("option", "disabled", true);
-            } else {
-               this.$add.button("option", "disabled", false);
-            }
-         } else {
-            this.$add.button("option", "disabled", false);
+			if (!this.options.readOnly) {
+         	if ( this.curDish()) {
+            	if (this.model.hasDish(this.curDish())) {
+               	this.$add.button("option", "disabled", true);
+            	} else {
+               	this.$add.button("option", "disabled", false);
+            	}
+         	} else {
+            	this.$add.button("option", "disabled", false);
+         	}
          }
          // delay chart drawing, because it fails if the
          //  element isn't rooted in the document yet
@@ -1866,14 +1898,16 @@ jQuery(function() {
       },
       setContext : function(model) {
          var showAdd = true;
-         if (model.defaults == Dish.prototype.defaults) {
+         if (model && model.defaults == Dish.prototype.defaults) {
             if (this.model.hasDish(model)) {
                showAdd= false;
             }
          } else {
             showAdd = false;
          }
-         this.$add.button("option", "disabled", !showAdd);
+			if (!this.options.readOnly) {
+         	this.$add.button("option", "disabled", !showAdd);
+			}
       }
    })
    window.MenuDetailView = window.MealplannerView.extend({
@@ -1892,13 +1926,15 @@ jQuery(function() {
          _.bindAll(this, "cloneMenu");
          _.bindAll(this, "newDish");
          this.createBasicView();
-         this.$save = this.$buttons.find("button[value='Save']");
-         // add rounding to clear, button set doesn't know only one
-         //  of delete and clear are visible at a time
-         this.$clear= this.$buttons.find("button[value='Clear']")
-            .addClass("ui-corner-right");
-      
-         this.$delete = this.$buttons.find("button[value='Delete']");
+			if (!this.options.readOnly) {
+         	this.$save = this.$buttons.find("button[value='Save']");
+         	// add rounding to clear, button set doesn't know only one
+         	//  of delete and clear are visible at a time
+         	this.$clear= this.$buttons.find("button[value='Clear']")
+            	.addClass("ui-corner-right");
+      	
+         	this.$delete = this.$buttons.find("button[value='Delete']");
+			}
 
          this.$dishes = $("<ul class='dish-list'></ul>")
             .appendTo(this.newField("Dishes"));
@@ -1921,11 +1957,13 @@ jQuery(function() {
          var self = this;
          var name = this.model.get("Name");
          this.$name.text(name);
-         if (this.model == Menus.getDraftMenu()) {
-            this.$delete.hide();
-         } else {
-            this.$clear.hide();
-         }
+			if (!this.options.readOnly) {
+         	if (this.model == Menus.getDraftMenu()) {
+            	this.$delete.hide();
+         	} else {
+            	this.$clear.hide();
+         	}
+			}
          var self = this;
          this.$dishes.children().remove();
          var dishIds = this.model.get("Dishes");
@@ -1963,18 +2001,15 @@ jQuery(function() {
                   .text(name)
                   .attr("href", "#viewDish/" + dish.id);
             $li.append( " " + dish.get("PrepTimeMinutes") + " + " + dish.get("CookTimeMinutes") + " = " + (parseInt(dish.get("PrepTimeMinutes")) + parseInt(dish.get("CookTimeMinutes"))) + " minutes");
-            var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
-               .appendTo($li)
-               .click(function () {
-                     self.model.removeDish(dish);
-                     self.render();
-                  })
-               .hide();
-            $li.hover(function() {
-                  $delTag.show();
-               }, function() {
-                  $delTag.hide();
-               });
+				if (!self.options.readOnly) {
+            	var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
+               	.appendTo($li)
+               	.click(function () {
+                     	self.model.removeDish(dish);
+                     	self.render();
+                  	})
+               	.autoHide({handle: $li});
+				}
             veggies += dish.get("ServingsVeggies");  
             protein += dish.get("ServingsProtein");  
             carbs += dish.get("ServingsCarb");  
@@ -2085,22 +2120,146 @@ jQuery(function() {
       initialize : function() {
          this.el = $(this.el);
          _.bindAll(this, "render");
+         _.bindAll(this, "listLibraries");
+         _.bindAll(this, "shareLibrary");
+         _.bindAll(this, "restore");
+			this.$title = $.make("span")
+				.appendTo(this.el)
+         this.$menu = $.make("div")
+               .appendTo(this.el)
+               .mpmenu({handle:this.el});
+			this.$libs = $.make("div", {"class":"section"})
+               .appendTo(this.$menu);
+			this.$brsection= $.make("div", {"class":"section"},
+				 "<div class='field-head'>Backup/Restore</div>")
+               .appendTo(this.$menu);
+			this.$brsection.append("<a href='/backup' title='Save this file to backup the database.'>Backup</a><br/>");
+			this.$restoreform = $.make("form", {
+					"id": "restore-form",
+					action: "/restore",
+					method: "POST",
+					enctype:"multipart/form-data"
+			})
+				.appendTo(this.$brsection);
+			this.$restoreform
+				.append("<span title='Choose a backup file below.'>Restore</span>:<br/>");
+			this.$restorefile = $.make("input", {
+				 	type:"file",
+					name:"restore-file",
+					id:"restore-file"
+				})
+				.appendTo(this.$restoreform)
+            .change(this.restore);
+			this.$signout = $.make("div", {"class":"section"})
+               .appendTo(this.$menu);
          this.model.bind('all', this.render);
+			jQuery.getJSON("/libraries", this.listLibraries);
       },
       render : function() {
          if (this.model.length > 0) {
             var user = this.model.at(0);
-            this.el.text(user.get("Name"));
-            this.el.prepend("<span class='ui-icon inline ui-icon-triangle-1-e'></span>");
-            $.make("div")
-               .addClass("signout")
-               .append($.make("a", {href:user.get("logoutURL")},
-                              "Sign out"))
-               .autoHide({handle:this.el})
-               .appendTo(this.el);
+            this.$title.text(user.get("Name"));
+				this.$signout
+               .html($.make("a", {href:user.get("logoutURL")},
+                              "Sign out"));
+				
          }
          return this;
-      }
+      },
+		listLibraries : function(data) {
+			var self = this;
+			var $libs = this.$libs;
+			$libs.html("<div class='field-head'>Libraries</div>");
+			_.each(data, function (lib) {
+				var $l;
+				if (lib.Current) {
+					var extra = " (current)";
+					if (lib.ReadOnly) {
+						extra = " (current, read-only)";
+						self.$restoreform.hide();
+					}
+					App.setReadOnly(lib.ReadOnly);
+					$l = $.make("div", {"class" : "current-lib"})
+									.text(lib.Name + extra);
+					$libs.children().first()
+						.after($l);
+				} else {
+					$l = $.make("div")
+						.appendTo($libs)
+						.append($.make("a", { href: "/switch/" + lib.Id })
+										.text(lib.Name));
+					if (lib.ReadOnly) {
+						$l.append(" (read-only)");
+					}
+				}
+				if (lib.Owner) {
+               self.ownedLibrary = lib.Id;
+					$l.append(" ");
+					var $share = $.make("a", "Share...")
+						.click(self.shareLibrary)
+						.appendTo($l);
+				}
+			})
+		},
+		shareLibrary : function() {
+         var self = this;
+         var $content = $.make("div",
+            "Enter the email address of the person you want to share your meal planning library with:<br>");
+         var $dialog = $.make("div");
+            $dialog.append($content);
+         var $email = $.make("input", {type:"text", name:"email"})
+            .textInput({size:30})
+            .appendTo($content);
+         $content.append("<br/>");
+         var $write = $.make("input", {type:"checkbox", name:"write"})
+            .appendTo($content);
+         $content.append(" Allow the user to modify your library.");
+         $dialog
+            .appendTo(document.body)
+            .dialog( {
+               modal: true,
+               title: "Share Your Library",
+               buttons : {
+                  "Share" : function() {
+                     var url = "/share/";
+                     if ($write[0].checked) {
+                        url += "write/email/";
+                     } else {
+                        url += "read/email/";
+                     }
+                     url += $email.val();
+                     $dialog.dialog("option", "buttons", {});
+                     $content.html("Sending email...");
+                     jQuery.get("/share/" + self.ownedLibrary)
+                        .success(function(resp) {
+                           $content.html("Successs");
+                           $dialog.dialog("option", "buttons", {
+                              Close : function() {
+                                 $dialog.dialog("close");
+                              }
+                           });
+                     
+                        })
+                        .error(function(resp) {
+                           $content.html("Failed: " + resp);
+                           $dialog.dialog("option", "buttons", {
+                              Close : function() {
+                                 $dialog.dialog("close");
+                              }
+                           });
+                     
+                        })
+                  },
+                  "Cancel" : function() {
+                     $dialog.dialog("close");
+                  }
+               }
+            });
+            
+		},
+		restore : function() {
+			this.$restoreform.submit();
+		}
    })
    window.LoadingView = Backbone.View.extend({
       tagName : "div",
@@ -2296,21 +2455,18 @@ jQuery(function() {
             var $text = $("<span></span>")
                .appendTo($tag)
                .text(tag);
-            var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
-               .appendTo($tag)
-               .click(function () {
-                     var newTags = self.model.get("Tags");
-                     newTags = _.filter(newTags, function(ftag) {
-                           return ftag != tag;
-                        });
-                     self.model.set({Tags: newTags});
-                  })
-               .hide();
-            $tag.hover(function() {
-                  $delTag.show();
-               }, function() {
-                  $delTag.hide();
-               });
+				if (!self.options.readOnly) {
+            	var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
+               	.appendTo($tag)
+               	.click(function () {
+                     	var newTags = self.model.get("Tags");
+                     	newTags = _.filter(newTags, function(ftag) {
+                           	return ftag != tag;
+                        	});
+                     	self.model.set({Tags: newTags});
+                  	})
+               	.autoHide({handle:$tag});
+				}
          });
       },
       dishSelected : function(dish) {
@@ -2388,14 +2544,18 @@ jQuery(function() {
          _.bindAll(this, "editIngredient");
          _.bindAll(this, "viewMenu");
          _.bindAll(this, "renderTags");
-         _.bindAll(this, "restore");
          _.bindAll(this, "onFetched");
          _.bindAll(this, "onMenuFetched");
+         _.bindAll(this, "refresh");
+			this.readOnly = false;
          this.userView = new UserView({model : Users});
          this.searchView = new SearchView({el: $("#search-tab")}).render();
          this.dishListView = new DishListView({model : Dishes});
          this.mainView = null;
          $("#dishes").append(this.dishListView.render().el);
+         this.el.find(".refresh")
+               .button({text:true, label:"&zwj;", icons:{primary:"ui-icon-refresh"}})
+               .click(this.refresh);
          this.el.find(".add-dish")
                   .button({icons : {primary:"ui-icon-pencil"}})
                   .click(this.newDish);
@@ -2407,12 +2567,12 @@ jQuery(function() {
                   .parent()
                      .buttonset();
          
-         $("#br-controls")
-            .autoHide({handle:$("#backup-restore")});
-			$("#restore-file")
-            .change(this.restore);
          $("#side-tabs").tabs({ });
          this.fetched = 0;
+         this.refresh();
+      },
+      refresh : function() {
+         window.Workspace.navigate("refresh");
          this.show(new LoadingView());
          Menus.fetch({success:this.onMenuFetched, error:this.onFetched});
          Users.fetch({success:this.onFetched, error:this.onFetched});
@@ -2420,17 +2580,41 @@ jQuery(function() {
          Ingredients.fetch({success:this.onFetched, error:this.onFetched});
          jQuery.getJSON("/tags", this.renderTags);
       },
+		setReadOnly : function(readOnly) {
+			this.readOnly = readOnly;
+			if (readOnly) {
+         	this.el.find(".add-ingredient").hide();
+         	this.el.find(".add-dish").hide();
+			} else {
+         	this.el.find(".add-ingredient").show();
+         	this.el.find(".add-dish").show();
+			}
+		},
       onMenuFetched : function() {
-         this.menuBarView = new MenuBarView({model: Menus});
-         $("#menubar").append(this.menuBarView.render().el);
+         // make sure we have a menu to be built up
+         Menus.getDraftMenu();
+         if (!this.menuBarView) {
+            this.menuBarView = new MenuBarView({model: Menus});
+            if (this.mainView && this.mainView.model) {
+               this.menuBarView.setContext(this.mainView.model);
+            } else {
+               this.menuBarView.setContext(null);
+            }
+            $("#menubar").append(this.menuBarView.render().el);
+         }
          this.onFetched();
       },
       onFetched : function() {
          this.fetched++;
          if (this.fetched == 4) {
-            this.show(null);
             Backbone.history || (Backbone.history = new Backbone.History);
-            Backbone.history.start();
+            try {
+               Backbone.history.start();
+            } catch (e) {
+            }
+         }
+         if (this.fetched % 4 == 0) {
+            this.show(null);
          }
       },
       render : function() {
@@ -2484,41 +2668,44 @@ jQuery(function() {
          }.bind(this)});
       },
       viewDish : function(dish) {
-         var viewDish = new DishView({model : dish})
+         var viewDish = new DishView({model : dish,
+				readOnly: this.readOnly})
          viewDish.bind("edit", this.editDish);
          this.show(viewDish);
          window.Workspace.navigate("viewDish/" + dish.id);
       },
       editDish : function(dish) {
+			if (this.readOnly) { return this.viewDish(dish); }
          var editDishView = new DishEditView({model : dish})
          this.show(editDishView);
          window.Workspace.navigate("editDish/" + dish.id);
       },
       newIngredient : function() {
+			if (this.readOnly) { return; }
          Ingredients.create({}, {success:
             function(model) {
                this.editIngredient(model)
          }.bind(this)});
       },
       viewIngredient : function(ingredient) {
-         var viewIngredient = new IngredientView({model : ingredient})
+         var viewIngredient = new IngredientView({model : ingredient,
+				readOnly: this.readOnly })
          viewIngredient.bind("edit", this.editIngredient);
          this.show(viewIngredient);
          window.Workspace.navigate("viewIngredient/" + ingredient.id);
       },
       viewMenu : function(model) {
-         var viewMenu = new MenuDetailView({model : model})
+         var viewMenu = new MenuDetailView({model : model,
+				readOnly: App.readOnly })
          this.show(viewMenu);
          window.Workspace.navigate("viewMenu/" + model.id);
       },
       editIngredient : function(ingredient) {
+			if (this.readOnly) return this.viewIngredient(ingredient);
          var editIngredientView = new IngredientEditView({model : ingredient})
          this.show(editIngredientView);
          window.Workspace.navigate("editIngredient/" + ingredient.id);
       },
-		restore : function() {
-			$("#restore-form").submit();
-		}
    })
 
    window.App = new AppView;

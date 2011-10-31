@@ -6,25 +6,33 @@ import (
 	"appengine"
 	"appengine/user"
 	"appengine/datastore"
+	"appengine/mail"
 	"strings"
 	"os"
 	"io"
 	"json"
 	"unicode"
+	"time"
 )
 
 func init() {
 	http.HandleFunc("/", errorHandler(indexHandler))
-	http.HandleFunc("/dish", errorHandler(dishHandler))
-	http.HandleFunc("/dish/", errorHandler(dishHandler))
-	http.HandleFunc("/users", errorHandler(usersHandler))
-	http.HandleFunc("/ingredient", errorHandler(ingredientHandler))
-	http.HandleFunc("/ingredient/", errorHandler(ingredientHandler))
-	http.HandleFunc("/menu/", errorHandler(menuHandler))
+	http.HandleFunc("/dish", permHandler(dishHandler))
+	http.HandleFunc("/dish/", permHandler(dishHandler))
+	http.HandleFunc("/users", permHandler(usersHandler))
+	http.HandleFunc("/ingredient", permHandler(ingredientHandler))
+	http.HandleFunc("/ingredient/", permHandler(ingredientHandler))
+	http.HandleFunc("/menu/", permHandler(menuHandler))
+	// search uses POST for a read, we don't use permHandler because
+	// it would block searches of readonly libraries
 	http.HandleFunc("/search", errorHandler(searchHandler))
-	http.HandleFunc("/tags", errorHandler(allTagsHandler))
-	http.HandleFunc("/backup", errorHandler(backupHandler))
-	http.HandleFunc("/restore", errorHandler(restoreHandler))
+	http.HandleFunc("/tags", permHandler(allTagsHandler))
+	http.HandleFunc("/backup", permHandler(backupHandler))
+	http.HandleFunc("/restore", permHandler(restoreHandler))
+	http.HandleFunc("/share/", errorHandler(shareHandler))
+	http.HandleFunc("/shareAccept/", errorHandler(shareAcceptHandler))
+	http.HandleFunc("/libraries", errorHandler(librariesHandler))
+	http.HandleFunc("/switch/", errorHandler(switchHandler))
 }
 
 type handlerFunc func(c *context)
@@ -41,6 +49,16 @@ func errorHandler(handler handlerFunc) http.HandlerFunc {
 		c := newContext(w, r)
 		handler(c)
 	}
+}
+// permHandler wraps errorHandler and also checks for non-GET methods
+//  being used with a read-only library
+func permHandler(handler handlerFunc) http.HandlerFunc {
+	return errorHandler(func(c *context) {
+			if c.readOnly && c.r.Method != "GET" {
+				check(os.EPERM)
+			}
+			handler(c)
+		})
 }
 func check(err os.Error) {
 	if err != nil {
@@ -534,11 +552,20 @@ type context struct {
 	u    *user.User
 	uid  string
 	l	  *Library
+	readOnly bool
 }
 
 type dataHandler struct {
 	context
 	kind string
+}
+
+func(self *context) getUid() string {
+	uid := self.u.Id
+	if (len(uid) == 0) {
+		uid = self.u.Email
+	}
+	return uid
 }
 
 func newContext(w http.ResponseWriter, r *http.Request) *context {
@@ -548,22 +575,37 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 	if (len(uid) == 0) {
 		uid = u.Email
 	}
-	query := datastore.NewQuery("Library").Filter("OwnerId =", uid)
+	query := datastore.NewQuery("Library").Filter("OwnerId =", uid).Limit(1)
 	libs := make([]Library, 0, 1)
 	keys, err := query.GetAll(c, &libs)
 	check(err)
 	var l *Library
+	readOnly := false
 	if (len(libs) == 0) {
 		key := datastore.NewKey(c, "Library", "", 0, nil)
-		l = &Library{nil, uid, 0}
+		l = &Library{nil, uid, 0, u.String(), nil}
 		newKey, err := datastore.Put(c, key, l)
 		check(err)
 		l.Id = newKey
 	} else {
 		l = &libs[0]
 		l.Id = keys[0]
+		// use an alternate library if the user wants to
+		if libs[0].UserPreferredLibrary != nil && keys[0] != libs[0].UserPreferredLibrary {
+			query = datastore.NewQuery("Perm").Ancestor(libs[0].UserPreferredLibrary).Filter("UserId =", uid).Limit(1)
+			perms := make([]Perm, 0, 1)
+			permKeys, err := query.GetAll(c, &perms)
+			check(err)
+			if len(permKeys) > 0 {
+				// we have permission for this other library, fetch it
+				readOnly = perms[0].ReadOnly
+				err = datastore.Get(c, libs[0].UserPreferredLibrary, l)
+				check(err)
+				l.Id = libs[0].UserPreferredLibrary
+			}
+		}
 	}
-	return &context{w, r, c, u, uid, l}
+	return &context{w, r, c, u, uid, l, readOnly}
 }
 
 func (self *context) checkUser(key *datastore.Key) {
@@ -962,4 +1004,145 @@ func restoreHandler(c *context) {
 			return restore(tc, c);
 	}, nil)
 	return
+}
+
+func shareHandler(c *context) {
+	// create a request to share the library
+	// form: /share/read/email/other@email.address.com
+	// form: /share/write/email/other@email.address.com
+	uid := c.getUid()
+	// verify the user owns this library
+	if uid != c.l.OwnerId {
+		check(os.EPERM)
+	}
+	var email = getID(c.r)
+	var permStr = getParentID(c.r)
+	share := Share{
+		ExpirationDate :  time.Seconds() + 30 * 24 * 60 * 60,
+		ReadOnly : permStr != "write",
+	}
+	key := datastore.NewKey(c.c, "Share", "", 0, c.l.Id)
+	key, err := datastore.Put(c.c, key, &share)
+	check(err)
+	subject := email + " would like to share a meal-planning library with you"
+	body := subject + ".\n\nFollow this link to gain access to the library: http://" + c.r.Header.Get("Host") + "/shareAccept/" + key.Encode()
+
+	msg := mail.Message{
+			Sender: "no-reply@curiousroligs.appspot.com",
+			To: []string{email},
+			Subject: subject,
+			Body: body,
+		}
+	if err := mail.Send(c.c, &msg); err != nil {
+		fmt.Fprintf(c.w, "Failed to send an email message to '%v'. %v", email, err)
+		datastore.Delete(c.c, key)
+	}
+}
+
+func shareAcceptHandler(c *context) {
+	key,err := datastore.DecodeKey(getID(c.r))
+	if err != nil {
+		fmt.Fprintf(c.w, "{\"Error\":\"Invalid key, please check your email to ensure you typed the URL correctly.\"}")
+		return
+	}
+	share := Share{}
+	err = datastore.Get(c.c, key, &share)
+	if err != nil {
+		fmt.Fprintf(c.w, "This invitation has expired, please ensure you typed the URL correctly or contact the sender to retry.")
+		return
+	}
+	libKey := key.Parent()
+	uid := c.getUid()
+	// remove any previous permissions the user had to the library
+	delQuery := datastore.NewQuery("Perm").Ancestor(libKey).Filter("UserId=", uid).KeysOnly()
+	delKeys, err := delQuery.GetAll(c.c, nil)
+	if err == nil && len(delKeys) > 0 {
+		datastore.DeleteMulti(c.c, delKeys)
+	}
+	// create the permission for the user to access the library
+	perm := Perm{UserId: uid, ReadOnly: share.ReadOnly }
+	permKey := datastore.NewKey(c.c, "Perm", "", 0, libKey)
+	permKey, err = datastore.Put(c.c, permKey, &perm)
+	if err != nil {
+		fmt.Fprintf(c.w, "We're sorry, the service failed to complete this operation, please try again.")
+		return
+	}
+	// delete the share request so it can't be used again
+	datastore.Delete(c.c, key)
+
+	// update the user's record to use the shared library
+	c.l.UserPreferredLibrary = libKey
+	datastore.Put(c.c, c.l.Id, c.l)
+	indexHandler(c)
+}
+
+type UserLibrary struct {
+	Id			*datastore.Key
+	Name		string
+	ReadOnly	bool
+	Current	bool
+	Owner		bool
+}
+// return a list of libraries this user can access
+func librariesHandler(c *context) {
+	uid := c.getUid()
+	query := datastore.NewQuery("Library").Filter("OwnerId =", uid).Limit(1)
+	libs := make([]Library, 0, 1)
+	keys, err := query.GetAll(c.c, &libs)
+	check(err)
+	libraries := make([]UserLibrary,0, 10)
+	libraries = append(libraries, UserLibrary{keys[0], libs[0].Name, false,
+			keys[0].Eq(c.l.Id), true})
+	perms := make([]Perm, 0, 10)
+	query = datastore.NewQuery("Perm").Filter("UserId=", uid)
+	keys, err = query.GetAll(c.c, &perms)
+	check(err)
+	for index, _ := range keys {
+		lib := Library{}
+		libkey := keys[index].Parent()
+		err = datastore.Get(c.c, libkey, &lib)
+		check(err)
+		ul := UserLibrary{ libkey, lib.Name, perms[index].ReadOnly,
+			libkey.Eq(c.l.Id) , false}
+		if len(ul.Name) == 0 {
+			ul.Name = lib.OwnerId
+		}
+		libraries = append(libraries, ul)
+	}
+	sendJSON(c.w, libraries)
+}
+
+// handler to switch which library the user is looking at
+func switchHandler(c *context) {
+	uid := c.getUid()
+	desiredKey,err := datastore.DecodeKey(getID(c.r))
+	if desiredKey.Kind() != "Library" {
+		check(ErrUnknownItem)
+	}
+	// start by getting the user's own library
+	query := datastore.NewQuery("Library").Filter("OwnerId =", uid).Limit(1)
+	libs := make([]Library, 0, 1)
+	keys, err := query.GetAll(c.c, &libs)
+	check(err)
+	if len(libs) == 0 { return }
+	if !keys[0].Eq(desiredKey) {
+		// user want's to see someone else's library, check if they have
+		// permission
+		query = datastore.NewQuery("Perm").Ancestor(desiredKey).Filter("UserId=", uid).Limit(1).KeysOnly()
+		pkeys, err := query.GetAll(c.c, nil)
+		check(err)
+		if len(pkeys) == 0 {
+			check(os.EPERM)
+			return
+		}
+	} else {
+		// we use nil to indicate the user wants their own library
+		desiredKey = nil
+	}
+	// we verified that the desiredKey is a library the user has permission to access
+	//  save their preference
+	libs[0].UserPreferredLibrary = desiredKey
+	_, err = datastore.Put(c.c, keys[0], &libs[0])
+	check(err)
+	indexHandler(c)
 }

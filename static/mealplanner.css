@@ -19,6 +19,9 @@ div#main {
    width: 15em;
    padding: 4px;
 }
+.sidebar .ui-buttonset {
+	white-space:nowrap;
+}
 .sidebar .ui-tabs-panel {
    padding: 0px;
 }
@@ -36,7 +39,6 @@ div#main {
 }
 #user {
    padding: 3px;
-   font-weight: bold;
 }
 div.signout {
    background:white;
@@ -227,4 +229,26 @@ span.summary {
    font-size: 0.8em;
    font-weight: bold;
    vertical-align: 1px;
+}
+.menu .section .field-head {
+	padding-bottom: 0.2em;
+}
+.menu .section {
+	border-top: solid thin #CCC;
+	padding: 0.5em 0.75em;
+}
+.menu .section:first-child {
+	border-top: none;
+	margin-top: 0em;
+}
+.current-lib {
+   font-style: italic;
+}
+.menu {
+	padding: 0.25em 0px;
+	background: #FFF;
+	position: absolute;
+	border: solid thin #000;
+	border-top: solid thin #CCC;
+	z-index: 10;
 }

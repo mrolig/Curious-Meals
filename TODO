@@ -1,6 +1,4 @@
-- add ACL to library
-- create method to share a library
-
+- change restore to avoid making duplicate ingredients
 - create "tutorial" intro page
 
 - build a "starter" library when newly created
