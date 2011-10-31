@@ -1670,8 +1670,10 @@ jQuery(function() {
          MealplannerView.prototype.initialize.call(this);
 
          this.el.append("<div class='name'><span class='ui-icon ui-icon-menu inline large'></span>Menus</div>");
+         var $nowrap = $("<span class='nowrap'></span>")
+            .appendTo(this.el);
          this.$menus = $("<input class='menu-combo' type='text' value='<New Menu>' size='15'></input>")
-               .appendTo(this.el)
+               .appendTo($nowrap)
                .combo({source:[]});
       },
       render : function() {
