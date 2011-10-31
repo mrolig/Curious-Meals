@@ -143,6 +143,12 @@ jQuery(function() {
          } else {
             return;
          }
+         options || (options = {});
+         var success = options.success;
+         options.success = function(m,r) {
+            this.fetched = true;
+            if (success) success(m, r);
+         }.bind(this);
          return Backbone.Collection.prototype.fetch.call(this, options);
       },
       // fetch only if we haven't fetched before
@@ -164,12 +170,14 @@ jQuery(function() {
          return mi.get("Word");
       },
       hasWord : function( target ) {
-         for (var w = 0; w < this.length; w++) {
-            if (this.at(w).get("Word") == target) {
-               return true;
-            }
-         }
-         return false;
+         return this.any(function(w) {
+               return w.get("Word") == target;
+            });
+      },
+      getWord : function( target ) {
+         return this.find(function(w) {
+               return w.get("Word") == target;
+            });
       }
    })
    window.Pairing = MealplannerModel.extend({
@@ -520,7 +528,7 @@ jQuery(function() {
       },
       save : function() {
          if (this.dirty) {
-            if (this.url == undefined)
+            if (this.model.url == undefined)
                return;
             this.dirty = 1;
             if (this.$save)
@@ -1196,9 +1204,26 @@ jQuery(function() {
          this.renderTags();
          this.ingredients.gen++;
          var nextIngredients = {};
+         var animal = false;
+         var vegetarian = false;
+         var vegan = false;
          this.model.ingredients.each(function(i) {
             var changed = false;
             var ing;
+            var ingredient = Ingredients.get(i.get("Ingredient"));
+            if (ingredient) {
+               switch (ingredient.get("Source")) {
+               case "Vegan":
+                  vegan = true;
+                  break;
+               case "Vegetarian":
+                  vegetarian = true;
+                  break;
+               default:
+                  animal = true;
+                  break;
+               }
+            }
             if (i.id in self.ingredients)
             {
                ing =  self.ingredients[i.id];
@@ -1243,7 +1268,6 @@ jQuery(function() {
             if (changed) {
                ing.$amount.val(i.get("Amount"));
                ing.$instruction.val(i.get("Instruction"));
-               var ingredient = Ingredients.get(i.get("Ingredient"));
                if (ingredient) {
                   ing.$name.text(ingredient.get("Name"));
                } else {
@@ -1262,9 +1286,43 @@ jQuery(function() {
          for (var r in remove) {
             delete this.ingredients[remove[r]];
          }
+         if (animal) {
+            this.updateVegTags(0);
+         } else if (vegetarian) {
+            this.updateVegTags(1);
+         } else {
+            this.updateVegTags(2);
+         }
          this.renderPairings();
          this.$text.val(this.model.get("Text"));
          return this;
+      },
+      updateVegTags : function(which) {
+         if (!this.model.tags.fetched) return;
+         if (this.createdVegTags == which) return;
+         this.createdVegTags = which;
+         var veganTag = this.model.tags.getWord("Vegan");
+         var vegetarianTag = this.model.tags.getWord("Vegetarian");
+         switch(which) {
+            case 0:
+               if (veganTag) { veganTag.destroy(); }
+               if (vegetarianTag) { vegetarianTag.destroy(); }
+               break;
+            case 1:
+               if (veganTag) { veganTag.destroy(); }
+               if (!vegetarianTag) {
+                  this.model.tags.create({Word:"Vegetarian"});
+               }
+               break;
+            case 2:
+               if (!vegetarianTag) {
+                  this.model.tags.create({Word:"Vegetarian"});
+               }
+               if (!veganTag) {
+                  this.model.tags.create({Word:"Vegan"});
+               }
+               break;
+         }
       },
       focus : function() {
          this.$name.focus();
