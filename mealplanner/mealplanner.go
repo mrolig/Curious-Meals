@@ -553,12 +553,14 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 	check(err)
 	var l *Library
 	readOnly := false
+	init := false
 	if (len(libs) == 0) {
 		key := datastore.NewKey(c, "Library", "", 0, nil)
 		l = &Library{nil, uid, 0, u.String(), nil}
 		newKey, err := datastore.Put(c, key, l)
 		check(err)
 		l.Id = newKey
+		init = true
 	} else {
 		l = &libs[0]
 		l.Id = keys[0]
@@ -577,7 +579,13 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 			}
 		}
 	}
-	return &context{w, r, c, u, uid, l, readOnly}
+	ctxt := &context{w, r, c, u, uid, l, readOnly}
+	if init {
+		file, err := os.Open("static/base.json")
+		check(err)
+		restore(ctxt, file)
+	}
+	return ctxt
 }
 
 func (self *context) checkUser(key *datastore.Key) {
@@ -902,12 +910,10 @@ func restoreTags(c *context,
 	}
 }
 
-func restore(c *context) os.Error {
-	file, _, err := c.r.FormFile("restore-file")
-	check(err)
+func restore(c *context, file io.Reader) os.Error {
 	decoder := json.NewDecoder(file)
 	data := backup{}
-	err = decoder.Decode(&data)
+	err := decoder.Decode(&data)
 	check(err)
 	fixUpKeys := make(map[string]*datastore.Key)
 	// add all the ingredients
@@ -988,7 +994,9 @@ func restore(c *context) os.Error {
 }
 
 func restoreHandler(c *context) {
-	restore(c);
+	file, _, err := c.r.FormFile("restore-file")
+	check(err)
+	restore(c, file);
 }
 
 func shareHandler(c *context) {
