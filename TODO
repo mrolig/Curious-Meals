@@ -1,5 +1,5 @@
-- change restore to avoid making duplicate ingredients
+- fix bug where tags aren't indexed for search during restore
+- build a "starter" library when newly created
+
 - create "tutorial" intro page
 
-- build a "starter" library when newly created
-- fix bug where tags aren't indexed for search during restore

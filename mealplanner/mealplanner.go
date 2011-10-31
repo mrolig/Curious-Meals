@@ -122,15 +122,8 @@ func dishHandler(c *context) {
 			sendJSON(handler.w, dishes)
 		case "POST":
 			dish := Dish{}
-			savedContext := handler.c
-			datastore.RunInTransaction(handler.c,
-				func (tc appengine.Context) os.Error {
-					handler.c = tc
-					newKey := handler.createEntry(&dish, nil)
-					updateDishKeywords(tc, newKey, &dish)
-					return nil
-				}, nil)
-			handler.c = savedContext
+			newKey := handler.createEntry(&dish, nil)
+			updateDishKeywords(c.c, newKey, &dish)
 		}
 		return
 	}
@@ -145,25 +138,18 @@ func dishHandler(c *context) {
 	case "GET":
 		handler.get(key, &dish)
 	case "PUT":
-		savedContext := handler.c
-		datastore.RunInTransaction(handler.c,
-			func (tc appengine.Context) os.Error {
-				handler.c = tc
-				handler.update(key, &dish)
-				updateDishKeywords(tc, key, &dish)
-				return nil
-			}, nil)
-		handler.c = savedContext
+		handler.update(key, &dish)
+		updateDishKeywords(c.c, key, &dish)
 	case "DELETE":
 		handler.delete(key)
 	}
 }
 
-func addTags(tc appengine.Context, key *datastore.Key,
+func addTags(c appengine.Context, key *datastore.Key,
 	words map[string]bool) {
 	query := datastore.NewQuery("Tags").Ancestor(key)
 	tags := make([]Word, 0, 20)
-	_, err := query.GetAll(tc, &tags)
+	_, err := query.GetAll(c, &tags)
 	check(err)
 	for _, tag := range tags {
 		addWords(tag.Word, words)
@@ -172,21 +158,21 @@ func addTags(tc appengine.Context, key *datastore.Key,
 
 // break up the text into words and add/remove keywords
 //  for the dish
-func updateDishKeywords(tc appengine.Context, key *datastore.Key,
+func updateDishKeywords(c appengine.Context, key *datastore.Key,
 	dish *Dish) {
 	words := make(map[string]bool)
 	addWords(dish.Name, words)
 	addWords(dish.Source, words)
-	addTags(tc, key, words)
-	updateKeywords(tc, key, words)
+	addTags(c, key, words)
+	updateKeywords(c, key, words)
 }
-func updateIngredientKeywords(tc appengine.Context, key *datastore.Key,
+func updateIngredientKeywords(c appengine.Context, key *datastore.Key,
 	ing *Ingredient) {
 	words := make(map[string]bool)
 	addWords(ing.Name, words)
 	addWords(ing.Category, words)
-	addTags(tc, key, words)
-	updateKeywords(tc, key, words)
+	addTags(c, key, words)
+	updateKeywords(c, key, words)
 }
 
 func addWords(text string, words map[string]bool) {
@@ -211,24 +197,24 @@ func addWords(text string, words map[string]bool) {
 	}
 }
 
-func updateKeywords(tc appengine.Context, key *datastore.Key, words map[string]bool) {
+func updateKeywords(c appengine.Context, key *datastore.Key, words map[string]bool) {
 	query := datastore.NewQuery("Keyword").Ancestor(key)
 	existingWords := make([]Word,0, 25)
-	keys, err := query.GetAll(tc, &existingWords)
+	keys, err := query.GetAll(c, &existingWords)
 	check(err)
 	for i, word := range existingWords {
 		if _, ok := words[word.Word] ; ok {
 			words[word.Word] = true
 		} else {
 			// this keyword isn't here any more
-			datastore.Delete(tc, keys[i])
+			datastore.Delete(c, keys[i])
 		}
 	}
 	for word, exists := range words {
 		if !exists {
 			newWord := Word{nil, word}
-			newKey := datastore.NewKey(tc, "Keyword", "", 0, key)
-			_, err := datastore.Put(tc, newKey, &newWord)
+			newKey := datastore.NewKey(c, "Keyword", "", 0, key)
+			_, err := datastore.Put(c, newKey, &newWord)
 			check(err)
 		}
 	}
@@ -428,15 +414,8 @@ func ingredientHandler(c *context) {
 			sendJSON(handler.w, ingredients)
 		case "POST":
 			ingredient := Ingredient{}
-			savedContext := handler.c
-			datastore.RunInTransaction(handler.c,
-				func (tc appengine.Context) os.Error {
-					handler.c = tc
-					newKey := handler.createEntry(&ingredient, nil)
-					updateIngredientKeywords(tc, newKey, &ingredient)
-					return nil
-				}, nil)
-			handler.c = savedContext
+			newKey := handler.createEntry(&ingredient, nil)
+			updateIngredientKeywords(c.c, newKey, &ingredient)
 		}
 		return
 	}
@@ -448,15 +427,8 @@ func ingredientHandler(c *context) {
 	case "GET":
 		handler.get(key, &ingredient)
 	case "PUT":
-		savedContext := handler.c
-		datastore.RunInTransaction(handler.c,
-			func (tc appengine.Context) os.Error {
-				handler.c = tc
-				handler.update(key, &ingredient)
-				updateIngredientKeywords(tc, key, &ingredient)
-				return nil
-			}, nil)
-		handler.c = savedContext
+		handler.update(key, &ingredient)
+		updateIngredientKeywords(c.c, key, &ingredient)
 	case "DELETE":
 		handler.delete(key)
 	}
@@ -898,7 +870,7 @@ func backupHandler(c *context) {
 	sendJSONIndent(c.w, b)
 }
 
-func restoreKey(tc appengine.Context, c *context,
+func restoreKey(c *context,
                key *datastore.Key,
 					fixUpKeys map[string]*datastore.Key) *datastore.Key {
 	encoded := key.Encode()
@@ -906,14 +878,14 @@ func restoreKey(tc appengine.Context, c *context,
 		return newKey
 	}
 	if !c.isInLibrary(key) {
-		newKey := datastore.NewKey(tc, key.Kind(), "", 0, c.l.Id)
+		newKey := datastore.NewKey(c.c, key.Kind(), "", 0, c.l.Id)
 		fixUpKeys[encoded] = newKey
 		return newKey
 	}
 	return key
 }
 
-func restore(tc appengine.Context, c *context) os.Error {
+func restore(c *context) os.Error {
 	file, _, err := c.r.FormFile("restore-file")
 	check(err)
 	decoder := json.NewDecoder(file)
@@ -923,35 +895,45 @@ func restore(tc appengine.Context, c *context) os.Error {
 	fixUpKeys := make(map[string]*datastore.Key)
 	// add all the ingredients
 	for _, i := range data.Ingredients {
-		key := restoreKey(tc, c, i.Id, fixUpKeys)
-		newKey, err := datastore.Put(tc, key, &i)
+		key := restoreKey(c, i.Id, fixUpKeys)
+		if key.Incomplete() {
+			// check if we have an item of the same name already
+			iquery := c.NewQuery("Ingredient").Filter("Name=", i.Name).KeysOnly().Limit(1)
+			ikeys, err := iquery.GetAll(c.c, nil)
+			check(err)
+			if len(ikeys) > 0 {
+				// we found a match, use that key so we'll overwrite that one
+				key = ikeys[0]
+			}
+		}
+		newKey, err := datastore.Put(c.c, key, &i)
 		check(err)
 		if !i.Id.Eq(newKey) {
 			fixUpKeys[i.Id.Encode()] = newKey
 		}
-		updateIngredientKeywords(tc, newKey, &i)
+		updateIngredientKeywords(c.c, newKey, &i)
 	}
 	// add all the dishes
 	for _, d := range data.Dishes {
-		key := restoreKey(tc, c, d.Id, fixUpKeys)
-		newKey, err := datastore.Put(tc, key, &d)
+		key := restoreKey(c, d.Id, fixUpKeys)
+		newKey, err := datastore.Put(c.c, key, &d)
 		check(err)
 		if !d.Id.Eq(newKey) {
 			fixUpKeys[d.Id.Encode()] = newKey
 		}
-		updateDishKeywords(tc, newKey, &d)
+		updateDishKeywords(c.c, newKey, &d)
 	}
 	// add all the dishes' ingredients
 	for d, ingredients := range data.MeasuredIngredients {
 		temp, err := datastore.DecodeKey(d)
 		check(err)
-		parent := restoreKey(tc, c, temp, fixUpKeys)
+		parent := restoreKey(c, temp, fixUpKeys)
 		for _, i := range ingredients {
-			i.Ingredient = restoreKey(tc, c, i.Ingredient, fixUpKeys)
+			i.Ingredient = restoreKey(c, i.Ingredient, fixUpKeys)
 			if !c.isInLibrary(i.Id) {
-				i.Id = datastore.NewKey(tc, "MeasuredIngredient", "", 0, parent)
+				i.Id = datastore.NewKey(c.c, "MeasuredIngredient", "", 0, parent)
 			}
-			_, err = datastore.Put(tc, i.Id, &i)
+			_, err = datastore.Put(c.c, i.Id, &i)
 			check(err)
 		}
 	}
@@ -959,13 +941,13 @@ func restore(tc appengine.Context, c *context) os.Error {
 	for d, pairings:= range data.Pairings {
 		temp, err := datastore.DecodeKey(d)
 		check(err)
-		parent := restoreKey(tc, c, temp, fixUpKeys)
+		parent := restoreKey(c, temp, fixUpKeys)
 		for _, i := range pairings {
-			i.Other = restoreKey(tc, c, i.Other, fixUpKeys)
+			i.Other = restoreKey(c, i.Other, fixUpKeys)
 			if !c.isInLibrary(i.Id) {
-				i.Id = datastore.NewKey(tc, "Pairing", "", 0, parent)
+				i.Id = datastore.NewKey(c.c, "Pairing", "", 0, parent)
 			}
-			_, err = datastore.Put(tc, i.Id, &i)
+			_, err = datastore.Put(c.c, i.Id, &i)
 			check(err)
 		}
 	}
@@ -973,22 +955,22 @@ func restore(tc appengine.Context, c *context) os.Error {
 	for id, tags := range data.Tags {
 		temp, err := datastore.DecodeKey(id)
 		check(err)
-		parent := restoreKey(tc, c, temp, fixUpKeys)
+		parent := restoreKey(c, temp, fixUpKeys)
 		for _, t := range tags {
 			if !c.isInLibrary(t.Id) {
-				t.Id = datastore.NewKey(tc, "Tags", "", 0, parent)
+				t.Id = datastore.NewKey(c.c, "Tags", "", 0, parent)
 			}
-			_, err = datastore.Put(tc, t.Id, &t)
+			_, err = datastore.Put(c.c, t.Id, &t)
 			check(err)
 		}
 	}
 	// add all the menus
 	for _, m := range data.Menus {
-		key := restoreKey(tc, c, m.Id, fixUpKeys)
+		key := restoreKey(c, m.Id, fixUpKeys)
 		for index, dishKey := range m.Dishes {
-			m.Dishes[index] = restoreKey(tc, c, dishKey, fixUpKeys)
+			m.Dishes[index] = restoreKey(c, dishKey, fixUpKeys)
 		}
-		newKey, err := datastore.Put(tc, key, &m)
+		newKey, err := datastore.Put(c.c, key, &m)
 		check(err)
 		if !m.Id.Eq(newKey) {
 			fixUpKeys[m.Id.Encode()] = newKey
@@ -997,13 +979,29 @@ func restore(tc appengine.Context, c *context) os.Error {
 	indexHandler(c)
 	return nil
 }
+func updateAllDishKeywords(c *context) {
+	dishes := make([]Dish, 0, 100)
+	query := c.NewQuery("Dish")
+	keys, err := query.GetAll(c.c, &dishes)
+	check(err)
+	for i, _ := range dishes {
+		updateDishKeywords(c.c, keys[i], &dishes[i])
+	}
+}
+func updateAllIngredientKeywords(c *context) {
+	ingredientes := make([]Ingredient, 0, 100)
+	query := c.NewQuery("Ingredient")
+	keys, err := query.GetAll(c.c, &ingredientes)
+	check(err)
+	for i, _ := range ingredientes {
+		updateIngredientKeywords(c.c, keys[i], &ingredientes[i])
+	}
+}
 
 func restoreHandler(c *context) {
-	datastore.RunInTransaction(c.c,
-		func (tc appengine.Context) os.Error {
-			return restore(tc, c);
-	}, nil)
-	return
+	restore(c);
+	go updateAllDishKeywords(c)
+	go updateAllIngredientKeywords(c)
 }
 
 func shareHandler(c *context) {
