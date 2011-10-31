@@ -622,7 +622,13 @@ jQuery(function() {
                      .appendTo(document.body);
                   // after the timeout, show it, and add a delay so
                   //  it will not be hidden immediately after appearing
-                  $hoverView.show('blind')
+                  $hoverView
+                     .click( function() {
+                        $hoverView.hide(0, function() {
+                           $hoverView.remove();
+                        });
+                     })
+                     .show('blind')
                      .delay(100);
                   // catch the case of ophans, and remove them -- somehow
                   //  we can fail to get the mouse leave event
@@ -822,8 +828,6 @@ jQuery(function() {
          var pairings = this.model.pairings;
          var collection = window.Dishes;
          $pairings.html("");
-         if ((!pairings) || pairings.length == 0)
-            return;
 		   var map = {};
          pairings.each(function(pairing, t) {
 			   var desc = pairing.get("Description");
