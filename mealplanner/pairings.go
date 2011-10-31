@@ -5,8 +5,8 @@ import (
 )
 
 type Pairing struct {
-	Id       *datastore.Key
-	Other    *datastore.Key
+	Id          *datastore.Key
+	Other       *datastore.Key
 	Description string
 }
 

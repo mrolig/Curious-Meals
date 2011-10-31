@@ -5,9 +5,9 @@ import (
 )
 
 type Menu struct {
-	Id       *datastore.Key
-	Name     string
-	Dishes   []*datastore.Key
+	Id     *datastore.Key
+	Name   string
+	Dishes []*datastore.Key
 }
 
 func (self *Menu) ID() *datastore.Key {

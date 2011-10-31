@@ -54,11 +54,11 @@ func errorHandler(handler handlerFunc) http.HandlerFunc {
 //  being used with a read-only library
 func permHandler(handler handlerFunc) http.HandlerFunc {
 	return errorHandler(func(c *context) {
-			if c.readOnly && c.r.Method != "GET" {
-				check(os.EPERM)
-			}
-			handler(c)
-		})
+		if c.readOnly && c.r.Method != "GET" {
+			check(os.EPERM)
+		}
+		handler(c)
+	})
 }
 func check(err os.Error) {
 	if err != nil {
@@ -78,7 +78,7 @@ func dishHandler(c *context) {
 	if strings.Contains(c.r.URL.Path, "/mi/") {
 		measuredIngredientsHandler(c)
 		if c.r.Method != "GET" {
-			key,err := datastore.DecodeKey(getParentID(c.r))
+			key, err := datastore.DecodeKey(getParentID(c.r))
 			check(err)
 			dish := Dish{}
 			err = datastore.Get(c.c, key, &dish)
@@ -90,7 +90,7 @@ func dishHandler(c *context) {
 	if strings.Contains(c.r.URL.Path, "/tags/") {
 		wordHandler(c, "Tags")
 		if c.r.Method != "GET" {
-			key,err := datastore.DecodeKey(getParentID(c.r))
+			key, err := datastore.DecodeKey(getParentID(c.r))
 			check(err)
 			dish := Dish{}
 			err = datastore.Get(c.c, key, &dish)
@@ -146,7 +146,7 @@ func dishHandler(c *context) {
 }
 
 func addTags(c appengine.Context, key *datastore.Key,
-	words map[string]bool) {
+words map[string]bool) {
 	query := datastore.NewQuery("Tags").Ancestor(key)
 	tags := make([]Word, 0, 20)
 	_, err := query.GetAll(c, &tags)
@@ -159,7 +159,7 @@ func addTags(c appengine.Context, key *datastore.Key,
 // break up the text into words and add/remove keywords
 //  for the dish
 func updateDishKeywords(c appengine.Context, key *datastore.Key,
-	dish *Dish) {
+dish *Dish) {
 	words := make(map[string]bool)
 	addWords(dish.Name, words)
 	addWords(dish.Source, words)
@@ -167,7 +167,7 @@ func updateDishKeywords(c appengine.Context, key *datastore.Key,
 	updateKeywords(c, key, words)
 }
 func updateIngredientKeywords(c appengine.Context, key *datastore.Key,
-	ing *Ingredient) {
+ing *Ingredient) {
 	words := make(map[string]bool)
 	addWords(ing.Name, words)
 	addWords(ing.Category, words)
@@ -177,16 +177,16 @@ func updateIngredientKeywords(c appengine.Context, key *datastore.Key,
 
 func addWords(text string, words map[string]bool) {
 	spaced := strings.Map(func(rune int) int {
-		if (unicode.IsPunct(rune)) {
+		if unicode.IsPunct(rune) {
 			return ' '
 		}
 		return rune
 	}, text)
 	pieces := strings.Fields(spaced)
 	for _, word := range pieces {
-		if (len(word) > 1) {
+		if len(word) > 1 {
 			word = strings.ToLower(word)
-			words[word] = false;
+			words[word] = false
 			if strings.HasSuffix(word, "s") {
 				words[word[0:len(word)-1]] = false
 				if strings.HasSuffix(word, "es") {
@@ -199,11 +199,11 @@ func addWords(text string, words map[string]bool) {
 
 func updateKeywords(c appengine.Context, key *datastore.Key, words map[string]bool) {
 	query := datastore.NewQuery("Keyword").Ancestor(key)
-	existingWords := make([]Word,0, 25)
+	existingWords := make([]Word, 0, 25)
 	keys, err := query.GetAll(c, &existingWords)
 	check(err)
 	for i, word := range existingWords {
-		if _, ok := words[word.Word] ; ok {
+		if _, ok := words[word.Word]; ok {
 			words[word.Word] = true
 		} else {
 			// this keyword isn't here any more
@@ -263,7 +263,7 @@ func measuredIngredientsHandler(c *context) {
 func dishesForIngredientHandler(c *context) {
 	handler := newDataHandler(c, "Dish")
 	id := getID(c.r)
-	ingKey,err := datastore.DecodeKey(getParentID(c.r))
+	ingKey, err := datastore.DecodeKey(getParentID(c.r))
 	check(err)
 	c.checkUser(ingKey)
 	if len(id) == 0 {
@@ -285,7 +285,7 @@ func dishesForIngredientHandler(c *context) {
 func wordHandler(c *context, kind string) {
 	handler := newDataHandler(c, kind)
 	id := getID(c.r)
-	parentKey,err := datastore.DecodeKey(getParentID(c.r))
+	parentKey, err := datastore.DecodeKey(getParentID(c.r))
 	check(err)
 	c.checkUser(parentKey)
 	if len(id) == 0 {
@@ -323,7 +323,7 @@ func pairingHandler(c *context) {
 	kind := "Pairing"
 	handler := newDataHandler(c, kind)
 	id := getID(c.r)
-	parentKey,err := datastore.DecodeKey(getParentID(c.r))
+	parentKey, err := datastore.DecodeKey(getParentID(c.r))
 	check(err)
 	c.checkUser(parentKey)
 	if len(id) == 0 {
@@ -342,7 +342,7 @@ func pairingHandler(c *context) {
 			handler.createEntry(&pairing, parentKey)
 			// create the matching entry
 			other := pairing.Other
-			newPairKey := datastore.NewKey(c.c, kind, "",0,other)
+			newPairKey := datastore.NewKey(c.c, kind, "", 0, other)
 			pairing.Other = parentKey
 			pairing.Id = nil
 			newPairKey, err := datastore.Put(c.c, newPairKey, &pairing)
@@ -364,8 +364,8 @@ func pairingHandler(c *context) {
 		err = datastore.Get(c.c, key, &pairing)
 		check(err)
 		otherParent := pairing.Other
-		query := datastore.NewQuery(kind).Ancestor(otherParent).Filter("Other=", parentKey).Filter("Description=",pairing.Description).KeysOnly()
-		keys, err:= query.GetAll(c.c, nil)
+		query := datastore.NewQuery(kind).Ancestor(otherParent).Filter("Other=", parentKey).Filter("Description=", pairing.Description).KeysOnly()
+		keys, err := query.GetAll(c.c, nil)
 		check(err)
 		handler.delete(key)
 		for _, otherKey := range keys {
@@ -382,7 +382,7 @@ func ingredientHandler(c *context) {
 	if strings.Contains(c.r.URL.Path, "/tags/") {
 		wordHandler(c, "Tags")
 		if c.r.Method != "GET" {
-			key,err := datastore.DecodeKey(getParentID(c.r))
+			key, err := datastore.DecodeKey(getParentID(c.r))
 			check(err)
 			ingredient := Ingredient{}
 			err = datastore.Get(c.c, key, &ingredient)
@@ -518,12 +518,12 @@ type Ided interface {
 }
 
 type context struct {
-	w    http.ResponseWriter
-	r    *http.Request
-	c    appengine.Context
-	u    *user.User
-	uid  string
-	l	  *Library
+	w        http.ResponseWriter
+	r        *http.Request
+	c        appengine.Context
+	u        *user.User
+	uid      string
+	l        *Library
 	readOnly bool
 }
 
@@ -532,9 +532,9 @@ type dataHandler struct {
 	kind string
 }
 
-func(self *context) getUid() string {
+func (self *context) getUid() string {
 	uid := self.u.Id
-	if (len(uid) == 0) {
+	if len(uid) == 0 {
 		uid = self.u.Email
 	}
 	return uid
@@ -544,7 +544,7 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 	c := appengine.NewContext(r)
 	u := user.Current(c)
 	uid := u.Id
-	if (len(uid) == 0) {
+	if len(uid) == 0 {
 		uid = u.Email
 	}
 	query := datastore.NewQuery("Library").Filter("OwnerId =", uid).Limit(1)
@@ -554,7 +554,7 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 	var l *Library
 	readOnly := false
 	init := false
-	if (len(libs) == 0) {
+	if len(libs) == 0 {
 		key := datastore.NewKey(c, "Library", "", 0, nil)
 		l = &Library{nil, uid, 0, u.String(), nil}
 		newKey, err := datastore.Put(c, key, l)
@@ -596,7 +596,7 @@ func (self *context) checkUser(key *datastore.Key) {
 func (self *context) isInLibrary(key *datastore.Key) bool {
 	// check if the library is an ancestor of this key
 	for key != nil {
-		if (self.l.Id.Eq(key)) {
+		if self.l.Id.Eq(key) {
 			return true
 		}
 		key = key.Parent()
@@ -615,7 +615,7 @@ func newDataHandler(c *context, kind string) *dataHandler {
 func (self *dataHandler) createEntry(newObject interface{}, parent *datastore.Key) *datastore.Key {
 	// use the library as parent if we don't have an immediate
 	// parent
-	if (parent == nil) {
+	if parent == nil {
 		parent = self.l.Id
 	}
 	r := self.r
@@ -667,7 +667,7 @@ type searchParams struct {
 	Word   string
 }
 
-func addResult(key *datastore.Key, results map[string]map[string] uint) {
+func addResult(key *datastore.Key, results map[string]map[string]uint) {
 	parent := key.Parent()
 	parentEnc := parent.Encode()
 	if kind, ok := results[parent.Kind()]; ok {
@@ -677,29 +677,29 @@ func addResult(key *datastore.Key, results map[string]map[string] uint) {
 			kind[parentEnc] = 1
 		}
 	} else {
-		results[parent.Kind()] = make(map[string] uint)
+		results[parent.Kind()] = make(map[string]uint)
 		results[parent.Kind()][parentEnc] = 1
 	}
 }
-func addResults(keys []*datastore.Key, results map[string]map[string] uint) {
+func addResults(keys []*datastore.Key, results map[string]map[string]uint) {
 	for _, key := range keys {
 		addResult(key, results)
 	}
 }
 // take the results from /count/ queries from the /resultsChannel/
 //  and perform an intersection
-func mergeResults(resultsChannel chan map[string]map[string] uint,
-							count uint) map[string]map[string] uint {
+func mergeResults(resultsChannel chan map[string]map[string]uint,
+count uint) map[string]map[string]uint {
 	if count == 0 {
-		return make(map[string]map[string] uint )
+		return make(map[string]map[string]uint)
 	}
 	// start with the first map we get
-	results := <- resultsChannel
+	results := <-resultsChannel
 	count--
 	for count > 0 {
-		results2 := <- resultsChannel
+		results2 := <-resultsChannel
 		results1 := results
-		results = make(map[string]map[string] uint )
+		results = make(map[string]map[string]uint)
 		for kind, ids1 := range results1 {
 			if ids2, ok := results2[kind]; ok {
 				ids := make(map[string]uint)
@@ -713,40 +713,40 @@ func mergeResults(resultsChannel chan map[string]map[string] uint,
 		}
 		count--
 	}
-	return results;
+	return results
 }
 
 func searchHandler(c *context) {
 	sp := searchParams{}
 	readJSON(c.r, &sp)
-	resultsChannel := make(chan map[string]map[string] uint)
+	resultsChannel := make(chan map[string]map[string]uint)
 	var queries uint = 0
 
-	if (len(sp.Tags) > 0 ) {
+	if len(sp.Tags) > 0 {
 		// start a search for items with all specified tags
 		go func() {
 			query := c.NewQuery("Tags").KeysOnly()
-			for _, target :=range sp.Tags {
+			for _, target := range sp.Tags {
 				query.Filter("Word=", target)
 			}
 			keys, err := query.GetAll(c.c, nil)
 			check(err)
-			results := make(map[string]map[string] uint)
+			results := make(map[string]map[string]uint)
 			addResults(keys, results)
 			resultsChannel <- results
-		} ()
+		}()
 		queries++
 	}
 
 	// handle word search
 	if len(sp.Word) > 0 {
 		go func() {
-			results := make(map[string]map[string] uint)
+			results := make(map[string]map[string]uint)
 			// break the query into words
 			terms := make(map[string]bool)
 			addWords(sp.Word, terms)
 			// search for each word
-			for target, _ :=range terms {
+			for target, _ := range terms {
 				query := c.NewQuery("Keyword").Filter("Word=", target).KeysOnly()
 				keys, err := query.GetAll(c.c, nil)
 				check(err)
@@ -764,7 +764,7 @@ func searchHandler(c *context) {
 				}
 			}
 			resultsChannel <- results
-		} ()
+		}()
 		queries++
 	}
 
@@ -781,7 +781,7 @@ func allTagsHandler(c *context) {
 	check(err)
 	lastTag := ""
 	for _, tag := range results {
-		if (tag.Word != lastTag) {
+		if tag.Word != lastTag {
 			tags = append(tags, tag.Word)
 			lastTag = tag.Word
 		}
@@ -793,9 +793,9 @@ type backup struct {
 	Dishes              []Dish
 	Ingredients         []Ingredient
 	MeasuredIngredients map[string][]MeasuredIngredient
-	Tags map[string][]Word
-	Pairings map[string][]Pairing
-	Menus []Menu
+	Tags                map[string][]Word
+	Pairings            map[string][]Pairing
+	Menus               []Menu
 }
 
 func backupHandler(c *context) {
@@ -879,8 +879,8 @@ func backupHandler(c *context) {
 }
 
 func restoreKey(c *context,
-               key *datastore.Key,
-					fixUpKeys map[string]*datastore.Key) *datastore.Key {
+key *datastore.Key,
+fixUpKeys map[string]*datastore.Key) *datastore.Key {
 	encoded := key.Encode()
 	if newKey, found := fixUpKeys[encoded]; found {
 		return newKey
@@ -894,9 +894,9 @@ func restoreKey(c *context,
 }
 
 func restoreTags(c *context,
-		allTags map[string][]Word,
-		origid string,
-		newParentKey *datastore.Key) {
+allTags map[string][]Word,
+origid string,
+newParentKey *datastore.Key) {
 	// first, get the tags for this item
 	if tags, ok := allTags[origid]; ok {
 		// loop through all the tags and add them
@@ -963,7 +963,7 @@ func restore(c *context, file io.Reader) os.Error {
 		}
 	}
 	// add all the dishes' pairings
-	for d, pairings:= range data.Pairings {
+	for d, pairings := range data.Pairings {
 		temp, err := datastore.DecodeKey(d)
 		check(err)
 		parent := restoreKey(c, temp, fixUpKeys)
@@ -996,7 +996,7 @@ func restore(c *context, file io.Reader) os.Error {
 func restoreHandler(c *context) {
 	file, _, err := c.r.FormFile("restore-file")
 	check(err)
-	restore(c, file);
+	restore(c, file)
 }
 
 func shareHandler(c *context) {
@@ -1011,8 +1011,8 @@ func shareHandler(c *context) {
 	var email = getID(c.r)
 	var permStr = getParentID(c.r)
 	share := Share{
-		ExpirationDate :  time.Seconds() + 30 * 24 * 60 * 60,
-		ReadOnly : permStr != "write",
+		ExpirationDate: time.Seconds() + 30*24*60*60,
+		ReadOnly:       permStr != "write",
 	}
 	key := datastore.NewKey(c.c, "Share", "", 0, c.l.Id)
 	key, err := datastore.Put(c.c, key, &share)
@@ -1021,11 +1021,11 @@ func shareHandler(c *context) {
 	body := subject + ".\n\nFollow this link to gain access to the library: http://" + c.r.Header.Get("Host") + "/shareAccept/" + key.Encode()
 
 	msg := mail.Message{
-			Sender: "no-reply@curiousroligs.appspot.com",
-			To: []string{email},
-			Subject: subject,
-			Body: body,
-		}
+		Sender:  "no-reply@curiousroligs.appspot.com",
+		To:      []string{email},
+		Subject: subject,
+		Body:    body,
+	}
 	if err := mail.Send(c.c, &msg); err != nil {
 		fmt.Fprintf(c.w, "Failed to send an email message to '%v'. %v", email, err)
 		datastore.Delete(c.c, key)
@@ -1033,7 +1033,7 @@ func shareHandler(c *context) {
 }
 
 func shareAcceptHandler(c *context) {
-	key,err := datastore.DecodeKey(getID(c.r))
+	key, err := datastore.DecodeKey(getID(c.r))
 	if err != nil {
 		fmt.Fprintf(c.w, "{\"Error\":\"Invalid key, please check your email to ensure you typed the URL correctly.\"}")
 		return
@@ -1053,7 +1053,7 @@ func shareAcceptHandler(c *context) {
 		datastore.DeleteMulti(c.c, delKeys)
 	}
 	// create the permission for the user to access the library
-	perm := Perm{UserId: uid, ReadOnly: share.ReadOnly }
+	perm := Perm{UserId: uid, ReadOnly: share.ReadOnly}
 	permKey := datastore.NewKey(c.c, "Perm", "", 0, libKey)
 	permKey, err = datastore.Put(c.c, permKey, &perm)
 	if err != nil {
@@ -1070,11 +1070,11 @@ func shareAcceptHandler(c *context) {
 }
 
 type UserLibrary struct {
-	Id			*datastore.Key
-	Name		string
-	ReadOnly	bool
-	Current	bool
-	Owner		bool
+	Id       *datastore.Key
+	Name     string
+	ReadOnly bool
+	Current  bool
+	Owner    bool
 }
 // return a list of libraries this user can access
 func librariesHandler(c *context) {
@@ -1083,9 +1083,9 @@ func librariesHandler(c *context) {
 	libs := make([]Library, 0, 1)
 	keys, err := query.GetAll(c.c, &libs)
 	check(err)
-	libraries := make([]UserLibrary,0, 10)
+	libraries := make([]UserLibrary, 0, 10)
 	libraries = append(libraries, UserLibrary{keys[0], libs[0].Name, false,
-			keys[0].Eq(c.l.Id), true})
+		keys[0].Eq(c.l.Id), true})
 	perms := make([]Perm, 0, 10)
 	query = datastore.NewQuery("Perm").Filter("UserId=", uid)
 	keys, err = query.GetAll(c.c, &perms)
@@ -1095,8 +1095,8 @@ func librariesHandler(c *context) {
 		libkey := keys[index].Parent()
 		err = datastore.Get(c.c, libkey, &lib)
 		check(err)
-		ul := UserLibrary{ libkey, lib.Name, perms[index].ReadOnly,
-			libkey.Eq(c.l.Id) , false}
+		ul := UserLibrary{libkey, lib.Name, perms[index].ReadOnly,
+			libkey.Eq(c.l.Id), false}
 		if len(ul.Name) == 0 {
 			ul.Name = lib.OwnerId
 		}
@@ -1108,7 +1108,7 @@ func librariesHandler(c *context) {
 // handler to switch which library the user is looking at
 func switchHandler(c *context) {
 	uid := c.getUid()
-	desiredKey,err := datastore.DecodeKey(getID(c.r))
+	desiredKey, err := datastore.DecodeKey(getID(c.r))
 	if desiredKey.Kind() != "Library" {
 		check(ErrUnknownItem)
 	}
@@ -1117,7 +1117,9 @@ func switchHandler(c *context) {
 	libs := make([]Library, 0, 1)
 	keys, err := query.GetAll(c.c, &libs)
 	check(err)
-	if len(libs) == 0 { return }
+	if len(libs) == 0 {
+		return
+	}
 	if !keys[0].Eq(desiredKey) {
 		// user want's to see someone else's library, check if they have
 		// permission

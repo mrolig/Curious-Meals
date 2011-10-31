@@ -7,10 +7,10 @@ import (
 // root of all elements, owned by exactly one user
 //  may have children specifying sharing for other users
 type Library struct {
-	Id              *datastore.Key
-	OwnerId         string
-	Version         int
-	Name            string
+	Id      *datastore.Key
+	OwnerId string
+	Version int
+	Name    string
 	// which library does the owner of this library want to see
 	//  nil means the user's own library
 	UserPreferredLibrary *datastore.Key
@@ -18,8 +18,8 @@ type Library struct {
 
 // permission granting access to another user
 type Perm struct {
-	UserId		string
-	ReadOnly		bool
+	UserId   string
+	ReadOnly bool
 }
 
 // Record that a library request to be shared has been made
@@ -29,9 +29,8 @@ type Perm struct {
 //  ReadOnly specifies level of sharing to allow
 type Share struct {
 	ExpirationDate int64
-	ReadOnly		bool
+	ReadOnly       bool
 }
-
 
 func (self *Library) Owner() string {
 	return self.OwnerId
@@ -46,4 +45,3 @@ func (self *Library) ID() *datastore.Key {
 func (self *Library) SetID(id *datastore.Key) {
 	self.Id = id
 }
-

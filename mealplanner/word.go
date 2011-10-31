@@ -5,8 +5,8 @@ import (
 )
 
 type Word struct {
-	Id       *datastore.Key
-	Word     string
+	Id   *datastore.Key
+	Word string
 }
 
 func (self *Word) ID() *datastore.Key {

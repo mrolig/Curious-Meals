@@ -15,7 +15,7 @@ type Dish struct {
 	ServingsCarb    float32
 	ServingsProtein float32
 	ServingsVeggies float32
-	Text				 string
+	Text            string
 }
 
 type MeasuredIngredient struct {
@@ -29,7 +29,7 @@ type MeasuredIngredient struct {
 func (self *Dish) ID() *datastore.Key {
 	return self.Id
 }
-func (self *Dish) SetID(id *datastore.Key ) {
+func (self *Dish) SetID(id *datastore.Key) {
 	self.Id = id
 }
 
