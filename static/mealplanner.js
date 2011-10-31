@@ -571,23 +571,23 @@ jQuery(function() {
             // check if we're already preparing a hover view
             if (target.$hoverView)
                return false;
-            target.$hoverView = $.make("div");
-            var view = new viewCtor({ el : target.$hoverView,
-                                     model: target.model,
-                                     readOnly: true});
-            view.render();
-            var $target = $(target);
-            var pos = $target.offset();
-            pos.top = pos.top + $target.height() + 2;
-            pos.right = $(window).width() - (pos.left + $target.width());
-            target.$hoverView
-               .hoverView(pos)
-               .hide()
-               .appendTo(document.body);
+            target.$hoverView = $.make("div").hide();
             // delay showing for a second after hovering starts
             setTimeout(function() {
                var $hoverView = target.$hoverView;
                if ($hoverView && $hoverView.is(":hidden")) {
+                  var view = new viewCtor({ el : target.$hoverView,
+                                          model: target.model,
+                                          readOnly: true});
+                  view.render();
+                  var $target = $(target);
+                  var pos = $target.offset();
+                  pos.top = pos.top + $target.height() + 2;
+                  pos.right = $(window).width() - (pos.left + $target.width());
+                  target.$hoverView
+                     .hoverView(pos)
+                     .hide()
+                     .appendTo(document.body);
                   // after the timeout, show it, and add a delay so
                   //  it will not be hidden immediately after appearing
                   $hoverView.show('blind')
@@ -1023,11 +1023,11 @@ jQuery(function() {
          var self = this;
          if (this.$vegIcon == null && this.model.tags.fetched) {
             if (this.model.tags.hasWord("Vegan")) {
-               this.$vegIcon = $("<span class='ui-icon ui-icon-vegan' title='Vegan'></span>");
+               this.$vegIcon = $("<img style='vertical-align:top;' src='images/vegan_32.png' title='Vegan'></imp>");
                this.$name.before(this.$vegIcon);
                   
             } else if (this.model.tags.hasWord("Vegetarian")) {
-               this.$vegIcon = $("<span class='ui-icon ui-icon-vegetarian' title='Vegetarian'></span>");
+               this.$vegIcon = $("<img style='vertical-align:top;' src='images/vegetarian_32.png' title='Vegetarian'></imp>");
                this.$name.before(this.$vegIcon);
                   
             }
