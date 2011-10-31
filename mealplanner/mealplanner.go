@@ -885,6 +885,23 @@ func restoreKey(c *context,
 	return key
 }
 
+func restoreTags(c *context,
+		allTags map[string][]Word,
+		origid string,
+		newParentKey *datastore.Key) {
+	// first, get the tags for this item
+	if tags, ok := allTags[origid]; ok {
+		// loop through all the tags and add them
+		for _, t := range tags {
+			if !c.isInLibrary(t.Id) {
+				t.Id = datastore.NewKey(c.c, "Tags", "", 0, newParentKey)
+			}
+			_, err := datastore.Put(c.c, t.Id, &t)
+			check(err)
+		}
+	}
+}
+
 func restore(c *context) os.Error {
 	file, _, err := c.r.FormFile("restore-file")
 	check(err)
@@ -911,6 +928,7 @@ func restore(c *context) os.Error {
 		if !i.Id.Eq(newKey) {
 			fixUpKeys[i.Id.Encode()] = newKey
 		}
+		restoreTags(c, data.Tags, i.Id.Encode(), newKey)
 		updateIngredientKeywords(c.c, newKey, &i)
 	}
 	// add all the dishes
@@ -921,6 +939,7 @@ func restore(c *context) os.Error {
 		if !d.Id.Eq(newKey) {
 			fixUpKeys[d.Id.Encode()] = newKey
 		}
+		restoreTags(c, data.Tags, d.Id.Encode(), newKey)
 		updateDishKeywords(c.c, newKey, &d)
 	}
 	// add all the dishes' ingredients
@@ -951,19 +970,6 @@ func restore(c *context) os.Error {
 			check(err)
 		}
 	}
-	// add all the tags
-	for id, tags := range data.Tags {
-		temp, err := datastore.DecodeKey(id)
-		check(err)
-		parent := restoreKey(c, temp, fixUpKeys)
-		for _, t := range tags {
-			if !c.isInLibrary(t.Id) {
-				t.Id = datastore.NewKey(c.c, "Tags", "", 0, parent)
-			}
-			_, err = datastore.Put(c.c, t.Id, &t)
-			check(err)
-		}
-	}
 	// add all the menus
 	for _, m := range data.Menus {
 		key := restoreKey(c, m.Id, fixUpKeys)
@@ -975,33 +981,14 @@ func restore(c *context) os.Error {
 		if !m.Id.Eq(newKey) {
 			fixUpKeys[m.Id.Encode()] = newKey
 		}
+		restoreTags(c, data.Tags, m.Id.Encode(), newKey)
 	}
 	indexHandler(c)
 	return nil
 }
-func updateAllDishKeywords(c *context) {
-	dishes := make([]Dish, 0, 100)
-	query := c.NewQuery("Dish")
-	keys, err := query.GetAll(c.c, &dishes)
-	check(err)
-	for i, _ := range dishes {
-		updateDishKeywords(c.c, keys[i], &dishes[i])
-	}
-}
-func updateAllIngredientKeywords(c *context) {
-	ingredientes := make([]Ingredient, 0, 100)
-	query := c.NewQuery("Ingredient")
-	keys, err := query.GetAll(c.c, &ingredientes)
-	check(err)
-	for i, _ := range ingredientes {
-		updateIngredientKeywords(c.c, keys[i], &ingredientes[i])
-	}
-}
 
 func restoreHandler(c *context) {
 	restore(c);
-	go updateAllDishKeywords(c)
-	go updateAllIngredientKeywords(c)
 }
 
 func shareHandler(c *context) {
