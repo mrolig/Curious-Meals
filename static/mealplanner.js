@@ -483,7 +483,16 @@ jQuery(function() {
                      	if (newRating == self.model.get("Rating")) {
                         	newRating = 0;
                      	}
-                     	self.model.save({"Rating": newRating});
+                        if (self.$save && self.onChange) {
+                           self.model.set({"Rating": newRating});
+                           self.onChange();
+                        } else {
+                           try {
+                              self.model.save({"Rating": newRating});
+                           } catch(e) {
+                              self.model.set({"Rating": newRating});
+                           }
+                        }
                   	})
             	}) (i+1);
 				}
@@ -2578,7 +2587,9 @@ jQuery(function() {
          this.refresh();
       },
       refresh : function() {
-         window.Workspace.navigate("refresh");
+         if (this.fetched > 0) {
+            window.Workspace.navigate("refresh");
+         }
          this.show(new LoadingView());
          Menus.fetch({success:this.onMenuFetched, error:this.onFetched});
          Users.fetch({success:this.onFetched, error:this.onFetched});
@@ -2620,7 +2631,10 @@ jQuery(function() {
             }
          }
          if (this.fetched % 4 == 0) {
-            this.show(null);
+            if (this.mainView
+                && this.mainView.constructor == LoadingView) {
+               this.show(null);
+            }
          }
       },
       render : function() {
