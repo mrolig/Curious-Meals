@@ -1675,24 +1675,10 @@
 		]
 	},
 	"Pairings": {
-		"ag9kZXZ-bWVhbHBsYW5uZXJyGQsSB0xpYnJhcnkY7QYMCxIERGlzaBi2DAw": [
-			{
-				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyJwsSB0xpYnJhcnkY7QYMCxIERGlzaBi2DAwLEgdQYWlyaW5nGNEMDA",
-				"Other": "ag9kZXZ-bWVhbHBsYW5uZXJyFgsSB0xpYnJhcnkY7QYMCxIERGlzaAw",
-				"Description": "Together"
-			}
-		],
 		"ag9kZXZ-bWVhbHBsYW5uZXJyGQsSB0xpYnJhcnkY7QYMCxIERGlzaBi8DAw": [
 			{
 				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyJwsSB0xpYnJhcnkY7QYMCxIERGlzaBi8DAwLEgdQYWlyaW5nGM8MDA",
 				"Other": "ag9kZXZ-bWVhbHBsYW5uZXJyGQsSB0xpYnJhcnkY7QYMCxIERGlzaBjBDAw",
-				"Description": "Alternative"
-			}
-		],
-		"ag9kZXZ-bWVhbHBsYW5uZXJyGQsSB0xpYnJhcnkY7QYMCxIERGlzaBioDAw": [
-			{
-				"Id": "ag9kZXZ-bWVhbHBsYW5uZXJyJwsSB0xpYnJhcnkY7QYMCxIERGlzaBioDAwLEgdQYWlyaW5nGM4MDA",
-				"Other": "ag9kZXZ-bWVhbHBsYW5uZXJyFgsSB0xpYnJhcnkY7QYMCxIERGlzaAw",
 				"Description": "Alternative"
 			}
 		],
