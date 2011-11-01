@@ -1,19 +1,18 @@
 package mealplanner
 
 import (
-	"appengine/datastore"
 )
 
 type Ingredient struct {
-	Id       *datastore.Key
+	Id       string
 	Name     string
 	Category string
 	Source   string // vegan, vegetarian, animal
 }
 
-func (self *Ingredient) ID() *datastore.Key {
+func (self *Ingredient) ID() string {
 	return self.Id
 }
-func (self *Ingredient) SetID(id *datastore.Key) {
+func (self *Ingredient) SetID(id string) {
 	self.Id = id
 }

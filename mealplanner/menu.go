@@ -5,14 +5,14 @@ import (
 )
 
 type Menu struct {
-	Id     *datastore.Key
+	Id     string
 	Name   string
 	Dishes []*datastore.Key
 }
 
-func (self *Menu) ID() *datastore.Key {
+func (self *Menu) ID() string {
 	return self.Id
 }
-func (self *Menu) SetID(id *datastore.Key) {
+func (self *Menu) SetID(id string) {
 	self.Id = id
 }

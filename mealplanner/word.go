@@ -1,17 +1,16 @@
 package mealplanner
 
 import (
-	"appengine/datastore"
 )
 
 type Word struct {
-	Id   *datastore.Key
+	Id   string
 	Word string
 }
 
-func (self *Word) ID() *datastore.Key {
+func (self *Word) ID() string {
 	return self.Id
 }
-func (self *Word) SetID(id *datastore.Key) {
+func (self *Word) SetID(id string) {
 	self.Id = id
 }

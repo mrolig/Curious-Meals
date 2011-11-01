@@ -1,19 +1,17 @@
 package mealplanner
 
 import (
-	"appengine/datastore"
 )
 
 // root of all elements, owned by exactly one user
 //  may have children specifying sharing for other users
 type Library struct {
-	Id      *datastore.Key
 	OwnerId string
 	Version int
 	Name    string
 	// which library does the owner of this library want to see
 	//  nil means the user's own library
-	UserPreferredLibrary *datastore.Key
+	UserPreferredLibrary string
 }
 
 // permission granting access to another user
@@ -39,9 +37,3 @@ func (self *Library) SetOwner(o string) {
 	self.OwnerId = o
 }
 
-func (self *Library) ID() *datastore.Key {
-	return self.Id
-}
-func (self *Library) SetID(id *datastore.Key) {
-	self.Id = id
-}

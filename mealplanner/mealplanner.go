@@ -117,7 +117,7 @@ func dishHandler(c *context) {
 			keys, err := query.GetAll(handler.c, &dishes)
 			check(err)
 			for index, _ := range dishes {
-				dishes[index].Id = keys[index]
+				dishes[index].Id = keys[index].Encode()
 			}
 			sendJSON(handler.w, dishes)
 		case "POST":
@@ -212,7 +212,7 @@ func updateKeywords(c appengine.Context, key *datastore.Key, words map[string]bo
 	}
 	for word, exists := range words {
 		if !exists {
-			newWord := Word{nil, word}
+			newWord := Word{"", word}
 			newKey := datastore.NewKey(c, "Keyword", "", 0, key)
 			_, err := datastore.Put(c, newKey, &newWord)
 			check(err)
@@ -234,7 +234,7 @@ func measuredIngredientsHandler(c *context) {
 			keys, err := query.GetAll(handler.c, &ingredients)
 			check(err)
 			for index, _ := range ingredients {
-				ingredients[index].Id = keys[index]
+				ingredients[index].Id = keys[index].Encode()
 			}
 			sendJSON(handler.w, ingredients)
 		case "POST":
@@ -296,7 +296,7 @@ func wordHandler(c *context, kind string) {
 			keys, err := query.GetAll(handler.c, &words)
 			check(err)
 			for index, _ := range words {
-				words[index].SetID(keys[index])
+				words[index].SetID(keys[index].Encode())
 			}
 			sendJSON(handler.w, words)
 		case "POST":
@@ -334,7 +334,7 @@ func pairingHandler(c *context) {
 			keys, err := query.GetAll(handler.c, &pairs)
 			check(err)
 			for index, _ := range pairs {
-				pairs[index].SetID(keys[index])
+				pairs[index].SetID(keys[index].Encode())
 			}
 			sendJSON(handler.w, pairs)
 		case "POST":
@@ -344,7 +344,7 @@ func pairingHandler(c *context) {
 			other := pairing.Other
 			newPairKey := datastore.NewKey(c.c, kind, "", 0, other)
 			pairing.Other = parentKey
-			pairing.Id = nil
+			pairing.Id = ""
 			newPairKey, err := datastore.Put(c.c, newPairKey, &pairing)
 			check(err)
 		}
@@ -409,7 +409,7 @@ func ingredientHandler(c *context) {
 			keys, err := query.GetAll(handler.c, &ingredients)
 			check(err)
 			for index, _ := range ingredients {
-				ingredients[index].Id = keys[index]
+				ingredients[index].Id = keys[index].Encode()
 			}
 			sendJSON(handler.w, ingredients)
 		case "POST":
@@ -449,7 +449,7 @@ func menuHandler(c *context) {
 			keys, err := query.GetAll(handler.c, &menus)
 			check(err)
 			for index, _ := range menus {
-				menus[index].Id = keys[index]
+				menus[index].Id = keys[index].Encode()
 			}
 			sendJSON(handler.w, menus)
 		case "POST":
@@ -513,8 +513,8 @@ var (
 )
 
 type Ided interface {
-	ID() *datastore.Key
-	SetID(*datastore.Key)
+	ID() string
+	SetID(string)
 }
 
 type context struct {
@@ -524,6 +524,7 @@ type context struct {
 	u        *user.User
 	uid      string
 	l        *Library
+	lid      *datastore.Key
 	readOnly bool
 }
 
@@ -554,32 +555,36 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 	var l *Library
 	readOnly := false
 	init := false
+	var lid *datastore.Key
 	if len(libs) == 0 {
 		key := datastore.NewKey(c, "Library", "", 0, nil)
-		l = &Library{nil, uid, 0, u.String(), nil}
-		newKey, err := datastore.Put(c, key, l)
+		l = &Library{uid, 0, u.String(), ""}
+		lid, err = datastore.Put(c, key, l)
 		check(err)
-		l.Id = newKey
 		init = true
 	} else {
 		l = &libs[0]
-		l.Id = keys[0]
+		lid = keys[0]
+		upl, err := datastore.DecodeKey(libs[0].UserPreferredLibrary)
+		if err != nil {
+			upl = nil
+		}
 		// use an alternate library if the user wants to
-		if libs[0].UserPreferredLibrary != nil && keys[0] != libs[0].UserPreferredLibrary {
-			query = datastore.NewQuery("Perm").Ancestor(libs[0].UserPreferredLibrary).Filter("UserId =", uid).Limit(1)
+		if upl != nil && !keys[0].Eq(upl) {
+			query = datastore.NewQuery("Perm").Ancestor(upl).Filter("UserId =", uid).Limit(1)
 			perms := make([]Perm, 0, 1)
 			permKeys, err := query.GetAll(c, &perms)
 			check(err)
 			if len(permKeys) > 0 {
 				// we have permission for this other library, fetch it
 				readOnly = perms[0].ReadOnly
-				err = datastore.Get(c, libs[0].UserPreferredLibrary, l)
+				err = datastore.Get(c, upl, l)
 				check(err)
-				l.Id = libs[0].UserPreferredLibrary
+				lid = upl
 			}
 		}
 	}
-	ctxt := &context{w, r, c, u, uid, l, readOnly}
+	ctxt := &context{w, r, c, u, uid, l, lid, readOnly}
 	if init {
 		file, err := os.Open("static/base.json")
 		check(err)
@@ -596,7 +601,7 @@ func (self *context) checkUser(key *datastore.Key) {
 func (self *context) isInLibrary(key *datastore.Key) bool {
 	// check if the library is an ancestor of this key
 	for key != nil {
-		if self.l.Id.Eq(key) {
+		if self.lid.Eq(key) {
 			return true
 		}
 		key = key.Parent()
@@ -605,7 +610,7 @@ func (self *context) isInLibrary(key *datastore.Key) bool {
 }
 // create a new query always filtering on the library in use
 func (self *context) NewQuery(kind string) *datastore.Query {
-	return datastore.NewQuery(kind).Ancestor(self.l.Id)
+	return datastore.NewQuery(kind).Ancestor(self.lid)
 }
 
 func newDataHandler(c *context, kind string) *dataHandler {
@@ -616,7 +621,7 @@ func (self *dataHandler) createEntry(newObject interface{}, parent *datastore.Ke
 	// use the library as parent if we don't have an immediate
 	// parent
 	if parent == nil {
-		parent = self.l.Id
+		parent = self.lid
 	}
 	r := self.r
 	c := self.c
@@ -628,7 +633,7 @@ func (self *dataHandler) createEntry(newObject interface{}, parent *datastore.Ke
 	key := datastore.NewKey(c, self.kind, "", 0, parent)
 	key, err := datastore.Put(c, key, newObject)
 	check(err)
-	ided.SetID(key)
+	ided.SetID(key.Encode())
 	sendJSON(self.w, newObject)
 	return key
 }
@@ -640,7 +645,7 @@ func (self *dataHandler) get(key *datastore.Key, object interface{}) {
 	if !ok {
 		check(datastore.ErrInvalidEntityType)
 	}
-	ided.SetID(key)
+	ided.SetID(key.Encode())
 	sendJSON(self.w, object)
 }
 func (self *dataHandler) update(key *datastore.Key, object interface{}) {
@@ -650,7 +655,7 @@ func (self *dataHandler) update(key *datastore.Key, object interface{}) {
 	if !ok {
 		check(datastore.ErrInvalidEntityType)
 	}
-	ided.SetID(key)
+	ided.SetID(key.Encode())
 	_, err := datastore.Put(self.c, key, object)
 	check(err)
 	sendJSON(self.w, object)
@@ -809,13 +814,13 @@ func backupHandler(c *context) {
 	check(err)
 	for index, _ := range b.Dishes {
 		key := keys[index]
-		b.Dishes[index].Id = key
+		b.Dishes[index].Id = key.Encode()
 		ingredients := make([]MeasuredIngredient, 0, 100)
 		query = c.NewQuery("MeasuredIngredient").Ancestor(key).Order("Order")
 		ikeys, err := query.GetAll(c.c, &ingredients)
 		check(err)
 		for iindex, _ := range ingredients {
-			ingredients[iindex].Id = ikeys[iindex]
+			ingredients[iindex].Id = ikeys[iindex].Encode()
 		}
 		if len(ingredients) > 0 {
 			b.MeasuredIngredients[key.Encode()] = ingredients
@@ -825,7 +830,7 @@ func backupHandler(c *context) {
 		tkeys, err := query.GetAll(c.c, &tags)
 		check(err)
 		for tindex, _ := range tags {
-			tags[tindex].Id = tkeys[tindex]
+			tags[tindex].Id = tkeys[tindex].Encode()
 		}
 		if len(tags) > 0 {
 			b.Tags[key.Encode()] = tags
@@ -835,7 +840,7 @@ func backupHandler(c *context) {
 		pkeys, err := query.GetAll(c.c, &pairings)
 		check(err)
 		for pindex, _ := range pairings {
-			pairings[pindex].Id = pkeys[pindex]
+			pairings[pindex].Id = pkeys[pindex].Encode()
 		}
 		if len(pairings) > 0 {
 			b.Pairings[key.Encode()] = pairings
@@ -846,13 +851,13 @@ func backupHandler(c *context) {
 	check(err)
 	for index, _ := range b.Ingredients {
 		key := keys[index]
-		b.Ingredients[index].Id = key
+		b.Ingredients[index].Id = key.Encode()
 		tags := make([]Word, 0, 10)
 		query = c.NewQuery("Tags").Ancestor(key)
 		tkeys, err := query.GetAll(c.c, &tags)
 		check(err)
 		for tindex, _ := range tags {
-			tags[tindex].Id = tkeys[tindex]
+			tags[tindex].Id = tkeys[tindex].Encode()
 		}
 		if len(tags) > 0 {
 			b.Tags[key.Encode()] = tags
@@ -862,7 +867,7 @@ func backupHandler(c *context) {
 		pkeys, err := query.GetAll(c.c, &pairings)
 		check(err)
 		for pindex, _ := range pairings {
-			pairings[pindex].Id = pkeys[pindex]
+			pairings[pindex].Id = pkeys[pindex].Encode()
 		}
 		if len(pairings) > 0 {
 			b.Pairings[key.Encode()] = pairings
@@ -873,20 +878,21 @@ func backupHandler(c *context) {
 	check(err)
 	for index, _ := range b.Menus {
 		key := keys[index]
-		b.Menus[index].SetID(key)
+		b.Menus[index].SetID(key.Encode())
 	}
 	sendJSONIndent(c.w, b)
 }
 
 func restoreKey(c *context,
-key *datastore.Key,
+encoded string,
 fixUpKeys map[string]*datastore.Key) *datastore.Key {
-	encoded := key.Encode()
+	key, err := datastore.DecodeKey(encoded)
+	check(err) 
 	if newKey, found := fixUpKeys[encoded]; found {
 		return newKey
 	}
 	if !c.isInLibrary(key) {
-		newKey := datastore.NewKey(c.c, key.Kind(), "", 0, c.l.Id)
+		newKey := datastore.NewKey(c.c, key.Kind(), "", 0, c.lid)
 		fixUpKeys[encoded] = newKey
 		return newKey
 	}
@@ -901,10 +907,13 @@ newParentKey *datastore.Key) {
 	if tags, ok := allTags[origid]; ok {
 		// loop through all the tags and add them
 		for _, t := range tags {
-			if !c.isInLibrary(t.Id) {
-				t.Id = datastore.NewKey(c.c, "Tags", "", 0, newParentKey)
+			key, err := datastore.DecodeKey(t.Id)
+			check(err)
+			if !c.isInLibrary(key) {
+				key = datastore.NewKey(c.c, "Tags", "", 0, newParentKey)
 			}
-			_, err := datastore.Put(c.c, t.Id, &t)
+			t.Id = ""
+			_, err = datastore.Put(c.c, key, &t)
 			check(err)
 		}
 	}
@@ -918,7 +927,8 @@ func restore(c *context, file io.Reader) os.Error {
 	fixUpKeys := make(map[string]*datastore.Key)
 	// add all the ingredients
 	for _, i := range data.Ingredients {
-		key := restoreKey(c, i.Id, fixUpKeys)
+		id := i.Id
+		key := restoreKey(c, id, fixUpKeys)
 		if key.Incomplete() {
 			// check if we have an item of the same name already
 			iquery := c.NewQuery("Ingredient").Filter("Name=", i.Name).KeysOnly().Limit(1)
@@ -929,65 +939,67 @@ func restore(c *context, file io.Reader) os.Error {
 				key = ikeys[0]
 			}
 		}
+		i.Id = ""
 		newKey, err := datastore.Put(c.c, key, &i)
 		check(err)
-		if !i.Id.Eq(newKey) {
-			fixUpKeys[i.Id.Encode()] = newKey
-		}
-		restoreTags(c, data.Tags, i.Id.Encode(), newKey)
+		fixUpKeys[id] = newKey
+		restoreTags(c, data.Tags, id, newKey)
 		updateIngredientKeywords(c.c, newKey, &i)
 	}
 	// add all the dishes
 	for _, d := range data.Dishes {
-		key := restoreKey(c, d.Id, fixUpKeys)
+		id := d.Id
+		key := restoreKey(c, id, fixUpKeys)
+		d.Id = ""
 		newKey, err := datastore.Put(c.c, key, &d)
 		check(err)
-		if !d.Id.Eq(newKey) {
-			fixUpKeys[d.Id.Encode()] = newKey
-		}
-		restoreTags(c, data.Tags, d.Id.Encode(), newKey)
+		fixUpKeys[id] = newKey
+		restoreTags(c, data.Tags, id, newKey)
 		updateDishKeywords(c.c, newKey, &d)
 	}
 	// add all the dishes' ingredients
 	for d, ingredients := range data.MeasuredIngredients {
-		temp, err := datastore.DecodeKey(d)
-		check(err)
-		parent := restoreKey(c, temp, fixUpKeys)
+		parent := restoreKey(c, d, fixUpKeys)
 		for _, i := range ingredients {
-			i.Ingredient = restoreKey(c, i.Ingredient, fixUpKeys)
-			if !c.isInLibrary(i.Id) {
-				i.Id = datastore.NewKey(c.c, "MeasuredIngredient", "", 0, parent)
+			id:= i.Id
+			i.Ingredient = restoreKey(c, i.Ingredient.Encode(), fixUpKeys)
+			key, err:= datastore.DecodeKey(id)
+			check(err)
+			if !c.isInLibrary(key) {
+				key = datastore.NewKey(c.c, "MeasuredIngredient", "", 0, parent)
 			}
-			_, err = datastore.Put(c.c, i.Id, &i)
+			i.Id = ""
+			_, err = datastore.Put(c.c, key, &i)
 			check(err)
 		}
 	}
 	// add all the dishes' pairings
 	for d, pairings := range data.Pairings {
-		temp, err := datastore.DecodeKey(d)
-		check(err)
-		parent := restoreKey(c, temp, fixUpKeys)
+		parent := restoreKey(c, d, fixUpKeys)
 		for _, i := range pairings {
-			i.Other = restoreKey(c, i.Other, fixUpKeys)
-			if !c.isInLibrary(i.Id) {
-				i.Id = datastore.NewKey(c.c, "Pairing", "", 0, parent)
+			id := i.Id
+			i.Other = restoreKey(c, i.Other.Encode(), fixUpKeys)
+			key, err := datastore.DecodeKey(id)
+			if !c.isInLibrary(key) {
+				key = datastore.NewKey(c.c, "Pairing", "", 0, parent)
 			}
-			_, err = datastore.Put(c.c, i.Id, &i)
+			i.Id = ""
+			_, err = datastore.Put(c.c, key, &i)
 			check(err)
 		}
 	}
 	// add all the menus
 	for _, m := range data.Menus {
-		key := restoreKey(c, m.Id, fixUpKeys)
+		id := m.Id
+		key := restoreKey(c, id, fixUpKeys)
 		for index, dishKey := range m.Dishes {
-			m.Dishes[index] = restoreKey(c, dishKey, fixUpKeys)
+			m.Dishes[index] = restoreKey(c, dishKey.Encode(), fixUpKeys)
 		}
+		m.Id = ""
 		newKey, err := datastore.Put(c.c, key, &m)
 		check(err)
-		if !m.Id.Eq(newKey) {
-			fixUpKeys[m.Id.Encode()] = newKey
-		}
-		restoreTags(c, data.Tags, m.Id.Encode(), newKey)
+		fixUpKeys[id] = newKey
+		restoreTags(c, data.Tags, id, newKey)
 	}
 	indexHandler(c)
 	return nil
@@ -1014,7 +1026,7 @@ func shareHandler(c *context) {
 		ExpirationDate: time.Seconds() + 30*24*60*60,
 		ReadOnly:       permStr != "write",
 	}
-	key := datastore.NewKey(c.c, "Share", "", 0, c.l.Id)
+	key := datastore.NewKey(c.c, "Share", "", 0, c.lid)
 	key, err := datastore.Put(c.c, key, &share)
 	check(err)
 	subject := email + " would like to share a meal-planning library with you"
@@ -1064,8 +1076,8 @@ func shareAcceptHandler(c *context) {
 	datastore.Delete(c.c, key)
 
 	// update the user's record to use the shared library
-	c.l.UserPreferredLibrary = libKey
-	datastore.Put(c.c, c.l.Id, c.l)
+	c.l.UserPreferredLibrary = libKey.Encode()
+	datastore.Put(c.c, c.lid, c.l)
 	indexHandler(c)
 }
 
@@ -1085,7 +1097,7 @@ func librariesHandler(c *context) {
 	check(err)
 	libraries := make([]UserLibrary, 0, 10)
 	libraries = append(libraries, UserLibrary{keys[0], libs[0].Name, false,
-		keys[0].Eq(c.l.Id), true})
+		keys[0].Eq(c.lid), true})
 	perms := make([]Perm, 0, 10)
 	query = datastore.NewQuery("Perm").Filter("UserId=", uid)
 	keys, err = query.GetAll(c.c, &perms)
@@ -1096,7 +1108,7 @@ func librariesHandler(c *context) {
 		err = datastore.Get(c.c, libkey, &lib)
 		check(err)
 		ul := UserLibrary{libkey, lib.Name, perms[index].ReadOnly,
-			libkey.Eq(c.l.Id), false}
+			libkey.Eq(c.lid), false}
 		if len(ul.Name) == 0 {
 			ul.Name = lib.OwnerId
 		}
@@ -1136,7 +1148,7 @@ func switchHandler(c *context) {
 	}
 	// we verified that the desiredKey is a library the user has permission to access
 	//  save their preference
-	libs[0].UserPreferredLibrary = desiredKey
+	libs[0].UserPreferredLibrary = desiredKey.Encode()
 	_, err = datastore.Put(c.c, keys[0], &libs[0])
 	check(err)
 	indexHandler(c)

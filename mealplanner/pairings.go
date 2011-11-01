@@ -5,14 +5,14 @@ import (
 )
 
 type Pairing struct {
-	Id          *datastore.Key
+	Id          string
 	Other       *datastore.Key
 	Description string
 }
 
-func (self *Pairing) ID() *datastore.Key {
+func (self *Pairing) ID() string {
 	return self.Id
 }
-func (self *Pairing) SetID(id *datastore.Key) {
+func (self *Pairing) SetID(id string) {
 	self.Id = id
 }
