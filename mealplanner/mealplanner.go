@@ -579,8 +579,14 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 				// we have permission for this other library, fetch it
 				readOnly = perms[0].ReadOnly
 				err = datastore.Get(c, upl, l)
-				check(err)
-				lid = upl
+				if err == nil {
+					lid = upl
+				} else  {
+					// user can't get to this library, update thieir record
+					//  so we dont fail all the time
+					libs[0].UserPreferredLibrary = ""
+					datastore.Put(c, keys[0], &libs[0])
+				}
 			}
 		}
 	}
@@ -973,16 +979,19 @@ func librariesHandler(c *context) {
 	libraries := make([]UserLibrary, 0, 10)
 	libraries = append(libraries, UserLibrary{keys[0], libs[0].Name, false,
 		keys[0].Eq(c.lid), true})
-	perms := make([]Perm, 0, 10)
 	query = datastore.NewQuery("Perm").Filter("UserId=", uid)
-	keys, err = query.GetAll(c.c, &perms)
-	check(err)
-	for index, _ := range keys {
+	iter := query.Run(c.c)
+	perm := Perm{}
+	for key, err := iter.Next(&perm);
+		err == nil;
+		key, err = iter.Next(&perm) {
 		lib := Library{}
-		libkey := keys[index].Parent()
+		libkey := key.Parent()
 		err = datastore.Get(c.c, libkey, &lib)
-		check(err)
-		ul := UserLibrary{libkey, lib.Name, perms[index].ReadOnly,
+		if err != nil {
+			continue
+		}
+		ul := UserLibrary{libkey, lib.Name, perm.ReadOnly,
 			libkey.Eq(c.lid), false}
 		if len(ul.Name) == 0 {
 			ul.Name = lib.OwnerId
