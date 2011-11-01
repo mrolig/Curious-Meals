@@ -587,8 +587,9 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 	ctxt := &context{w, r, c, u, uid, l, lid, readOnly}
 	if init {
 		file, err := os.Open("static/base.json")
-		check(err)
-		restore(ctxt, file)
+		if err != nil {
+			restore(ctxt, file)
+		}
 	}
 	return ctxt
 }
@@ -1033,7 +1034,7 @@ func shareHandler(c *context) {
 	body := subject + ".\n\nFollow this link to gain access to the library: http://" + c.r.Header.Get("Host") + "/shareAccept/" + key.Encode()
 
 	msg := mail.Message{
-		Sender:  "no-reply@curiousroligs.appspot.com",
+		Sender:  c.u.Email,
 		To:      []string{email},
 		Subject: subject,
 		Body:    body,
@@ -1121,6 +1122,7 @@ func librariesHandler(c *context) {
 func switchHandler(c *context) {
 	uid := c.getUid()
 	desiredKey, err := datastore.DecodeKey(getID(c.r))
+	check(err)
 	if desiredKey.Kind() != "Library" {
 		check(ErrUnknownItem)
 	}
@@ -1148,7 +1150,11 @@ func switchHandler(c *context) {
 	}
 	// we verified that the desiredKey is a library the user has permission to access
 	//  save their preference
-	libs[0].UserPreferredLibrary = desiredKey.Encode()
+	if desiredKey != nil {
+		libs[0].UserPreferredLibrary = desiredKey.Encode()
+	} else {
+		libs[0].UserPreferredLibrary = ""
+	}
 	_, err = datastore.Put(c.c, keys[0], &libs[0])
 	check(err)
 	indexHandler(c)
