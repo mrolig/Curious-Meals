@@ -587,10 +587,7 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 	}
 	ctxt := &context{w, r, c, u, uid, l, lid, readOnly}
 	if init {
-		file, err := os.Open("static/base.json")
-		if err != nil {
-			file, err = os.Open("base.json")
-		}
+		file, err := os.Open("base.json")
 		if err != nil {
 			file, err = os.Open("mealplanner/base.json")
 		}
