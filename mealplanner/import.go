@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 	"json"
-	"fmt"
+	//"fmt"
 )
 
 type backup struct {
@@ -27,10 +27,10 @@ type importer struct {
 	//  only for the case that the string-id isn't a valid key for our
    //  library
 	fixUpKeys map[string]*datastore.Key
-	// an index of tags, (dish|ingredient)key -> tagstr -> tagkey
+	// an index of tags, (dish|ingredient)key -> tagstr -> dummy
    //  keyed based on the actual datastore key we will use, not
    //  the string from json
-	allTags map[string]map[string]*datastore.Key
+	allTags map[string]map[string] bool
 	// slice of all new tags to be added
 	newTags []interface{}
 	// slice of the keys for the new tags to be added
@@ -47,7 +47,7 @@ func importFile(c *context, file io.Reader) {
 				context: *c,
 				jsonData : data,
 				fixUpKeys : make(map[string]*datastore.Key),
-				allTags : make(map[string]map[string]*datastore.Key),
+				allTags : make(map[string]map[string] bool),
 				newTags : make([]interface{}, 0, 100),
 				newTagKeys : make([]*datastore.Key, 0, 100),
 		}
@@ -58,12 +58,21 @@ func importFile(c *context, file io.Reader) {
 }
 
 func (self *importer) doImport() {
+	//fmt.Fprintf(self.w, "indexTags %v\n", self.allTags)
 	self.indexCurrentTags()
+	//self.debugPrintTags()
+	//fmt.Fprintf(self.w, "ingredients\n")
 	self.importIngredients()
+	//fmt.Fprintf(self.w, "Dishes\n")
 	self.importDishes()
+	//self.debugPrintTags()
+	//fmt.Fprintf(self.w, "MIs\n")
 	self.importMeasuredIngredients()
+	//fmt.Fprintf(self.w, "pairings\n")
 	self.importPairings()
+	//fmt.Fprintf(self.w, "menus\n")
 	self.importMenus()
+	//fmt.Fprintf(self.w, "tags\n")
 	// add the tags we collected
 	_, err := datastore.PutMulti(self.c, self.newTagKeys, self.newTags)
 	check(err)
@@ -78,13 +87,22 @@ func (self *importer) indexCurrentTags() {
 		err == nil;
 		key, err = iter.Next(word) {
 		parent := key.Parent().Encode()
-		var m map[string]*datastore.Key
-		if m, ok := self.allTags[parent]; !ok {
-			m = make(map[string]*datastore.Key)
+		var m map[string]bool
+		var found bool
+		//fmt.Fprintf(self.w, "indexTags parent %v %v\n", parent, word.Word)
+		if m, found = self.allTags[parent]; !found {
+			//fmt.Fprintf(self.w, "indexTags make\n")
+			m = make(map[string]bool)
 			self.allTags[parent] = m
 		}
-		m[word.Word] = key
+		//fmt.Fprintf(self.w, "indexTags m %v\n", m)
+		m[word.Word] = true
 	}
+}
+
+func (self *importer) debugPrintTags() {
+	j, _ := json.MarshalIndent(self.allTags, "", "\t")
+	self.w.Write(j)
 }
 
 func (self *importer) restoreKey(encoded string, parent *datastore.Key) *datastore.Key {
@@ -107,7 +125,7 @@ func (self *importer) importIngredients() {
 	prevIngredientsByName := self.indexItems(self.NewQuery("Ingredient"),
 		&Ingredient{},
 		func(key *datastore.Key, item interface{}) string {
-			return item.(Ingredient).Name
+			return item.(*Ingredient).Name
 		})
 	putItems := make([]interface{}, 0, len(self.jsonData.Ingredients))
 	putKeys := make([]*datastore.Key, 0, len(self.jsonData.Ingredients))
@@ -148,7 +166,7 @@ func (self *importer) importIngredients() {
 		words := make(map[string]bool)
 		addWords(ing.Name, words)
 		addWords(ing.Category, words)
-		for tag, _ := range self.allTags[putIds[index]] {
+		for tag, _ := range self.allTags[outKeys[index].Encode()] {
 			addWords(tag, words)
 		}
 		updateKeywords(self.c, outKeys[index], words)
@@ -160,7 +178,7 @@ func (self *importer) importDishes() {
 	// build an index by name
 	prevDishesByImportId := self.indexItems(self.NewQuery("Dish"), &Dish{},
 		func(key *datastore.Key, item interface{}) string {
-			return item.(Dish).Id
+			return item.(*Dish).Id
 		})
 	// lists for dishes being written
 	count := len(self.jsonData.Dishes)
@@ -202,7 +220,7 @@ func (self *importer) importDishes() {
 		words := make(map[string]bool)
 		addWords(dish.Name, words)
 		addWords(dish.Source, words)
-		for tag, _ := range self.allTags[putIds[index]] {
+		for tag, _ := range self.allTags[outKeys[index].Encode()] {
 			addWords(tag, words)
 		}
 		updateKeywords(self.c, outKeys[index], words)
@@ -212,7 +230,7 @@ func (self *importer) importDishes() {
 //jsonData.MeasuredIngredients map[string][]MeasuredIngredient
 func (self *importer) importMeasuredIngredients() {
 	miKeyFunc := func (key *datastore.Key, item interface{}) string {
-				return key.Parent().Encode() + item.(MeasuredIngredient).Ingredient.Encode();
+				return key.Parent().Encode() + item.(*MeasuredIngredient).Ingredient.Encode();
 			}
 	// index existing items by their parent dish and the ingredient
 	//  they reference
@@ -250,7 +268,7 @@ func (self *importer) importMeasuredIngredients() {
 //jsonData.Pairings map[string][]Pairing
 func (self *importer) importPairings() {
 	pairingKeyFunc := func (key *datastore.Key, item interface{}) string {
-					  return key.Parent().Encode() + item.(Pairing).Other.Encode() + item.(Pairing).Description;
+					  return key.Parent().Encode() + item.(*Pairing).Other.Encode() + item.(*Pairing).Description;
 				  }
 	// index existing items by their parent dish and the ingredient
 	//  they reference
@@ -285,7 +303,7 @@ func (self *importer) importPairings() {
 
 func (self *importer) importMenus() {
 	menuKeyFunc := func (key *datastore.Key, item interface{}) string {
-						 return item.(Menu).Name
+						 return item.(*Menu).Name
 					 }
 	// index existing items by their name
 	prevMenus := self.indexItems(self.NewQuery("Menu"), &Menu{},
@@ -322,13 +340,15 @@ func (self *importer) importMenus() {
 func (self *importer) importTags (ids []string, keys []*datastore.Key) {
 	for index, parentKey := range keys {
 		parentId := ids[index]
+		destId := keys[index].Encode()
 		if importTags, ok := self.jsonData.Tags[parentId]; ok {
-			var myTags map[string]*datastore.Key
+			var myTags map[string]bool
 			// if this item doesn't have a tags collection yet,
 			// add it
-			if myTags, ok = self.allTags[parentId]; !ok {
-				myTags = make(map[string]*datastore.Key)
-				self.allTags[parentId] = myTags
+			var found bool
+			if myTags, found = self.allTags[destId]; !found {
+				myTags = make(map[string]bool)
+				self.allTags[destId] = myTags
 			}
 			// go through tags from json
 			for _, tag := range importTags {
@@ -337,7 +357,7 @@ func (self *importer) importTags (ids []string, keys []*datastore.Key) {
 					self.newTags = append(self.newTags, &Word{"",tag.Word})
 					newTagKey := datastore.NewIncompleteKey(self.c, "Tags", parentKey)
 					self.newTagKeys = append(self.newTagKeys, newTagKey)
-					myTags[tag.Word] = newTagKey
+					myTags[tag.Word] = true
 				}
 			}
 		}
