@@ -58,19 +58,12 @@ func importFile(c *context, file io.Reader) {
 }
 
 func (self *importer) doImport() {
-	fmt.Fprintf(self.w, "indexTags\n")
 	self.indexCurrentTags()
-	fmt.Fprintf(self.w, "Ingredients\n")
 	self.importIngredients()
-	fmt.Fprintf(self.w, "Dishs\n")
 	self.importDishes()
-	fmt.Fprintf(self.w, "MIs\n")
 	self.importMeasuredIngredients()
-	fmt.Fprintf(self.w, "Pairings\n")
 	self.importPairings()
-	fmt.Fprintf(self.w, "Menus\n")
 	self.importMenus()
-	fmt.Fprintf(self.w, "addTags\n")
 	// add the tags we collected
 	_, err := datastore.PutMulti(self.c, self.newTagKeys, self.newTags)
 	check(err)
@@ -221,18 +214,15 @@ func (self *importer) importMeasuredIngredients() {
 	miKeyFunc := func (key *datastore.Key, item interface{}) string {
 				return key.Parent().Encode() + item.(MeasuredIngredient).Ingredient.Encode();
 			}
-	fmt.Fprintf(self.w, "MIs 1\n")
 	// index existing items by their parent dish and the ingredient
 	//  they reference
 	prevMIs := self.indexItems(self.NewQuery("MeasuredIngredient"),
 			 &MeasuredIngredient{}, miKeyFunc)
-	fmt.Fprintf(self.w, "MIs 2\n")
 	count := len(self.jsonData.MeasuredIngredients)
 	putItems := make([]interface{}, 0, count)
 	putKeys := make([]*datastore.Key, 0, count)
 
 	for dishId, jsonMis := range self.jsonData.MeasuredIngredients {
-		fmt.Fprintf(self.w, "MIs %v\n", dishId)
 		dishKey := self.restoreKey(dishId, self.lid)
 		dishKeyEncoded := dishKey.Encode()
 		for index, _ := range jsonMis {
@@ -251,7 +241,6 @@ func (self *importer) importMeasuredIngredients() {
 			putKeys = append(putKeys, miKey)
 		}
 	}
-	fmt.Fprintf(self.w, "MIs 3\n")
 	if len(putKeys) > 0 {
 		_, err := datastore.PutMulti(self.c, putKeys, putItems)
 		check(err)

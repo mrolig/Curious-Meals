@@ -1,5 +1,4 @@
-- fix problem with restore
-- don't allow duplicate tags during restore
+- refactor GetAll -> Run/Iterator where it makes sense
 - pop-up dialog before restore
 - create "tutorial" intro page
 
