@@ -2245,7 +2245,7 @@ jQuery(function() {
                      url += $email.val();
                      $dialog.dialog("option", "buttons", {});
                      $content.html("Sending email...");
-                     jQuery.get("/share/" + self.ownedLibrary)
+                     jQuery.get(url)
                         .success(function(resp) {
                            $content.html("Successs");
                            $dialog.dialog("option", "buttons", {
