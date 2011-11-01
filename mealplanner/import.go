@@ -247,6 +247,10 @@ func (self *importer) importMeasuredIngredients() {
 			jsonMi := &jsonMis[index]
 			miKey := self.restoreKey(jsonMi.Id, dishKey)
 			ingKey := self.restoreKey(jsonMi.Ingredient.Encode(), self.lid)
+			// if we didn't import the ingredient, we need to skip this one
+			if ingKey.Incomplete() {
+				continue
+			}
 			if miKey.Incomplete() {
 				miIndexKey := dishKeyEncoded + ingKey.Encode()
 				if existingKey, found := prevMIs[miIndexKey]; found {
@@ -285,6 +289,11 @@ func (self *importer) importPairings() {
 			jsonPairing := &jsonPairings[index]
 			pairingKey := self.restoreKey(jsonPairing.Id, dishKey)
 			otherKey := self.restoreKey(jsonPairing.Other.Encode(), self.lid)
+			if otherKey.Incomplete() {
+				// if we didn't import the referenced item
+				//  we have to skip this one
+				continue
+			}
 			pairingIndexKey := dishKeyEncoded + otherKey.Encode() + jsonPairing.Description
 			// add the new pairing if it wasn't already present
 			if _, found := prevPairings[pairingIndexKey]; !found {
