@@ -33,6 +33,7 @@ func init() {
 	http.HandleFunc("/shareAccept/", errorHandler(shareAcceptHandler))
 	http.HandleFunc("/libraries", errorHandler(librariesHandler))
 	http.HandleFunc("/switch/", errorHandler(switchHandler))
+	http.HandleFunc("/deletelib", errorHandler(deletelibHandler))
 }
 
 type handlerFunc func(c *context)
@@ -588,6 +589,12 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 	if init {
 		file, err := os.Open("static/base.json")
 		if err != nil {
+			file, err = os.Open("base.json")
+		}
+		if err != nil {
+			file, err = os.Open("mealplanner/base.json")
+		}
+		if err == nil {
 			restore(ctxt, file)
 		}
 	}
@@ -1030,7 +1037,7 @@ func shareHandler(c *context) {
 	key := datastore.NewKey(c.c, "Share", "", 0, c.lid)
 	key, err := datastore.Put(c.c, key, &share)
 	check(err)
-	subject := email + " would like to share a meal-planning library with you"
+	subject := c.u.Email + " would like to share a meal-planning library with you"
 	body := subject + ".\n\nFollow this link to gain access to the library: http://" + c.r.Header.Get("Host") + "/shareAccept/" + key.Encode()
 
 	msg := mail.Message{
@@ -1158,4 +1165,17 @@ func switchHandler(c *context) {
 	_, err = datastore.Put(c.c, keys[0], &libs[0])
 	check(err)
 	indexHandler(c)
+}
+
+func deletelibHandler(c *context) {
+	uid := c.getUid()
+	query := datastore.NewQuery("Library").Filter("OwnerId =", uid).Limit(1)
+	libs := make([]Library, 0, 1)
+	keys, err := query.GetAll(c.c, &libs)
+	check(err)
+	if len(libs) == 0 {
+		return
+	}
+	err = datastore.Delete(c.c, keys[0])
+	check(err)
 }
