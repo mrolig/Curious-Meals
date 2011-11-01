@@ -591,7 +591,7 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 			file, err = os.Open("base.json")
 		}
 		if err == nil {
-			restore(ctxt, file)
+			importFile(ctxt, file)
 		}
 	}
 	return ctxt
@@ -798,14 +798,6 @@ func allTagsHandler(c *context) {
 	sendJSON(c.w, tags)
 }
 
-type backup struct {
-	Dishes              []Dish
-	Ingredients         []Ingredient
-	MeasuredIngredients map[string][]MeasuredIngredient
-	Tags                map[string][]Word
-	Pairings            map[string][]Pairing
-	Menus               []Menu
-}
 
 func backupHandler(c *context) {
 	b := backup{}
@@ -887,132 +879,11 @@ func backupHandler(c *context) {
 	sendJSONIndent(c.w, b)
 }
 
-func restoreKey(c *context,
-encoded string,
-fixUpKeys map[string]*datastore.Key) *datastore.Key {
-	key, err := datastore.DecodeKey(encoded)
-	check(err)
-	if newKey, found := fixUpKeys[encoded]; found {
-		return newKey
-	}
-	if !c.isInLibrary(key) {
-		newKey := datastore.NewKey(c.c, key.Kind(), "", 0, c.lid)
-		fixUpKeys[encoded] = newKey
-		return newKey
-	}
-	return key
-}
-
-func restoreTags(c *context,
-allTags map[string][]Word,
-origid string,
-newParentKey *datastore.Key) {
-	// first, get the tags for this item
-	if tags, ok := allTags[origid]; ok {
-		// loop through all the tags and add them
-		for _, t := range tags {
-			key, err := datastore.DecodeKey(t.Id)
-			check(err)
-			if !c.isInLibrary(key) {
-				key = datastore.NewKey(c.c, "Tags", "", 0, newParentKey)
-			}
-			t.Id = ""
-			_, err = datastore.Put(c.c, key, &t)
-			check(err)
-		}
-	}
-}
-
-func restore(c *context, file io.Reader) os.Error {
-	decoder := json.NewDecoder(file)
-	data := backup{}
-	err := decoder.Decode(&data)
-	check(err)
-	fixUpKeys := make(map[string]*datastore.Key)
-	// add all the ingredients
-	for _, i := range data.Ingredients {
-		id := i.Id
-		key := restoreKey(c, id, fixUpKeys)
-		if key.Incomplete() {
-			// check if we have an item of the same name already
-			iquery := c.NewQuery("Ingredient").Filter("Name=", i.Name).KeysOnly().Limit(1)
-			ikeys, err := iquery.GetAll(c.c, nil)
-			check(err)
-			if len(ikeys) > 0 {
-				// we found a match, use that key so we'll overwrite that one
-				key = ikeys[0]
-			}
-		}
-		i.Id = ""
-		newKey, err := datastore.Put(c.c, key, &i)
-		check(err)
-		fixUpKeys[id] = newKey
-		restoreTags(c, data.Tags, id, newKey)
-		updateIngredientKeywords(c.c, newKey, &i)
-	}
-	// add all the dishes
-	for _, d := range data.Dishes {
-		id := d.Id
-		key := restoreKey(c, id, fixUpKeys)
-		d.Id = ""
-		newKey, err := datastore.Put(c.c, key, &d)
-		check(err)
-		fixUpKeys[id] = newKey
-		restoreTags(c, data.Tags, id, newKey)
-		updateDishKeywords(c.c, newKey, &d)
-	}
-	// add all the dishes' ingredients
-	for d, ingredients := range data.MeasuredIngredients {
-		parent := restoreKey(c, d, fixUpKeys)
-		for _, i := range ingredients {
-			id := i.Id
-			i.Ingredient = restoreKey(c, i.Ingredient.Encode(), fixUpKeys)
-			key, err := datastore.DecodeKey(id)
-			check(err)
-			if !c.isInLibrary(key) {
-				key = datastore.NewKey(c.c, "MeasuredIngredient", "", 0, parent)
-			}
-			i.Id = ""
-			_, err = datastore.Put(c.c, key, &i)
-			check(err)
-		}
-	}
-	// add all the dishes' pairings
-	for d, pairings := range data.Pairings {
-		parent := restoreKey(c, d, fixUpKeys)
-		for _, i := range pairings {
-			id := i.Id
-			i.Other = restoreKey(c, i.Other.Encode(), fixUpKeys)
-			key, err := datastore.DecodeKey(id)
-			if !c.isInLibrary(key) {
-				key = datastore.NewKey(c.c, "Pairing", "", 0, parent)
-			}
-			i.Id = ""
-			_, err = datastore.Put(c.c, key, &i)
-			check(err)
-		}
-	}
-	// add all the menus
-	for _, m := range data.Menus {
-		id := m.Id
-		key := restoreKey(c, id, fixUpKeys)
-		for index, dishKey := range m.Dishes {
-			m.Dishes[index] = restoreKey(c, dishKey.Encode(), fixUpKeys)
-		}
-		m.Id = ""
-		newKey, err := datastore.Put(c.c, key, &m)
-		check(err)
-		fixUpKeys[id] = newKey
-		restoreTags(c, data.Tags, id, newKey)
-	}
-	indexHandler(c)
-	return nil
-}
-
 func restoreHandler(c *context) {
 	file, _, err := c.r.FormFile("restore-file")
 	check(err)
-	restore(c, file)
+	importFile(c, file)
+	indexHandler(c)
 }
 
 func shareHandler(c *context) {
