@@ -67,8 +67,7 @@ func check(err os.Error) {
 	}
 }
 func indexHandler(c *context) {
-	c.w.Header().Set("Location", "/index.html")
-	c.w.WriteHeader(http.StatusFound)
+	http.Redirect(c.w, c.r, "/index.html", http.StatusFound)
 }
 func usersHandler(c *context) {
 	logoutURL, _ := user.LogoutURL(c.c, "/index.html")
