@@ -1,4 +1,3 @@
-- get the base.json to import properly...
 - fix problem with restore
 - don't allow duplicate tags during restore
 - pop-up dialog before restore

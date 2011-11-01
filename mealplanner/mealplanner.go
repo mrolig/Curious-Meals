@@ -891,7 +891,7 @@ func restoreKey(c *context,
 encoded string,
 fixUpKeys map[string]*datastore.Key) *datastore.Key {
 	key, err := datastore.DecodeKey(encoded)
-	check(err) 
+	check(err)
 	if newKey, found := fixUpKeys[encoded]; found {
 		return newKey
 	}
@@ -965,9 +965,9 @@ func restore(c *context, file io.Reader) os.Error {
 	for d, ingredients := range data.MeasuredIngredients {
 		parent := restoreKey(c, d, fixUpKeys)
 		for _, i := range ingredients {
-			id:= i.Id
+			id := i.Id
 			i.Ingredient = restoreKey(c, i.Ingredient.Encode(), fixUpKeys)
-			key, err:= datastore.DecodeKey(id)
+			key, err := datastore.DecodeKey(id)
 			check(err)
 			if !c.isInLibrary(key) {
 				key = datastore.NewKey(c.c, "MeasuredIngredient", "", 0, parent)
