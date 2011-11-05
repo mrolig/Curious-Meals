@@ -1,8 +1,9 @@
 package mealplanner
 
 import (
-	"appengine/datastore"
 	"appengine"
+	"appengine/datastore"
+	"appengine/memcache"
 	"io"
 	"os"
 	"json"
@@ -35,6 +36,8 @@ type importer struct {
 	newTags []interface{}
 	// slice of the keys for the new tags to be added
 	newTagKeys []*datastore.Key
+	// slice of memcache entries that need to be purged
+	dirtyCacheEntries []string
 }
 
 func importFile(c *context, file io.Reader) {
@@ -50,6 +53,7 @@ func importFile(c *context, file io.Reader) {
 				allTags : make(map[string]map[string] bool),
 				newTags : make([]interface{}, 0, 100),
 				newTagKeys : make([]*datastore.Key, 0, 100),
+				dirtyCacheEntries : make([]string, 0, 1000),
 		}
 		worker.c = tc
 		worker.doImport()
@@ -58,6 +62,14 @@ func importFile(c *context, file io.Reader) {
 }
 
 func (self *importer) doImport() {
+	self.dirtyCacheEntries = append(self.dirtyCacheEntries, []string{
+		"/dish",
+		"/dish/",
+		"/menu",
+		"/menu/",
+		"/ingredient",
+		"/ingredient/",
+	}...)
 	//fmt.Fprintf(self.w, "indexTags %v\n", self.allTags)
 	self.indexCurrentTags()
 	//self.debugPrintTags()
@@ -76,6 +88,14 @@ func (self *importer) doImport() {
 	// add the tags we collected
 	_, err := datastore.PutMulti(self.c, self.newTagKeys, self.newTags)
 	check(err)
+	// clear the cache
+	lid := self.lid.Encode()
+	// prefix each entry with the library id
+	for i, _ := range self.dirtyCacheEntries {
+		self.dirtyCacheEntries[i] = lid + self.dirtyCacheEntries[i]
+	}
+	// clear them all
+	memcache.DeleteMulti(self.c, self.dirtyCacheEntries)
 }
 
 func (self *importer) indexCurrentTags() {
@@ -152,9 +172,14 @@ func (self *importer) importIngredients() {
 	outKeys, err := datastore.PutMulti(self.c, putKeys, putItems)
 	check(err)
    // update the fixUpKeys for any new items
+	// dirty the cache for any items that existed before
 	for index, putKey := range putKeys {
 		if putKey.Incomplete() {
 			self.fixUpKeys[putIds[index]] = outKeys[index]
+		} else {
+			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/ingredient/" + putKey.Encode())
+			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/ingredient/" + putKey.Encode() + "/tags/")
+			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/ingredient/" + putKey.Encode() + "/keywords/")
 		}
 	}
 
@@ -209,6 +234,12 @@ func (self *importer) importDishes() {
 	for index, putKey := range putKeys {
 		if putKey.Incomplete() {
 			self.fixUpKeys[putIds[index]] = outKeys[index]
+		} else {
+			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/dish/" + putKey.Encode())
+			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/dish/" + putKey.Encode() + "/tags/")
+			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/dish/" + putKey.Encode() + "/keywords/")
+			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/dish/" + putKey.Encode() + "/pairing/")
+			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/dish/" + putKey.Encode() + "/mi/")
 		}
 	}
 
@@ -266,6 +297,12 @@ func (self *importer) importMeasuredIngredients() {
 	if len(putKeys) > 0 {
 		_, err := datastore.PutMulti(self.c, putKeys, putItems)
 		check(err)
+		// any modified entries need to be cleared from the cache
+		for _, putKey := range putKeys {
+			if !putKey.Incomplete() {
+				self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/dish/" + putKey.Parent().Encode() + "/mi/" + putKey.Encode())
+			}
+		}
 	}
 }
 
@@ -307,6 +344,12 @@ func (self *importer) importPairings() {
 	if len(putKeys) > 0 {
 		_, err := datastore.PutMulti(self.c, putKeys, putItems)
 		check(err)
+		// any modified entries need to be cleared from the cache
+		for _, putKey := range putKeys {
+			if !putKey.Incomplete() {
+				self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/dish/" + putKey.Parent().Encode() + "/pairing/" + putKey.Encode())
+			}
+		}
 	}
 }
 
@@ -343,6 +386,12 @@ func (self *importer) importMenus() {
 	if len(putKeys) > 0 {
 		_, err := datastore.PutMulti(self.c, putKeys, putItems)
 		check(err)
+		// any modified entries need to be cleared from the cache
+		for _, putKey := range putKeys {
+			if !putKey.Incomplete() {
+				self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/menu/" + "/menu/" + putKey.Encode())
+			}
+		}
 	}
 }
 

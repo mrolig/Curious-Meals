@@ -67,7 +67,7 @@ func permHandler(handler handlerFunc) http.HandlerFunc {
 func cacheHandler(handler handlerFunc) http.HandlerFunc {
 	return permHandler(func(c *context) {
 		if c.r.Method == "GET" {
-			item, err := memcache.Get(c.c, c.r.URL.Path)
+			item, err := memcache.Get(c.c, c.lid.Encode() + c.r.URL.Path)
 			switch err {
 			case nil:
 				c.w.Write(item.Value)
@@ -104,7 +104,7 @@ func dishHandler(c *context) {
 			dish := Dish{}
 			err = datastore.Get(c.c, key, &dish)
 			check(err)
-			updateDishKeywords(c.c, key, &dish)
+			updateDishKeywords(c, key, &dish)
 		}
 		return
 	}
@@ -116,7 +116,7 @@ func dishHandler(c *context) {
 			dish := Dish{}
 			err = datastore.Get(c.c, key, &dish)
 			check(err)
-			updateDishKeywords(c.c, key, &dish)
+			updateDishKeywords(c, key, &dish)
 		}
 		return
 	}
@@ -144,7 +144,7 @@ func dishHandler(c *context) {
 		case "POST":
 			dish := Dish{}
 			newKey := handler.createEntry(&dish, nil)
-			updateDishKeywords(c.c, newKey, &dish)
+			updateDishKeywords(c, newKey, &dish)
 		}
 		return
 	}
@@ -160,7 +160,7 @@ func dishHandler(c *context) {
 		handler.get(key, &dish)
 	case "PUT":
 		handler.update(key, &dish)
-		updateDishKeywords(c.c, key, &dish)
+		updateDishKeywords(c, key, &dish)
 	case "DELETE":
 		handler.delete(key)
 	}
@@ -179,28 +179,28 @@ words map[string]bool) {
 
 // break up the text into words and add/remove keywords
 //  for the dish
-func updateDishKeywords(c appengine.Context, key *datastore.Key,
+func updateDishKeywords(c *context, key *datastore.Key,
 dish *Dish) {
 	words := make(map[string]bool)
 	addWords(dish.Name, words)
 	addWords(dish.Source, words)
-	addTags(c, key, words)
-	if updateKeywords(c, key, words) {
+	addTags(c.c, key, words)
+	if updateKeywords(c.c, key, words) {
 		// if we made changes, we need to clear the cache
-		cacheKey := "/dish/" + key.Encode() + "/keywords/"
-		memcache.Delete(c, cacheKey)
+		cacheKey := c.lid.Encode() + "/dish/" + key.Encode() + "/keywords/"
+		memcache.Delete(c.c, cacheKey)
 	}
 }
-func updateIngredientKeywords(c appengine.Context, key *datastore.Key,
+func updateIngredientKeywords(c *context, key *datastore.Key,
 ing *Ingredient) {
 	words := make(map[string]bool)
 	addWords(ing.Name, words)
 	addWords(ing.Category, words)
-	addTags(c, key, words)
-	if updateKeywords(c, key, words) {
+	addTags(c.c, key, words)
+	if updateKeywords(c.c, key, words) {
 		// if we made changes, we need to clear the cache
-		cacheKey := "/ingredient/" + key.Encode() + "/keywords/"
-		memcache.Delete(c, cacheKey)
+		cacheKey := c.lid.Encode() + "/ingredient/" + key.Encode() + "/keywords/"
+		memcache.Delete(c.c, cacheKey)
 	}
 }
 
@@ -412,7 +412,7 @@ func pairingHandler(c *context) {
 
 // clear the pairing cache for the specified dish/pair that is changed
 func clearPairingCache(c *context, dishKey *datastore.Key, pairingKey *datastore.Key) {
-	url := "/dish/" + dishKey.Encode() + "/pairing/"
+	url := c.lid.Encode() + "/dish/" + dishKey.Encode() + "/pairing/"
 	memcache.Delete(c.c, url)
 	if pairingKey != nil {
 		url += pairingKey.Encode()
@@ -433,7 +433,7 @@ func ingredientHandler(c *context) {
 			ingredient := Ingredient{}
 			err = datastore.Get(c.c, key, &ingredient)
 			check(err)
-			updateIngredientKeywords(c.c, key, &ingredient)
+			updateIngredientKeywords(c, key, &ingredient)
 		}
 		return
 	}
@@ -461,7 +461,7 @@ func ingredientHandler(c *context) {
 		case "POST":
 			ingredient := Ingredient{}
 			newKey := handler.createEntry(&ingredient, nil)
-			updateIngredientKeywords(c.c, newKey, &ingredient)
+			updateIngredientKeywords(c, newKey, &ingredient)
 		}
 		return
 	}
@@ -474,7 +474,7 @@ func ingredientHandler(c *context) {
 		handler.get(key, &ingredient)
 	case "PUT":
 		handler.update(key, &ingredient)
-		updateIngredientKeywords(c.c, key, &ingredient)
+		updateIngredientKeywords(c, key, &ingredient)
 	case "DELETE":
 		handler.delete(key)
 	}
@@ -661,7 +661,7 @@ func (self *context) sendJSON(object interface{}) {
 	check(err)
 	self.w.Header().Set("Content-Type", "application/json")
 	self.w.(io.Writer).Write(j)
-	cacheKey := self.r.URL.Path
+	cacheKey := self.lid.Encode() + self.r.URL.Path
 	switch self.r.Method {
 		case "POST":
 			// posting is adding a new item, the URL is the "collection"
@@ -755,11 +755,12 @@ func (self *dataHandler) update(key *datastore.Key, object interface{}) {
 func (self *dataHandler) delete(key *datastore.Key) {
 	err := datastore.Delete(self.c, key)
 	check(err)
+	cacheKey := self.lid.Encode() + self.r.URL.Path
 	// remove this item from the cache
-	memcache.Delete(self.c, self.r.URL.Path)
+	memcache.Delete(self.c, cacheKey)
    // remove the parent from the cache too
 	// strip off the key from the URL
-	parentURL := self.r.URL.Path[:len(self.r.URL.Path) - len(key.Encode())]
+	parentURL := cacheKey[:len(cacheKey) - len(key.Encode())]
 	memcache.Delete(self.c, parentURL)
 	// also without the /
 	memcache.Delete(self.c, parentURL[:len(parentURL)-1])
