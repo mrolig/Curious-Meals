@@ -27,7 +27,7 @@ func init() {
 	// search uses POST for a read, we don't use permHandler because
 	// it would block searches of readonly libraries
 	http.HandleFunc("/search", errorHandler(searchHandler))
-	http.HandleFunc("/tags", cacheHandler(allTagsHandler))
+	http.HandleFunc("/tags", permHandler(allTagsHandler))
 	http.HandleFunc("/backup", permHandler(backupHandler))
 	http.HandleFunc("/restore", permHandler(restoreHandler))
 	http.HandleFunc("/share/", errorHandler(shareHandler))
