@@ -7,6 +7,7 @@ import (
 	"appengine/user"
 	"appengine/datastore"
 	"appengine/mail"
+	"appengine/memcache"
 	"strings"
 	"os"
 	"io"
@@ -17,16 +18,16 @@ import (
 
 func init() {
 	http.HandleFunc("/", errorHandler(indexHandler))
-	http.HandleFunc("/dish", permHandler(dishHandler))
-	http.HandleFunc("/dish/", permHandler(dishHandler))
+	http.HandleFunc("/dish", cacheHandler(dishHandler))
+	http.HandleFunc("/dish/", cacheHandler(dishHandler))
 	http.HandleFunc("/users", permHandler(usersHandler))
-	http.HandleFunc("/ingredient", permHandler(ingredientHandler))
-	http.HandleFunc("/ingredient/", permHandler(ingredientHandler))
-	http.HandleFunc("/menu/", permHandler(menuHandler))
+	http.HandleFunc("/ingredient", cacheHandler(ingredientHandler))
+	http.HandleFunc("/ingredient/", cacheHandler(ingredientHandler))
+	http.HandleFunc("/menu/", cacheHandler(menuHandler))
 	// search uses POST for a read, we don't use permHandler because
 	// it would block searches of readonly libraries
 	http.HandleFunc("/search", errorHandler(searchHandler))
-	http.HandleFunc("/tags", permHandler(allTagsHandler))
+	http.HandleFunc("/tags", cacheHandler(allTagsHandler))
 	http.HandleFunc("/backup", permHandler(backupHandler))
 	http.HandleFunc("/restore", permHandler(restoreHandler))
 	http.HandleFunc("/share/", errorHandler(shareHandler))
@@ -57,6 +58,26 @@ func permHandler(handler handlerFunc) http.HandlerFunc {
 	return errorHandler(func(c *context) {
 		if c.readOnly && c.r.Method != "GET" {
 			check(os.EPERM)
+		}
+		handler(c)
+	})
+}
+// cacheHandler wraps permHandler and errorHandler, it checks the 
+//  cache for the response first
+func cacheHandler(handler handlerFunc) http.HandlerFunc {
+	return permHandler(func(c *context) {
+		if c.r.Method == "GET" {
+			item, err := memcache.Get(c.c, c.r.URL.Path)
+			switch err {
+			case nil:
+				c.w.Write(item.Value)
+				return
+			case memcache.ErrCacheMiss:
+				// we don't have the result cached, use the handler
+				break
+			default:
+				check(err)
+			}
 		}
 		handler(c)
 	})
@@ -119,7 +140,7 @@ func dishHandler(c *context) {
 			for index, _ := range dishes {
 				dishes[index].Id = keys[index].Encode()
 			}
-			sendJSON(handler.w, dishes)
+			handler.sendJSON(dishes)
 		case "POST":
 			dish := Dish{}
 			newKey := handler.createEntry(&dish, nil)
@@ -164,7 +185,11 @@ dish *Dish) {
 	addWords(dish.Name, words)
 	addWords(dish.Source, words)
 	addTags(c, key, words)
-	updateKeywords(c, key, words)
+	if updateKeywords(c, key, words) {
+		// if we made changes, we need to clear the cache
+		cacheKey := "/dish/" + key.Encode() + "/keywords/"
+		memcache.Delete(c, cacheKey)
+	}
 }
 func updateIngredientKeywords(c appengine.Context, key *datastore.Key,
 ing *Ingredient) {
@@ -172,7 +197,11 @@ ing *Ingredient) {
 	addWords(ing.Name, words)
 	addWords(ing.Category, words)
 	addTags(c, key, words)
-	updateKeywords(c, key, words)
+	if updateKeywords(c, key, words) {
+		// if we made changes, we need to clear the cache
+		cacheKey := "/ingredient/" + key.Encode() + "/keywords/"
+		memcache.Delete(c, cacheKey)
+	}
 }
 
 func addWords(text string, words map[string]bool) {
@@ -197,17 +226,22 @@ func addWords(text string, words map[string]bool) {
 	}
 }
 
-func updateKeywords(c appengine.Context, key *datastore.Key, words map[string]bool) {
+// deletes or adds keyword entries as children of the key if they
+//  are out of sync with the words map
+// returns true if any entries were added or removed
+func updateKeywords(c appengine.Context, key *datastore.Key, words map[string]bool) bool {
 	query := datastore.NewQuery("Keyword").Ancestor(key)
 	existingWords := make([]Word, 0, 25)
 	keys, err := query.GetAll(c, &existingWords)
 	check(err)
+	changed := false
 	for i, word := range existingWords {
 		if _, ok := words[word.Word]; ok {
 			words[word.Word] = true
 		} else {
 			// this keyword isn't here any more
 			datastore.Delete(c, keys[i])
+			changed = true
 		}
 	}
 	for word, exists := range words {
@@ -216,8 +250,10 @@ func updateKeywords(c appengine.Context, key *datastore.Key, words map[string]bo
 			newKey := datastore.NewKey(c, "Keyword", "", 0, key)
 			_, err := datastore.Put(c, newKey, &newWord)
 			check(err)
+			changed = true
 		}
 	}
+	return changed
 }
 
 func measuredIngredientsHandler(c *context) {
@@ -236,7 +272,7 @@ func measuredIngredientsHandler(c *context) {
 			for index, _ := range ingredients {
 				ingredients[index].Id = keys[index].Encode()
 			}
-			sendJSON(handler.w, ingredients)
+			handler.sendJSON(ingredients)
 		case "POST":
 			mi := MeasuredIngredient{}
 			handler.createEntry(&mi, parent)
@@ -276,7 +312,7 @@ func dishesForIngredientHandler(c *context) {
 			for _, key := range keys {
 				dishes = append(dishes, key.Parent().Encode())
 			}
-			sendJSON(handler.w, dishes)
+			handler.sendJSON(dishes)
 		}
 		return
 	}
@@ -298,7 +334,7 @@ func wordHandler(c *context, kind string) {
 			for index, _ := range words {
 				words[index].SetID(keys[index].Encode())
 			}
-			sendJSON(handler.w, words)
+			handler.sendJSON(words)
 		case "POST":
 			word := Word{}
 			handler.createEntry(&word, parentKey)
@@ -336,7 +372,7 @@ func pairingHandler(c *context) {
 			for index, _ := range pairs {
 				pairs[index].SetID(keys[index].Encode())
 			}
-			sendJSON(handler.w, pairs)
+			handler.sendJSON(pairs)
 		case "POST":
 			pairing := Pairing{}
 			handler.createEntry(&pairing, parentKey)
@@ -347,6 +383,7 @@ func pairingHandler(c *context) {
 			pairing.Id = ""
 			newPairKey, err := datastore.Put(c.c, newPairKey, &pairing)
 			check(err)
+			clearPairingCache(c, other, nil)
 		}
 		return
 	}
@@ -368,9 +405,18 @@ func pairingHandler(c *context) {
 		keys, err := query.GetAll(c.c, nil)
 		check(err)
 		handler.delete(key)
-		for _, otherKey := range keys {
-			handler.delete(otherKey)
-		}
+		datastore.DeleteMulti(handler.c, keys)
+		clearPairingCache(c, otherParent, key)
+	}
+}
+
+// clear the pairing cache for the specified dish/pair that is changed
+func clearPairingCache(c *context, dishKey *datastore.Key, pairingKey *datastore.Key) {
+	url := "/dish/" + dishKey.Encode() + "/pairing/"
+	memcache.Delete(c.c, url)
+	if pairingKey != nil {
+		url += pairingKey.Encode()
+		memcache.Delete(c.c, url)
 	}
 }
 
@@ -411,7 +457,7 @@ func ingredientHandler(c *context) {
 			for index, _ := range ingredients {
 				ingredients[index].Id = keys[index].Encode()
 			}
-			sendJSON(handler.w, ingredients)
+			handler.sendJSON(ingredients)
 		case "POST":
 			ingredient := Ingredient{}
 			newKey := handler.createEntry(&ingredient, nil)
@@ -451,7 +497,7 @@ func menuHandler(c *context) {
 			for index, _ := range menus {
 				menus[index].Id = keys[index].Encode()
 			}
-			sendJSON(handler.w, menus)
+			handler.sendJSON(menus)
 		case "POST":
 			menu := Menu{}
 			handler.createEntry(&menu, nil)
@@ -472,19 +518,6 @@ func menuHandler(c *context) {
 	}
 }
 
-func sendJSON(w http.ResponseWriter, object interface{}) {
-	j, err := json.Marshal(object)
-	check(err)
-	w.Header().Set("Content-Type", "application/json")
-	w.(io.Writer).Write(j)
-}
-
-func sendJSONIndent(w http.ResponseWriter, object interface{}) {
-	j, err := json.MarshalIndent(object, "", "\t")
-	check(err)
-	w.Header().Set("Content-Type", "application/json")
-	w.(io.Writer).Write(j)
-}
 
 func readJSON(r *http.Request, object interface{}) {
 	err := json.NewDecoder(r.Body).Decode(object)
@@ -623,6 +656,54 @@ func (self *context) NewQuery(kind string) *datastore.Query {
 	return datastore.NewQuery(kind).Ancestor(self.lid)
 }
 
+func (self *context) sendJSON(object interface{}) {
+	j, err := json.Marshal(object)
+	check(err)
+	self.w.Header().Set("Content-Type", "application/json")
+	self.w.(io.Writer).Write(j)
+	cacheKey := self.r.URL.Path
+	switch self.r.Method {
+		case "POST":
+			// posting is adding a new item, the URL is the "collection"
+			//  URL, and the new item is being returned
+			// thus we should delete the now dirty collection from the cache
+			//  and add the new item to the cache
+			memcache.Delete(self.c, cacheKey)
+			if cacheKey[len(cacheKey)-1] != '/' {
+				memcache.Delete(self.c, cacheKey + "/")
+			} else {
+				memcache.Delete(self.c, cacheKey[:len(cacheKey)-1])
+			}
+			if ider, ok := object.(Ided); ok {
+				if cacheKey[len(cacheKey)-1] != '/' {
+					cacheKey += "/"
+				}
+				cacheKey += ider.ID()
+				memcache.Set(self.c, &memcache.Item{Key:cacheKey,Value:j})
+			}
+		case "PUT":
+			// PUT is updating an item, we should update the cache
+			//  with this item, and clear the parent collection
+			memcache.Set(self.c, &memcache.Item{Key:cacheKey,Value:j})
+			id := getID(self.r)
+			parentKey := cacheKey[:len(cacheKey)-len(id)]
+			memcache.Delete(self.c, parentKey)
+			memcache.Delete(self.c, parentKey[:len(parentKey)-1])
+		case "GET":
+			//  GETs are getting the item, we should add to the cache
+			memcache.Set(self.c, &memcache.Item{Key:cacheKey,Value:j})
+		case "DELETE":
+			// we shouldn't get here, deletes don't send back JSON
+	}
+}
+
+func (self *context) sendJSONIndent(object interface{}) {
+	j, err := json.MarshalIndent(object, "", "\t")
+	check(err)
+	self.w.Header().Set("Content-Type", "application/json")
+	self.w.(io.Writer).Write(j)
+}
+
 func newDataHandler(c *context, kind string) *dataHandler {
 	return &dataHandler{*c, kind}
 }
@@ -644,7 +725,7 @@ func (self *dataHandler) createEntry(newObject interface{}, parent *datastore.Ke
 	key, err := datastore.Put(c, key, newObject)
 	check(err)
 	ided.SetID(key.Encode())
-	sendJSON(self.w, newObject)
+	self.sendJSON(newObject)
 	return key
 }
 func (self *dataHandler) get(key *datastore.Key, object interface{}) {
@@ -656,7 +737,7 @@ func (self *dataHandler) get(key *datastore.Key, object interface{}) {
 		check(datastore.ErrInvalidEntityType)
 	}
 	ided.SetID(key.Encode())
-	sendJSON(self.w, object)
+	self.sendJSON(object)
 }
 func (self *dataHandler) update(key *datastore.Key, object interface{}) {
 	readJSON(self.r, object)
@@ -668,12 +749,20 @@ func (self *dataHandler) update(key *datastore.Key, object interface{}) {
 	ided.SetID(key.Encode())
 	_, err := datastore.Put(self.c, key, object)
 	check(err)
-	sendJSON(self.w, object)
+	self.sendJSON(object)
 }
 
 func (self *dataHandler) delete(key *datastore.Key) {
 	err := datastore.Delete(self.c, key)
 	check(err)
+	// remove this item from the cache
+	memcache.Delete(self.c, self.r.URL.Path)
+   // remove the parent from the cache too
+	// strip off the key from the URL
+	parentURL := self.r.URL.Path[:len(self.r.URL.Path) - len(key.Encode())]
+	memcache.Delete(self.c, parentURL)
+	// also without the /
+	memcache.Delete(self.c, parentURL[:len(parentURL)-1])
 }
 
 type searchParams struct {
@@ -784,7 +873,7 @@ func searchHandler(c *context) {
 	}
 
 	results := mergeResults(resultsChannel, queries)
-	sendJSON(c.w, results)
+	c.sendJSON(results)
 }
 
 func allTagsHandler(c *context) {
@@ -801,7 +890,7 @@ func allTagsHandler(c *context) {
 			lastTag = tag.Word
 		}
 	}
-	sendJSON(c.w, tags)
+	c.sendJSON(tags)
 }
 
 
@@ -882,7 +971,7 @@ func backupHandler(c *context) {
 		key := keys[index]
 		b.Menus[index].SetID(key.Encode())
 	}
-	sendJSONIndent(c.w, b)
+	c.sendJSONIndent(b)
 }
 
 func restoreHandler(c *context) {
@@ -998,7 +1087,7 @@ func librariesHandler(c *context) {
 		}
 		libraries = append(libraries, ul)
 	}
-	sendJSON(c.w, libraries)
+	c.sendJSON(libraries)
 }
 
 // handler to switch which library the user is looking at

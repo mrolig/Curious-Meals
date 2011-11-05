@@ -328,9 +328,14 @@ func (self *importer) importMenus() {
 				key = existingKey
 			}
 		}
-		for index, dishKey := range jsonMenu.Dishes {
-			jsonMenu.Dishes[index] = self.restoreKey(dishKey.Encode(), self.lid)
+		newDishes := make([]*datastore.Key, 0, len(jsonMenu.Dishes))
+		for _, dishKey := range jsonMenu.Dishes {
+			destKey := self.restoreKey(dishKey.Encode(), self.lid)
+			if !destKey.Incomplete() {
+				newDishes = append(newDishes, destKey)
+			}
 		}
+		jsonMenu.Dishes = newDishes
 		jsonMenu.Id = ""
 		putItems = append(putItems, jsonMenu)
 		putKeys = append(putKeys, key)
