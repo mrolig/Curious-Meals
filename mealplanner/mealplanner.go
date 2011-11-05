@@ -163,6 +163,33 @@ func dishHandler(c *context) {
 		updateDishKeywords(c, key, &dish)
 	case "DELETE":
 		handler.delete(key)
+		// removing an pairings that reference this dish
+		query := c.NewQuery("Pairing").Filter("Other=", key).KeysOnly()
+		keys, err:= query.GetAll(c.c, nil)
+		check(err)
+		datastore.DeleteMulti(c.c, keys)
+		for _, pk := range keys {
+			memcache.Delete(c.c, "/dish/" + pk.Parent().Encode() + "/pairing/")
+		}
+		// fix any menus referencing this dish
+		query = c.NewQuery("Menu")
+		iter := query.Run(c.c)
+		menu := &Menu{}
+		for mkey, err := iter.Next(menu);
+				err == nil;
+				mkey, err = iter.Next(menu) {
+			newDishes := make([]*datastore.Key, 0, len(menu.Dishes))
+			for _, dkey := range(menu.Dishes) {
+				if !key.Eq(dkey) {
+					newDishes = append(newDishes, dkey)
+				}
+			}
+			if len(newDishes) < len(menu.Dishes) {
+				menu.Dishes = newDishes
+				datastore.Put(c.c, mkey, menu)
+				memcache.Delete(c.c, "/menu/" + mkey.Encode())
+			}
+		}
 	}
 }
 
@@ -574,6 +601,45 @@ func (self *context) getUid() string {
 	return uid
 }
 
+func getOwnLibrary(c appengine.Context, u *user.User) (*datastore.Key, *Library, bool) {
+	uid := u.Id
+	if len(uid) == 0 {
+		uid = u.Email
+	}
+	init := false
+	lid := datastore.NewKey(c, "Library", uid, 0, nil)
+	l := &Library{}
+	_, err := memcache.Gob.Get(c, lid.Encode(), l)
+	if err == memcache.ErrCacheMiss {
+		err = datastore.Get(c, lid, l)
+		if err == datastore.ErrNoSuchEntity {
+			l = &Library{uid, 0, u.String(), ""}
+			lid, err = datastore.Put(c, lid, l)
+			check(err)
+			init = true
+		}
+		memcache.Gob.Set(c, &memcache.Item{Key:lid.Encode(), Object: l})
+	}
+	return lid, l, init
+}
+
+func getLibPerm(c appengine.Context, uid string, libKey *datastore.Key) *Perm {
+	accessCacheKey := uid + "Perm" + libKey.Encode()
+	perm := &Perm{}
+	_, err := memcache.Gob.Get(c, accessCacheKey, perm)
+	if err != nil {
+		query := datastore.NewQuery("Perm").Ancestor(libKey).Filter("UserId =", uid).Limit(1)
+		iter := query.Run(c)
+		if _, err = iter.Next(perm); err == nil {
+			// save the permision back to the cache
+			memcache.Gob.Set(c, &memcache.Item{Key:accessCacheKey,Object:perm})
+		} else  {
+			return nil
+		}
+	}
+	return perm
+}
+
 func newContext(w http.ResponseWriter, r *http.Request) *context {
 	c := appengine.NewContext(r)
 	u := user.Current(c)
@@ -581,46 +647,41 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 	if len(uid) == 0 {
 		uid = u.Email
 	}
-	query := datastore.NewQuery("Library").Filter("OwnerId =", uid).Limit(1)
-	libs := make([]Library, 0, 1)
-	keys, err := query.GetAll(c, &libs)
-	check(err)
-	var l *Library
+	lid, l, init := getOwnLibrary(c, u)
+	upl, err := datastore.DecodeKey(l.UserPreferredLibrary)
+	if err != nil {
+		//fmt.Fprintf(w, "No UPL %v", l.UserPreferredLibrary)
+		upl = nil
+	}
 	readOnly := false
-	init := false
-	var lid *datastore.Key
-	if len(libs) == 0 {
-		key := datastore.NewKey(c, "Library", "", 0, nil)
-		l = &Library{uid, 0, u.String(), ""}
-		lid, err = datastore.Put(c, key, l)
-		check(err)
-		init = true
-	} else {
-		l = &libs[0]
-		lid = keys[0]
-		upl, err := datastore.DecodeKey(libs[0].UserPreferredLibrary)
-		if err != nil {
-			upl = nil
-		}
-		// use an alternate library if the user wants to
-		if upl != nil && !keys[0].Eq(upl) {
-			query = datastore.NewQuery("Perm").Ancestor(upl).Filter("UserId =", uid).Limit(1)
-			perms := make([]Perm, 0, 1)
-			permKeys, err := query.GetAll(c, &perms)
-			check(err)
-			if len(permKeys) > 0 {
-				// we have permission for this other library, fetch it
-				readOnly = perms[0].ReadOnly
-				err = datastore.Get(c, upl, l)
-				if err == nil {
-					lid = upl
-				} else  {
-					// user can't get to this library, update thieir record
-					//  so we dont fail all the time
-					libs[0].UserPreferredLibrary = ""
-					datastore.Put(c, keys[0], &libs[0])
-				}
+	// use an alternate library if the user wants to
+	if upl != nil && !lid.Eq(upl) {
+		perm := getLibPerm(c, uid, upl)
+		//fmt.Fprintf(w, "Try UPL %v, %v\n", l.UserPreferredLibrary, perm)
+		var otherlib *Library = nil
+		if perm != nil {
+			otherlib = &Library{}
+			_, err = memcache.Gob.Get(c, upl.Encode(), otherlib)
+			//fmt.Fprintf(w, "cache %v %v\n", err, otherlib)
+			if err != nil {
+				err = datastore.Get(c, upl, otherlib)
+				//fmt.Fprintf(w, "ds %v %v\n", err, otherlib)
 			}
+			if err == nil {
+				lid = upl
+				l = otherlib
+				// save the library back to the cache
+				memcache.Gob.Set(c, &memcache.Item{Key:upl.Encode(), Object:otherlib})
+			}
+		}
+		if l != otherlib {
+			// user can't get to this library, update thieir record
+			//  so we dont fail all the time
+			l.UserPreferredLibrary = ""
+			datastore.Put(c, lid, l)
+			memcache.Gob.Set(c, &memcache.Item{Key:lid.Encode(), Object: l})
+		} else {
+			readOnly = perm.ReadOnly
 		}
 	}
 	ctxt := &context{w, r, c, u, uid, l, lid, readOnly}
@@ -1045,10 +1106,13 @@ func shareAcceptHandler(c *context) {
 	}
 	// delete the share request so it can't be used again
 	datastore.Delete(c.c, key)
+	accessCacheKey := uid + "Perm" + libKey.Encode()
+	memcache.Gob.Set(c.c, &memcache.Item{Key:accessCacheKey, Object:&perm})
 
 	// update the user's record to use the shared library
 	c.l.UserPreferredLibrary = libKey.Encode()
 	datastore.Put(c.c, c.lid, c.l)
+	memcache.Gob.Set(c.c, &memcache.Item{Key:c.lid.Encode(),Object:c.l})
 	indexHandler(c)
 }
 
@@ -1061,15 +1125,11 @@ type UserLibrary struct {
 }
 // return a list of libraries this user can access
 func librariesHandler(c *context) {
+	lid, l, _ := getOwnLibrary(c.c, c.u)
 	uid := c.getUid()
-	query := datastore.NewQuery("Library").Filter("OwnerId =", uid).Limit(1)
-	libs := make([]Library, 0, 1)
-	keys, err := query.GetAll(c.c, &libs)
-	check(err)
 	libraries := make([]UserLibrary, 0, 10)
-	libraries = append(libraries, UserLibrary{keys[0], libs[0].Name, false,
-		keys[0].Eq(c.lid), true})
-	query = datastore.NewQuery("Perm").Filter("UserId=", uid)
+	libraries = append(libraries, UserLibrary{lid, l.Name, false, lid.Eq(c.lid), true})
+	query := datastore.NewQuery("Perm").Filter("UserId=", uid)
 	iter := query.Run(c.c)
 	perm := Perm{}
 	for key, err := iter.Next(&perm);
@@ -1093,27 +1153,18 @@ func librariesHandler(c *context) {
 
 // handler to switch which library the user is looking at
 func switchHandler(c *context) {
-	uid := c.getUid()
 	desiredKey, err := datastore.DecodeKey(getID(c.r))
 	check(err)
 	if desiredKey.Kind() != "Library" {
 		check(ErrUnknownItem)
 	}
 	// start by getting the user's own library
-	query := datastore.NewQuery("Library").Filter("OwnerId =", uid).Limit(1)
-	libs := make([]Library, 0, 1)
-	keys, err := query.GetAll(c.c, &libs)
-	check(err)
-	if len(libs) == 0 {
-		return
-	}
-	if !keys[0].Eq(desiredKey) {
+	lid, l, _ := getOwnLibrary(c.c, c.u)
+	if !lid.Eq(desiredKey) {
 		// user want's to see someone else's library, check if they have
 		// permission
-		query = datastore.NewQuery("Perm").Ancestor(desiredKey).Filter("UserId=", uid).Limit(1).KeysOnly()
-		pkeys, err := query.GetAll(c.c, nil)
-		check(err)
-		if len(pkeys) == 0 {
+		perm := getLibPerm(c.c, c.uid, desiredKey)
+		if perm == nil {
 			check(os.EPERM)
 			return
 		}
@@ -1124,24 +1175,19 @@ func switchHandler(c *context) {
 	// we verified that the desiredKey is a library the user has permission to access
 	//  save their preference
 	if desiredKey != nil {
-		libs[0].UserPreferredLibrary = desiredKey.Encode()
+		l.UserPreferredLibrary = desiredKey.Encode()
 	} else {
-		libs[0].UserPreferredLibrary = ""
+		l.UserPreferredLibrary = ""
 	}
-	_, err = datastore.Put(c.c, keys[0], &libs[0])
+	_, err = datastore.Put(c.c, lid, l)
 	check(err)
+	memcache.Gob.Set(c.c, &memcache.Item{Key:lid.Encode(), Object:l})
 	indexHandler(c)
 }
 
 func deletelibHandler(c *context) {
-	uid := c.getUid()
-	query := datastore.NewQuery("Library").Filter("OwnerId =", uid).Limit(1)
-	libs := make([]Library, 0, 1)
-	keys, err := query.GetAll(c.c, &libs)
+	lid, _, _ := getOwnLibrary(c.c, c.u)
+	err := datastore.Delete(c.c, lid)
 	check(err)
-	if len(libs) == 0 {
-		return
-	}
-	err = datastore.Delete(c.c, keys[0])
-	check(err)
+	memcache.Delete(c.c, lid.Encode())
 }
