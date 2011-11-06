@@ -1,7 +1,6 @@
 package mealplanner
 
-import (
-)
+import ()
 
 // root of all elements, owned by exactly one user
 //  may have children specifying sharing for other users
@@ -36,4 +35,3 @@ func (self *Library) Owner() string {
 func (self *Library) SetOwner(o string) {
 	self.OwnerId = o
 }
-

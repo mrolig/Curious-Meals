@@ -24,14 +24,14 @@ type importer struct {
 	// decoded JSON data being imported
 	jsonData backup
 	// mapping from the string-id present in the jsonData
-   //  to the actual datastore key of the entity after import
+	//  to the actual datastore key of the entity after import
 	//  only for the case that the string-id isn't a valid key for our
-   //  library
+	//  library
 	fixUpKeys map[string]*datastore.Key
 	// an index of tags, (dish|ingredient)key -> tagstr -> dummy
-   //  keyed based on the actual datastore key we will use, not
-   //  the string from json
-	allTags map[string]map[string] bool
+	//  keyed based on the actual datastore key we will use, not
+	//  the string from json
+	allTags map[string]map[string]bool
 	// slice of all new tags to be added
 	newTags []interface{}
 	// slice of the keys for the new tags to be added
@@ -47,13 +47,13 @@ func importFile(c *context, file io.Reader) {
 		err := decoder.Decode(&data)
 		check(err)
 		worker := &importer{
-				context: *c,
-				jsonData : data,
-				fixUpKeys : make(map[string]*datastore.Key),
-				allTags : make(map[string]map[string] bool),
-				newTags : make([]interface{}, 0, 100),
-				newTagKeys : make([]*datastore.Key, 0, 100),
-				dirtyCacheEntries : make([]string, 0, 1000),
+			context:           *c,
+			jsonData:          data,
+			fixUpKeys:         make(map[string]*datastore.Key),
+			allTags:           make(map[string]map[string]bool),
+			newTags:           make([]interface{}, 0, 100),
+			newTagKeys:        make([]*datastore.Key, 0, 100),
+			dirtyCacheEntries: make([]string, 0, 1000),
 		}
 		worker.c = tc
 		worker.doImport()
@@ -103,9 +103,7 @@ func (self *importer) indexCurrentTags() {
 	query := self.NewQuery("Tags")
 	iter := query.Run(self.c)
 	word := &Word{}
-	for key, err := iter.Next(word);
-		err == nil;
-		key, err = iter.Next(word) {
+	for key, err := iter.Next(word); err == nil; key, err = iter.Next(word) {
 		parent := key.Parent().Encode()
 		var m map[string]bool
 		var found bool
@@ -171,15 +169,15 @@ func (self *importer) importIngredients() {
 	// put all the ingredients
 	outKeys, err := datastore.PutMulti(self.c, putKeys, putItems)
 	check(err)
-   // update the fixUpKeys for any new items
+	// update the fixUpKeys for any new items
 	// dirty the cache for any items that existed before
 	for index, putKey := range putKeys {
 		if putKey.Incomplete() {
 			self.fixUpKeys[putIds[index]] = outKeys[index]
 		} else {
-			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/ingredient/" + putKey.Encode())
-			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/ingredient/" + putKey.Encode() + "/tags/")
-			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/ingredient/" + putKey.Encode() + "/keywords/")
+			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/ingredient/"+putKey.Encode())
+			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/ingredient/"+putKey.Encode()+"/tags/")
+			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/ingredient/"+putKey.Encode()+"/keywords/")
 		}
 	}
 
@@ -230,16 +228,16 @@ func (self *importer) importDishes() {
 	// put all the dishes
 	outKeys, err := datastore.PutMulti(self.c, putKeys, putItems)
 	check(err)
-   // update the fixUpKeys for any new items
+	// update the fixUpKeys for any new items
 	for index, putKey := range putKeys {
 		if putKey.Incomplete() {
 			self.fixUpKeys[putIds[index]] = outKeys[index]
 		} else {
-			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/dish/" + putKey.Encode())
-			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/dish/" + putKey.Encode() + "/tags/")
-			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/dish/" + putKey.Encode() + "/keywords/")
-			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/dish/" + putKey.Encode() + "/pairing/")
-			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/dish/" + putKey.Encode() + "/mi/")
+			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/dish/"+putKey.Encode())
+			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/dish/"+putKey.Encode()+"/tags/")
+			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/dish/"+putKey.Encode()+"/keywords/")
+			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/dish/"+putKey.Encode()+"/pairing/")
+			self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/dish/"+putKey.Encode()+"/mi/")
 		}
 	}
 
@@ -260,13 +258,13 @@ func (self *importer) importDishes() {
 
 //jsonData.MeasuredIngredients map[string][]MeasuredIngredient
 func (self *importer) importMeasuredIngredients() {
-	miKeyFunc := func (key *datastore.Key, item interface{}) string {
-				return key.Parent().Encode() + item.(*MeasuredIngredient).Ingredient.Encode();
-			}
+	miKeyFunc := func(key *datastore.Key, item interface{}) string {
+		return key.Parent().Encode() + item.(*MeasuredIngredient).Ingredient.Encode()
+	}
 	// index existing items by their parent dish and the ingredient
 	//  they reference
 	prevMIs := self.indexItems(self.NewQuery("MeasuredIngredient"),
-			 &MeasuredIngredient{}, miKeyFunc)
+		&MeasuredIngredient{}, miKeyFunc)
 	count := len(self.jsonData.MeasuredIngredients)
 	putItems := make([]interface{}, 0, count)
 	putKeys := make([]*datastore.Key, 0, count)
@@ -300,7 +298,7 @@ func (self *importer) importMeasuredIngredients() {
 		// any modified entries need to be cleared from the cache
 		for _, putKey := range putKeys {
 			if !putKey.Incomplete() {
-				self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/dish/" + putKey.Parent().Encode() + "/mi/" + putKey.Encode())
+				self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/dish/"+putKey.Parent().Encode()+"/mi/"+putKey.Encode())
 			}
 		}
 	}
@@ -308,13 +306,13 @@ func (self *importer) importMeasuredIngredients() {
 
 //jsonData.Pairings map[string][]Pairing
 func (self *importer) importPairings() {
-	pairingKeyFunc := func (key *datastore.Key, item interface{}) string {
-					  return key.Parent().Encode() + item.(*Pairing).Other.Encode() + item.(*Pairing).Description;
-				  }
+	pairingKeyFunc := func(key *datastore.Key, item interface{}) string {
+		return key.Parent().Encode() + item.(*Pairing).Other.Encode() + item.(*Pairing).Description
+	}
 	// index existing items by their parent dish and the ingredient
 	//  they reference
 	prevPairings := self.indexItems(self.NewQuery("Pairing"),
-			 &Pairing{}, pairingKeyFunc)
+		&Pairing{}, pairingKeyFunc)
 	count := len(self.jsonData.Pairings)
 	putItems := make([]interface{}, 0, count)
 	putKeys := make([]*datastore.Key, 0, count)
@@ -347,19 +345,19 @@ func (self *importer) importPairings() {
 		// any modified entries need to be cleared from the cache
 		for _, putKey := range putKeys {
 			if !putKey.Incomplete() {
-				self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/dish/" + putKey.Parent().Encode() + "/pairing/" + putKey.Encode())
+				self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/dish/"+putKey.Parent().Encode()+"/pairing/"+putKey.Encode())
 			}
 		}
 	}
 }
 
 func (self *importer) importMenus() {
-	menuKeyFunc := func (key *datastore.Key, item interface{}) string {
-						 return item.(*Menu).Name
-					 }
+	menuKeyFunc := func(key *datastore.Key, item interface{}) string {
+		return item.(*Menu).Name
+	}
 	// index existing items by their name
 	prevMenus := self.indexItems(self.NewQuery("Menu"), &Menu{},
-						  menuKeyFunc)
+		menuKeyFunc)
 	count := len(self.jsonData.Menus)
 	putItems := make([]interface{}, 0, count)
 	putKeys := make([]*datastore.Key, 0, count)
@@ -389,18 +387,17 @@ func (self *importer) importMenus() {
 		// any modified entries need to be cleared from the cache
 		for _, putKey := range putKeys {
 			if !putKey.Incomplete() {
-				self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/menu/" + "/menu/" + putKey.Encode())
+				self.dirtyCacheEntries = append(self.dirtyCacheEntries, "/menu/"+"/menu/"+putKey.Encode())
 			}
 		}
 	}
 }
 
-
 // jsonData.Tags map[string][]Word
 // take a slice of ids as appeared in json and slice of
 //  keys as now stored for items with tags
 // add any tags for these items that were in json but not yet stored
-func (self *importer) importTags (ids []string, keys []*datastore.Key) {
+func (self *importer) importTags(ids []string, keys []*datastore.Key) {
 	for index, parentKey := range keys {
 		parentId := ids[index]
 		destId := keys[index].Encode()
@@ -417,7 +414,7 @@ func (self *importer) importTags (ids []string, keys []*datastore.Key) {
 			for _, tag := range importTags {
 				if _, found := myTags[tag.Word]; !found {
 					// this tag doesn't exist yet, add to our list
-					self.newTags = append(self.newTags, &Word{"",tag.Word})
+					self.newTags = append(self.newTags, &Word{"", tag.Word})
 					newTagKey := datastore.NewIncompleteKey(self.c, "Tags", parentKey)
 					self.newTagKeys = append(self.newTagKeys, newTagKey)
 					myTags[tag.Word] = true
@@ -428,12 +425,10 @@ func (self *importer) importTags (ids []string, keys []*datastore.Key) {
 }
 
 func (self *importer) indexItems(query *datastore.Query, item interface{},
-	keyFunc func (*datastore.Key, interface{}) string ) map[string]*datastore.Key {
+keyFunc func(*datastore.Key, interface{}) string) map[string]*datastore.Key {
 	index := make(map[string]*datastore.Key)
 	iter := query.Run(self.c)
-	for dataKey, err := iter.Next(item);
-			err == nil;
-			dataKey, err = iter.Next(item) {
+	for dataKey, err := iter.Next(item); err == nil; dataKey, err = iter.Next(item) {
 		indexKey := keyFunc(dataKey, item)
 		if len(indexKey) > 0 {
 			index[indexKey] = dataKey
@@ -441,4 +436,3 @@ func (self *importer) indexItems(query *datastore.Query, item interface{},
 	}
 	return index
 }
-

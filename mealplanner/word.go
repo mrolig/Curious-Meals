@@ -1,7 +1,6 @@
 package mealplanner
 
-import (
-)
+import ()
 
 type Word struct {
 	Id   string

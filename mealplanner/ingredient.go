@@ -1,7 +1,6 @@
 package mealplanner
 
-import (
-)
+import ()
 
 type Ingredient struct {
 	Id       string

@@ -67,7 +67,7 @@ func permHandler(handler handlerFunc) http.HandlerFunc {
 func cacheHandler(handler handlerFunc) http.HandlerFunc {
 	return permHandler(func(c *context) {
 		if c.r.Method == "GET" {
-			item, err := memcache.Get(c.c, c.lid.Encode() + c.r.URL.Path)
+			item, err := memcache.Get(c.c, c.lid.Encode()+c.r.URL.Path)
 			switch err {
 			case nil:
 				c.w.Write(item.Value)
@@ -165,21 +165,19 @@ func dishHandler(c *context) {
 		handler.delete(key)
 		// removing an pairings that reference this dish
 		query := c.NewQuery("Pairing").Filter("Other=", key).KeysOnly()
-		keys, err:= query.GetAll(c.c, nil)
+		keys, err := query.GetAll(c.c, nil)
 		check(err)
 		datastore.DeleteMulti(c.c, keys)
 		for _, pk := range keys {
-			memcache.Delete(c.c, "/dish/" + pk.Parent().Encode() + "/pairing/")
+			memcache.Delete(c.c, "/dish/"+pk.Parent().Encode()+"/pairing/")
 		}
 		// fix any menus referencing this dish
 		query = c.NewQuery("Menu")
 		iter := query.Run(c.c)
 		menu := &Menu{}
-		for mkey, err := iter.Next(menu);
-				err == nil;
-				mkey, err = iter.Next(menu) {
+		for mkey, err := iter.Next(menu); err == nil; mkey, err = iter.Next(menu) {
 			newDishes := make([]*datastore.Key, 0, len(menu.Dishes))
-			for _, dkey := range(menu.Dishes) {
+			for _, dkey := range menu.Dishes {
 				if !key.Eq(dkey) {
 					newDishes = append(newDishes, dkey)
 				}
@@ -187,7 +185,7 @@ func dishHandler(c *context) {
 			if len(newDishes) < len(menu.Dishes) {
 				menu.Dishes = newDishes
 				datastore.Put(c.c, mkey, menu)
-				memcache.Delete(c.c, "/menu/" + mkey.Encode())
+				memcache.Delete(c.c, "/menu/"+mkey.Encode())
 			}
 		}
 	}
@@ -545,7 +543,6 @@ func menuHandler(c *context) {
 	}
 }
 
-
 func readJSON(r *http.Request, object interface{}) {
 	err := json.NewDecoder(r.Body).Decode(object)
 	check(err)
@@ -618,7 +615,7 @@ func getOwnLibrary(c appengine.Context, u *user.User) (*datastore.Key, *Library,
 			check(err)
 			init = true
 		}
-		memcache.Gob.Set(c, &memcache.Item{Key:lid.Encode(), Object: l})
+		memcache.Gob.Set(c, &memcache.Item{Key: lid.Encode(), Object: l})
 	}
 	return lid, l, init
 }
@@ -632,8 +629,8 @@ func getLibPerm(c appengine.Context, uid string, libKey *datastore.Key) *Perm {
 		iter := query.Run(c)
 		if _, err = iter.Next(perm); err == nil {
 			// save the permision back to the cache
-			memcache.Gob.Set(c, &memcache.Item{Key:accessCacheKey,Object:perm})
-		} else  {
+			memcache.Gob.Set(c, &memcache.Item{Key: accessCacheKey, Object: perm})
+		} else {
 			return nil
 		}
 	}
@@ -671,7 +668,7 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 				lid = upl
 				l = otherlib
 				// save the library back to the cache
-				memcache.Gob.Set(c, &memcache.Item{Key:upl.Encode(), Object:otherlib})
+				memcache.Gob.Set(c, &memcache.Item{Key: upl.Encode(), Object: otherlib})
 			}
 		}
 		if l != otherlib {
@@ -679,7 +676,7 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 			//  so we dont fail all the time
 			l.UserPreferredLibrary = ""
 			datastore.Put(c, lid, l)
-			memcache.Gob.Set(c, &memcache.Item{Key:lid.Encode(), Object: l})
+			memcache.Gob.Set(c, &memcache.Item{Key: lid.Encode(), Object: l})
 		} else {
 			readOnly = perm.ReadOnly
 		}
@@ -724,37 +721,37 @@ func (self *context) sendJSON(object interface{}) {
 	self.w.(io.Writer).Write(j)
 	cacheKey := self.lid.Encode() + self.r.URL.Path
 	switch self.r.Method {
-		case "POST":
-			// posting is adding a new item, the URL is the "collection"
-			//  URL, and the new item is being returned
-			// thus we should delete the now dirty collection from the cache
-			//  and add the new item to the cache
-			memcache.Delete(self.c, cacheKey)
+	case "POST":
+		// posting is adding a new item, the URL is the "collection"
+		//  URL, and the new item is being returned
+		// thus we should delete the now dirty collection from the cache
+		//  and add the new item to the cache
+		memcache.Delete(self.c, cacheKey)
+		if cacheKey[len(cacheKey)-1] != '/' {
+			memcache.Delete(self.c, cacheKey+"/")
+		} else {
+			memcache.Delete(self.c, cacheKey[:len(cacheKey)-1])
+		}
+		if ider, ok := object.(Ided); ok {
 			if cacheKey[len(cacheKey)-1] != '/' {
-				memcache.Delete(self.c, cacheKey + "/")
-			} else {
-				memcache.Delete(self.c, cacheKey[:len(cacheKey)-1])
+				cacheKey += "/"
 			}
-			if ider, ok := object.(Ided); ok {
-				if cacheKey[len(cacheKey)-1] != '/' {
-					cacheKey += "/"
-				}
-				cacheKey += ider.ID()
-				memcache.Set(self.c, &memcache.Item{Key:cacheKey,Value:j})
-			}
-		case "PUT":
-			// PUT is updating an item, we should update the cache
-			//  with this item, and clear the parent collection
-			memcache.Set(self.c, &memcache.Item{Key:cacheKey,Value:j})
-			id := getID(self.r)
-			parentKey := cacheKey[:len(cacheKey)-len(id)]
-			memcache.Delete(self.c, parentKey)
-			memcache.Delete(self.c, parentKey[:len(parentKey)-1])
-		case "GET":
-			//  GETs are getting the item, we should add to the cache
-			memcache.Set(self.c, &memcache.Item{Key:cacheKey,Value:j})
-		case "DELETE":
-			// we shouldn't get here, deletes don't send back JSON
+			cacheKey += ider.ID()
+			memcache.Set(self.c, &memcache.Item{Key: cacheKey, Value: j})
+		}
+	case "PUT":
+		// PUT is updating an item, we should update the cache
+		//  with this item, and clear the parent collection
+		memcache.Set(self.c, &memcache.Item{Key: cacheKey, Value: j})
+		id := getID(self.r)
+		parentKey := cacheKey[:len(cacheKey)-len(id)]
+		memcache.Delete(self.c, parentKey)
+		memcache.Delete(self.c, parentKey[:len(parentKey)-1])
+	case "GET":
+		//  GETs are getting the item, we should add to the cache
+		memcache.Set(self.c, &memcache.Item{Key: cacheKey, Value: j})
+	case "DELETE":
+		// we shouldn't get here, deletes don't send back JSON
 	}
 }
 
@@ -819,9 +816,9 @@ func (self *dataHandler) delete(key *datastore.Key) {
 	cacheKey := self.lid.Encode() + self.r.URL.Path
 	// remove this item from the cache
 	memcache.Delete(self.c, cacheKey)
-   // remove the parent from the cache too
+	// remove the parent from the cache too
 	// strip off the key from the URL
-	parentURL := cacheKey[:len(cacheKey) - len(key.Encode())]
+	parentURL := cacheKey[:len(cacheKey)-len(key.Encode())]
 	memcache.Delete(self.c, parentURL)
 	// also without the /
 	memcache.Delete(self.c, parentURL[:len(parentURL)-1])
@@ -954,7 +951,6 @@ func allTagsHandler(c *context) {
 	}
 	c.sendJSON(tags)
 }
-
 
 func backupHandler(c *context) {
 	b := backup{}
@@ -1107,12 +1103,12 @@ func shareAcceptHandler(c *context) {
 	// delete the share request so it can't be used again
 	datastore.Delete(c.c, key)
 	accessCacheKey := uid + "Perm" + libKey.Encode()
-	memcache.Gob.Set(c.c, &memcache.Item{Key:accessCacheKey, Object:&perm})
+	memcache.Gob.Set(c.c, &memcache.Item{Key: accessCacheKey, Object: &perm})
 
 	// update the user's record to use the shared library
 	c.l.UserPreferredLibrary = libKey.Encode()
 	datastore.Put(c.c, c.lid, c.l)
-	memcache.Gob.Set(c.c, &memcache.Item{Key:c.lid.Encode(),Object:c.l})
+	memcache.Gob.Set(c.c, &memcache.Item{Key: c.lid.Encode(), Object: c.l})
 	indexHandler(c)
 }
 
@@ -1132,9 +1128,7 @@ func librariesHandler(c *context) {
 	query := datastore.NewQuery("Perm").Filter("UserId=", uid)
 	iter := query.Run(c.c)
 	perm := Perm{}
-	for key, err := iter.Next(&perm);
-		err == nil;
-		key, err = iter.Next(&perm) {
+	for key, err := iter.Next(&perm); err == nil; key, err = iter.Next(&perm) {
 		lib := Library{}
 		libkey := key.Parent()
 		err = datastore.Get(c.c, libkey, &lib)
@@ -1181,7 +1175,7 @@ func switchHandler(c *context) {
 	}
 	_, err = datastore.Put(c.c, lid, l)
 	check(err)
-	memcache.Gob.Set(c.c, &memcache.Item{Key:lid.Encode(), Object:l})
+	memcache.Gob.Set(c.c, &memcache.Item{Key: lid.Encode(), Object: l})
 	indexHandler(c)
 }
 
