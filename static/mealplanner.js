@@ -1999,10 +1999,15 @@ jQuery(function() {
             dish.ingredients.each(function(ingredient) {
                var model = Ingredients.get(ingredient.get("Ingredient"));
                if (model) {
+                  var text =dish.get("Name");
+                  var amount = ingredient.get("Amount");
+                  if (amount.length > 0) {
+                     text = "[" + amount + "] " + text;
+                  }
                   if (model.id in allIngredients) {
-                     allIngredients[model.id].dishes.push(dish.get("Name")); 
+                     allIngredients[model.id].dishes.push(text); 
                   } else {
-                     allIngredients[model.id] = {ingredient : model, dishes : [dish.get("Name")]};
+                     allIngredients[model.id] = {ingredient : model, dishes : [text]};
                   }
                }
             });
@@ -2049,11 +2054,10 @@ jQuery(function() {
                if (index > 0) {
                   $li.append(", ");
                } else {
-                  $li.append(" (");
+                  $li.append(" &dash; ");
                   }
                   $li.append(dishName);
                });
-               $li.append(")");
          });
          
          // delay chart drawing, because it fails if the
