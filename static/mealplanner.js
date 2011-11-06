@@ -1,137 +1,11 @@
+// load google's visualization for charts
 google.load("visualization", "1", {packages:["corechart"]});
-(function($) {
-   // make the element hide when the specified container element is hovered
-   $.fn.autoHide = function(options) {
-      if (options.handle) {
-         // start hidden
-         this.hide();
-         // unhide when the handle hovers
-         options.handle.hover(function() {
-            this.show();
-         }.bind(this), function() {
-            this.hide();
-         }.bind(this));
-      }
-      return this;
-   }
-   // make the element appear only when the handele is clicked
-   $.fn.mpmenu = function(options) {
-      if (options.handle) {
-			var $icon = $("<span class='ui-icon inline ui-icon-triangle-1-e'></span>");
-			options.handle.prepend($icon);
-         // start hidden, attach to body to avoid a clipping parent
-         this.hide()
-				.appendTo(document.body)
-				.addClass("menu")
-				.addClass("ui-corner-bottom");
-         // unhide when the handle hovers
-         options.handle.click(function() {
-				if (this.is(":hidden")) {
-					var pos = options.handle.offset();
-					this.css("top", pos.top + options.handle.height());
-					this.css("left", pos.left);
-					$icon.addClass("ui-icon-triangle-1-s");
-					$icon.removeClass("ui-icon-triangle-1-e");
-            	this.show('blind');
-				} else {
-					$icon.addClass("ui-icon-triangle-1-e");
-					$icon.removeClass("ui-icon-triangle-1-s");
-            	this.hide('blind');
-				}
-         }.bind(this));
-      }
-      return this;
-   }
-   $.fn.hoverView = function(options) {
-      this.addClass('hover-view');
-      this.addClass('ui-widget-content');
-      if ("left" in options && "right" in options) {
-         if (options.left < 200) {
-            this.css("left", options.left);
-         } else {
-            this.css("right", options.right);
-         }
-      } else if ("left" in options) {
-         this.css("left", options.left);
-      } else if ("right" in options) {
-         this.css("right", options.right);
-      }
-      if ("top" in options) {
-         this.css("top", options.top);
-      }
-      return this; 
-   }
-   $.fn.appendNew = function(tag, attributes, content) {
-      var $new = $.make(tag, attributes, content);
-      this.append($new);
-      return this;
-   }
-   $.make = function(tag, attributes, content) {
-      var $e = $(document.createElement(tag));
-      if (attributes) {
-         if (typeof(attributes) == "string") {
-            $e.html(attributes)
-         } else {
-            $e.attr(attributes);
-         }
-      }
-      if (content) $e.html(content);
-      return $e;
-   }
-   // do 'default' stying to a text input
-   $.fn.textInput = function(options) {
-      var defaults = { size: 20 };
-      var options = $.extend(defaults, options);
-      this.addClass("ui-widget");
-      var self = this;
-      // select content when focused
-      this.focus(function() {
-         setTimeout(function() {
-            self.select()
-         }, 10);
-      });
-      this.attr("size", options.size);
-      return this;
-   }
-   $.fn.combo = function (options) {
-      options.minLength = 0;
-      this.autocomplete(options)
-         .addClass("ui-widget")
-         .addClass("ui-combo")
-         .css("margin-right", 0);
-      this.each(function(index, autocomplete) {
-         var $autocomplete = $(autocomplete);
-
-         $("<div></div>")
-            .insertAfter(this)
-            .button({
-               icons: {
-               primary: "ui-icon-triangle-1-s"
-               },
-               text: false,
-               label: "Show suggested values"
-            })
-            .removeClass( "ui-corner-all" )
-            .addClass( "ui-corner-right" )
-            .click(function() {
-               $(this).blur();
-               $autocomplete.autocomplete("search", "" );
-               $autocomplete.focus();
-            });
-      });
-      return this;
-   }
-   $.zfill = function (str, count) {
-      var zeros = count - str.toString().length;
-      if (zeros <= 0) return str;
-      var ret = Array(zeros+1).join("0") + str;
-      return ret;
-   }
-    
-})(jQuery);
 
 jQuery(function() {
    "use strict";
+   // Base "class" for models, add in the parsing logic to fix-up "Id" attribute
+   //  and make it 'id' to play nicely with backbone (Go's JSON needs Id be able to access it)
+   // also adds support for collectionURLs to help with nested collections
    window.MealplannerModel = Backbone.Model.extend({
       // override parse, so that we can copy the "Id" to "id"
       //  Go has to use upper case and backbone needs lower case
@@ -141,6 +15,7 @@ jQuery(function() {
          this.setCollectionURLs(attrs.id);
          return attrs;
       },
+      // method to set the URLs for nested collections once the id is available
       setCollectionURLs : function(id) {
          if (id && this.collectionURLs)
          {
@@ -154,6 +29,10 @@ jQuery(function() {
          }
       }
    });
+   
+   // Base "class" for collections, adding in the parsing logic to fix-up "Id" to be "id"
+   //  add information to know if we've fetched before or not, and fetchOnce to only 
+   //  fetch the first time
    window.MealplannerCollection = Backbone.Collection.extend({
       // override parse, so that we can copy the "Id" to "id"
       //  Go has to use upper case and backbone needs lower case
@@ -165,6 +44,8 @@ jQuery(function() {
          }
          return models;
       },
+      // override fetch so we track if we've called and completed fetch
+      //  adds fetchCalled and fetched boolean members
       fetch : function(options) {
          if (this.url && ((!jQuery.isFunction(this.url)) || this.url())) {
             this.fetchCalled = true;
@@ -187,11 +68,27 @@ jQuery(function() {
          return this.fetch(options);
       }
    });
+   // model for user information
+   window.User = MealplannerModel.extend({ });
+
+   // model for UserList
+   window.UserList = MealplannerCollection.extend({
+      url: "/users",
+      model: User
+   })
+
+   // simple model to represent a search
+   window.Search = MealplannerModel.extend({
+      defaults : {Rating: 0}
+   });
+   // model for Word (used for tags and keywords)
    window.Word = MealplannerModel.extend({
       defaults : {
          Word : ""
       }
    });
+   // collection of words, including methods hasWord and getWord
+   // to help search
    window.WordList = MealplannerCollection.extend({
       model: Word,
       comparator : function(mi) {
@@ -208,6 +105,9 @@ jQuery(function() {
             });
       }
    })
+   // model of pairing, which has suggestions for two dishes
+   //  will be the child of one dish, pointing to another -- Description
+   //  is "Alternative" or "Recommended"
    window.Pairing = MealplannerModel.extend({
       defaults : {
          Other : "",
@@ -217,6 +117,7 @@ jQuery(function() {
    window.PairingList = MealplannerCollection.extend({
       model: Pairing
    })
+   // children of a dish that link to ingredients, including amount and instructions
    window.MeasuredIngredient = MealplannerModel.extend({
       defaults : {
          Ingredient : "",
@@ -231,22 +132,13 @@ jQuery(function() {
          return mi.get("Order");
       },
    })
+   // dish, which includes collections of tags, pairings and measured ingredients
    window.Dish = MealplannerModel.extend({
-      initialize: function() {
-         this.ingredients = new MeasuredIngredientList;
-         this.tags = new WordList;
-			this.pairings = new PairingList;
-         this.setCollectionURLs(this.id);
-      },
-      validate: function(attrs) {
-         if (attrs.Name && attrs.Name.length == 0)
-            return "Must give your dish a name";
-         if (attrs.PrepTimeMinutes != undefined
-               && isNaN(attrs.PrepTimeMinutes))
-            return "Must give prep time in minutes";
-         if (attrs.CookTimeMinutes != undefined
-               && isNaN(attrs.CookTimeMinutes))
-            return "Must give cook time in minutes";
+      // list the nested collections so they can have their URL's set
+      collectionURLs : {
+         "ingredients" : "mi",
+         "tags" : "tags",
+         "pairings" : "pairing"
       },
       defaults : function() { return {
          Name : "<New Dish>",
@@ -262,10 +154,21 @@ jQuery(function() {
          ServingsVeggies : 0
        };
       },
-      collectionURLs : {
-         "ingredients" : "mi",
-         "tags" : "tags",
-         "pairings" : "pairing"
+      initialize: function() {
+         this.ingredients = new MeasuredIngredientList;
+         this.tags = new WordList;
+			this.pairings = new PairingList;
+         this.setCollectionURLs(this.id);
+      },
+      validate: function(attrs) {
+         if (attrs.Name && attrs.Name.length == 0)
+            return "Must give your dish a name";
+         if (attrs.PrepTimeMinutes != undefined
+               && isNaN(attrs.PrepTimeMinutes))
+            return "Must give prep time in minutes";
+         if (attrs.CookTimeMinutes != undefined
+               && isNaN(attrs.CookTimeMinutes))
+            return "Must give cook time in minutes";
       }
    });
    window.DishList = MealplannerCollection.extend({
@@ -274,6 +177,7 @@ jQuery(function() {
       comparator : function(dish) {
          return dish.get("Name");
       },
+      // helper method to get all DishTypes used to help with autocomplete
       allDishTypes : function() {
          var map = { Entree:1,Side:1,Appetizer:1,Dessert:1,Drink:1};
          this.each(function(d) {
@@ -285,6 +189,7 @@ jQuery(function() {
          }
          return list.sort();
       },
+      // helper method to get a list of all dishes for autocomplete
       allDishNames : function() {
          var list = [];
          this.each(function(d) {
@@ -292,23 +197,19 @@ jQuery(function() {
          });
          return list.sort();
       },
+      // helper method to find a dish using its name
       getDishByName : function(name) {
          var dish = null;
-         this.each(function(d) {
-            if (d.get("Name") == name)
-               dish = d;
+         return this.find(function(d) {
+            return d.get("Name") == name;
          });
-         return dish;
       }
    })
+   // Model for ingredient
    window.Ingredient = MealplannerModel.extend({
-      initialize: function() {
-         this.tags = new WordList;
-         this.setCollectionURLs(this.id);
-      },
-      validate: function(attrs) {
-         if (attrs.Name && attrs.Name.length == 0)
-            return "Must give your ingredient a name";
+      // register sub-collection of tags to keep URL updated
+      collectionURLs : {
+         "tags" : "tags"
       },
       defaults : function() { return {
          Name : "<New Ingredient>",
@@ -316,8 +217,13 @@ jQuery(function() {
          Source : "Vegan",
          Tags : [] };
       },
-      collectionURLs : {
-         "tags" : "tags"
+      initialize: function() {
+         this.tags = new WordList;
+         this.setCollectionURLs(this.id);
+      },
+      validate: function(attrs) {
+         if (attrs.Name && attrs.Name.length == 0)
+            return "Must give your ingredient a name";
       }
    });
    window.IngredientList = MealplannerCollection.extend({
@@ -326,7 +232,7 @@ jQuery(function() {
       comparator : function(ingredient) {
          return ingredient.get("Name");
       },
-      // return a list of all distinct categories
+      // return a list of all distinct categories for autocomplete
       allCategories : function() {
          var map = { Carbohydrate : true, Protein : true, Vegetable : true, Fruit : true, Sweet : true, Spice : true, Fat: true, Herb: true};
          this.each(function(ing) {
@@ -339,11 +245,14 @@ jQuery(function() {
          return categories.sort();
       }
    })
+   // Model of menu, which lists dishes
    window.Menu = MealplannerModel.extend({
       defaults : {
 			Name : "<New Menu>",
          Dishes : []
       },
+      // helper method to know if menu lists the given dish
+      // dish: Dish model
       hasDish : function (dish) {
          var dishes = this.get("Dishes");
          for(var d in dishes) {
@@ -352,19 +261,20 @@ jQuery(function() {
          }
          return false;
       },
+      // helper method to remove the specified dish
       removeDish : function (dish) {
          var dishes = this.get("Dishes");
-         for(var d in dishes) {
-            if (dishes[d] == dish.id) {
-               dishes.splice(d,1);
-            }
-         }
+         dishes = _.reject(dishes, function(id) {
+            return id == dish.id
+         });
          this.save({Dishes:dishes});
       }
    });
    window.MenuList = MealplannerCollection.extend({
       url: "/menu/",
       model: Menu,
+      // returns the "<New Menu>" menu which can't be deleted
+      // creates one if it doesn't exist yet
       getDraftMenu : function() {
          if (this.draft)
             return this.draft;
@@ -379,7 +289,10 @@ jQuery(function() {
          return this.draft;
       }
    })
+   // base "class" for mealplanner views, includes common methods used by many views
    window.MealplannerView = Backbone.View.extend({
+      // setup common event mappings for showing details when hovering
+      //  and tracking changes
       events : {
          "mouseover .dish" : "onEnterDish",
          "mouseleave .dish" : "onHoverLeave",
@@ -391,8 +304,12 @@ jQuery(function() {
          "autocompletechange input" : "onChange"
       },
       initialize : function() {
+         // always use jQuery object for el
          this.el = $(this.el);
+         // keep track if we're "dirty" -- meaning we have made changes
+         //  that need to be saved to the server
          this.dirty = 0;
+         // bind methods so we can pass them out and calls come back with our 'this'
          _.bindAll(this, "render");
          _.bindAll(this, "onChange");
          _.bindAll(this, "save");
@@ -402,9 +319,18 @@ jQuery(function() {
          _.bindAll(this, "newPairingDrop");
          _.bindAll(this, "newPairing");
          _.bindAll(this, "addPairingEvent");
+         // bind to the model so we'll re-render and show errors
          this.model.bind('error', this.saveError);
          this.model.bind('all', this.render);
       },
+      // create our basic layout:
+      // <div class='title'>
+      //   [icon] <span class='name'></span> <span class='buttons'></span>
+      // </div>
+      // <div class='fields'>
+      // </div>
+      // creates members: $title, $name, $buttons, $fields
+      // uses: options.readOnly, options.buttons
       createBasicView : function () {
          this.$title = $.make("div", {class:"title"})
             .appendTo(this.el);
@@ -439,6 +365,8 @@ jQuery(function() {
          this.$fields = $.make("div", {class:"fields"})
             .appendTo(this.el);
       },
+      // create a span with proper ui-icon classes to show an icon
+      // returns jQuery object
       makeIcon : function(iconClass, large) {
          var $icon = $.make("span")
             .addClass("ui-icon")
@@ -449,6 +377,12 @@ jQuery(function() {
          }
          return $icon;
       },
+      makeRemoveIcon : function() {
+         return $("<span class='remove ui-icon ui-icon-close'></span>");
+      },
+      // Add a new field to the $fields section
+      //  adds <span class='field-head'>[name]</span> [separator] [icon]
+      // returns jQuery object
       newField : function(name, icon, separator) {
          separator = separator || ": ";
          var $field = $.make("div", {class: "field" } )
@@ -465,6 +399,8 @@ jQuery(function() {
          }
          return $field;
       },
+      // Add a new rating field with stars to the $fields section
+      // returns jQuery object referencing the 5 star icons
       newRatingField : function (separator) {
          var $starField = this.newField("Rating", null, separator);
          for (var i = 0; i < 5; i++)
@@ -499,6 +435,9 @@ jQuery(function() {
          }
          return $starField.find(".ui-icon-star");
       },
+      // adds a new Tags field to the $fields section including
+      // edit box wired up to the parseTags method to add tags
+      // creates $tags element for the list of tags, used by renderTags method
       newTagsEditField : function() {
          var self = this;
          var $tagField = this.newField("Tags", "ui-icon-tag");
@@ -516,6 +455,9 @@ jQuery(function() {
             .appendTo($tagField);
          return $tagField;
       },
+      // creates the common layout for editing, similar structure to view,
+      //  $name is replaced with a text edit box, and the $error section is 
+      //  added for showing errors
       createEditView : function () {
          this.createBasicView();
          var $oldName = this.$name;
@@ -526,16 +468,23 @@ jQuery(function() {
                         .hide();
          this.$title.after(this.$error);
       },
+      // method to handle changes made on the ui, sets a timer to save
+      //  sets the dirty flag, and calls setModels method so UI data
+      //  can be written to the model
       onChange : function() {
          if (this.$save == undefined) return;
          this.dirty++;
+         // hide the error display, now that we might save again
          this.$error.hide();
+         // write changes to the model
          this.setModels();
+         // display the save button, set a timer to do the save
          if (this.$error == undefined || this.$error.is(":hidden")) {
             this.$save.button({disabled : false, label: "Save"}); 
             this.saveTimeout = setTimeout(this.save, 5000);
          }
       },
+      // method to delete the model, uses a common setting for a "are you sure" dialog
       del : function() {
          var self = this;
          if (window.SuppressAreYouSure) {
@@ -567,6 +516,7 @@ jQuery(function() {
                }
             })
       },
+      // save the changes if there are any
       save : function() {
          if (this.dirty) {
             if (this.model.url == undefined)
@@ -586,6 +536,7 @@ jQuery(function() {
             this.saveSuccess()
          }
       },
+      // handle a failure to save
       saveError : function(model, response) {
          this.dirty = 0;
          if (this.$save) {
@@ -596,15 +547,23 @@ jQuery(function() {
             this.$error.show();
          }
       },
+      // handle a successful save
       saveSuccess : function(model, response) {
          this.dirty--;
          if (this.$error) {
             this.$error.hide();
          }
          if (this.$save) {
-            this.$save.button({disabled : true, label : "Saved"}); 
+            if (this.dirty > 0) {
+               this.$save.button({disabled : false, label : "Save"}); 
+            } else {
+               this.$save.button({disabled : true, label : "Saved"}); 
+            }
          }
       },
+      // event handler when a "hoverable" item has the mouse enter
+      //  set a timer, so that in time we'll pop-up the detail view
+      //  of that item
       onHoverEnter : function(evt, viewCtor) {
          var target = evt.currentTarget;
          // check if this item has a model to give us data
@@ -651,6 +610,8 @@ jQuery(function() {
          }
          return false;
       },
+      // event handler to counter onHoverEnter, which hides/disables hover view
+      //  when the mouse leaves the element
       onHoverLeave : function (evt, ui) {
          var target = evt.currentTarget;
          if (target && target.$hoverView) {
@@ -771,7 +732,7 @@ jQuery(function() {
                .text(tag.get("Word"))
                .attr("href", "#search/" + tag.get("Word") + "//");
 				if (!self.options.readOnly) {
-            	var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
+            	var $delTag = self.makeRemoveIcon()
                	.appendTo($tag)
                	.click(function () {
                      	tag.destroy();
@@ -780,6 +741,7 @@ jQuery(function() {
 				}
          });
       },
+      // handle the event triggering a pairing to be added from input box
       addPairingEvent: function(e, ui) {
          var dishName = "";
          if (ui && ui.item) {
@@ -795,6 +757,9 @@ jQuery(function() {
          e.returnValue = "";
          return false;
       },
+      // initialize the view that displays pairings
+      // sets up the drop target from drag-drop and 
+      //  the autocompleted form for typing in the other dish name
       initPairings: function() {
          var $sugField = this.newField("Suggestions");
          this.$pairings = $("<div class='pairing-list'></div>")
@@ -832,7 +797,10 @@ jQuery(function() {
             this.$pairingsDrop.hide();
          }
       },
+      // render each pairing, uses a grouping by "Description"
+      //  also renders menus that include the dish
       renderPairings: function () {
+         // start by collecting all of the pairings, grouped by the description
          var $pairings = this.$pairings;
          var pairings = this.model.pairings;
          var collection = window.Dishes;
@@ -846,23 +814,28 @@ jQuery(function() {
 			   if (item)
 				   map[desc].push({other: item, pairing: pairing});
 		   });
+         // loop through the descriptions adding each
 			var self = this;
          _.each(map, function(list, desc) {
-			   $("<div class='pairing-head'></div>")
+			   $.make("div")
+               .addClass("pairing-head")
 				   .text(desc)
 				   .appendTo($pairings);
-			   var $ul = $("<ul class='pairing-list'></ul>")
+            // loop through each item and add it to a list
+			   var $ul = $.make("ul")
+               .addClass("pairing-list")
 				   .appendTo($pairings);
 			   _.each(list, function(pairing, p) {
-         	   var $pairing = $("<li class='pairing dish'><span class='ui-icon ui-icon-dish inline'></span></li>")
+         	   var $pairing = $.make("li", {"class":"pairing dish"})
+                  .append(self.makeIcon('ui-icon-dish'))
             	   .appendTo($ul);
                $pairing[0].model = pairing.other;
-         	   $("<a></a>")
+         	   $.make("a")
             	   .appendTo($pairing)
             	   .text(pairing.other.get("Name"))
             	   .attr("href", "#viewDish/" + pairing.other.id);
 					if(!self.options.readOnly) {
-         	   	var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
+         	   	var $delTag = self.makeRemoveIcon()
             	   	.appendTo($pairing)
             	   	.click(function () {
                   	   	pairing.pairing.destroy();
@@ -871,35 +844,43 @@ jQuery(function() {
 					}
 			   });
          });
+         // add the menus
          var dishId = this.model.id;
          var menus = Menus.filter(function(menu) {
             return _.indexOf(menu.get("Dishes"), dishId) != -1;
          });
          if (menus.length > 0) {
-			   $("<div class='pairing-head'></div>")
+			   $.make("div")
+               .addClass("pairing-head")
 				   .text("Menus")
 				   .appendTo($pairings);
-			   var $ul = $("<ul class='pairing-list'></ul>")
+			   var $ul = $.make("ul")
+               .addClass("pairing-list")
 				   .appendTo($pairings);
             _.each(menus, function(menu) {
-         	   var $pairing = $("<li class='pairing mpmenu'><span class='ui-icon ui-icon-menu inline'></span></li>")
+         	   var $pairing = $.make("li", {"class": "pairing"})
+                  .append(self.makeIcon("ui-icon-menu"))
             	   .appendTo($ul);
                $pairing[0].model = menu;
-         	   $("<a></a>")
+         	   $.make("a")
             	   .appendTo($pairing)
             	   .text(menu.get("Name"))
             	   .attr("href", "#viewMenu/" + menu.id);
             });
          }
       },
+      // add a new pairing
 	   addPairing : function (desc, other) {
 		   this.model.pairings.create({Other : other.id, Description : desc });
 	   },
+      // event handler called when a pair-able item is dropped
 	   newPairingDrop : function (evt, ui) {
          return this.newPairing(ui.draggable[0].model);
       },
+      // method to start dialog that prompts to add a new pairing
 	   newPairing : function (other) {
 		   var self = this;
+         // create a dialog with the names and buttos to pick the description
 		   var $dialog =$("<div></div>").appendTo(document.body);
 		   $dialog.text("For " + self.model.get("Name") + " and " + other.get("Name") + "?")
 		   $dialog.dialog({
@@ -920,9 +901,17 @@ jQuery(function() {
 			   }
 		   });
 	   },
+      // render a list of items, using the specified css class, the root of the
+      //  link to view it, and the plural of the item in english
+      // used by the list views
+      //  uses options.searchResults to filter the results
+      // assumes this.model is a collection
       renderItemNameList : function (cssclass, viewLink, englishPlural) {
+         // remove existing html
          this.el.children().remove();
          var self = this;
+         // create the filtered list of items, either all items of only those
+         // the search results have
          var filtered;
          if (this.options.searchResults != undefined) {
             var results = this.options.searchResults;
@@ -940,22 +929,25 @@ jQuery(function() {
             filtered = this.model.toArray();
          }
             
-         _.each(filtered, function(dish, idx) {
+         // loop through each item adding it to the list, using a table so that the
+         // if the text wraps, the icon stays in line with the first line and
+         //  the second line doen's flow to the left below the icon
+         _.each(filtered, function(item, idx) {
             var $li = $("<li><table class='li'><tr><td><span class='ui-icon inline ui-icon-"+cssclass+"'></span></td><td></td></tr></li>")
                .appendTo(self.el)
                .addClass(cssclass)
 				   .draggable({revert:true,helper:'clone',appendTo:'body'});
             var $td = $li.find("td").eq(1);
-            var name = dish.get("Name");
+            var name = item.get("Name");
             $("<a></a>")
                   .appendTo($td)
                   .text(name)
-                  .attr("href", "#" + viewLink + "/" + dish.id);
-            var rating = dish.get("Rating");
+                  .attr("href", "#" + viewLink + "/" + item.id);
+            var rating = item.get("Rating");
             if (rating && rating > 0) {
                $td.append("<span class='summary'><span class='ui-icon ui-icon-star rating count'></span>"+rating+"</span>");
             }
-			   $li[0].model = dish;
+			   $li[0].model = item;
          });
          if (filtered.length == 0) {
             var $li = $("<li>[No "+englishPlural+"]</li>")
@@ -963,8 +955,12 @@ jQuery(function() {
          }
          return this;
       },
+      // draw the nutritional balance chart using the google chart API
+      // NOTE: the $dest must be rooted in the document tree when this function
+      // is called
       drawChart : function ($dest, title, veggies, protein, carbs) {
          var data = new google.visualization.DataTable();
+         // add the data
          data.addColumn('string', 'Type');
          data.addColumn('number', 'Servings');
          data.addRows(3);
@@ -975,11 +971,55 @@ jQuery(function() {
          data.setValue(2,0, 'Carbohydrates');
          data.setValue(2,1, carbs);
          var chart = new google.visualization.PieChart($dest[0]);
+         // draw the chart
          chart.draw(data, {width: 100, height: 100, legend:'none',
             title : title, fontSize : 10, 
             colors : ["#459E00", "#B23500", "#770071"]});
-      } 
+      }, 
+      // handle cloning, popup a dialog to take the new name
+      //  
+      cloneMenu : function() {
+         var self = this;
+         var $dialog = $("<div><input type='text'></input></div>");
+         var save = function() {
+            var $input = $dialog.find("input");
+            if ($input.val().length > 0 &&
+                $input.val() != "<New Menu>")
+            {
+               var newAttrs = {Name:$input.val(),
+                  Dishes:self.model.get("Dishes")};
+               var newMenu = Menus.create(newAttrs, {
+                  success : function(model, resp, shr) {
+                     $dialog.dialog("close");
+                     App.viewMenu(newMenu);
+                     if (self.model == Menus.getDraftMenu()) {
+                        // empty the draft menu
+                        self.model.save({Dishes: [] });
+                     }
+                  }});
+            }
+         }
+         $dialog.appendTo(this.el)
+            .dialog({
+               modal: true,
+               title: "Menu Name?",
+               buttons : {
+                  Save : save,
+                  Cancel : function() {
+					      $(this).dialog("close");
+                  }
+               }});
+         $dialog.find("input")
+            .textInput({size:30})
+            .bind('keypress', function (evt) {
+               if (evt.which == 13) {
+                  evt.preventDefault();
+                  save();
+               }
+            });
+      }
    });
+   // dish list view, simply uses renderItemNameList
    window.DishListView = window.MealplannerView.extend({
       tagName : "ul",
       className : "dish-list",
@@ -988,6 +1028,16 @@ jQuery(function() {
          return this;
       }
    })
+   // ingredient list view, simply uses renderItemNameList
+   window.IngredientListView = window.MealplannerView.extend({
+      tagName : "ul",
+      className : "ingredient-list",
+      render : function() {
+         this.renderItemNameList("ingredient", "viewIngredient", "ingredients");
+         return this;
+      },
+   })
+   // simple view to show a dish
    window.DishView = window.MealplannerView.extend({
       tagName : "div",
       className : "dish-view",
@@ -999,8 +1049,11 @@ jQuery(function() {
       initialize: function() {
          var self = this;
          this.$vegIcon = null;
+         // call the initialize from the base "class"
          MealplannerView.prototype.initialize.call(this);
+         // bind the callback
          _.bindAll(this, "edit");
+         // bind event handlers for the nested collections
          this.model.tags.bind('all', this.render);
          this.model.ingredients.bind('all', this.render);
          this.model.pairings.bind('all', this.render);
@@ -1008,8 +1061,11 @@ jQuery(function() {
          this.model.tags.fetchOnce();
          // alway fetch pairings -- we don't always see them get added
          this.model.pairings.fetch();
+         // create the skeleton view
          this.createBasicView();
+         // add the rating field
          this.$stars = this.newRatingField();
+         // add the text input fields
          this.$source = $("<span class='dish-source'></span>")
             .appendTo(this.newField("Source"));
          this.$type = $("<span class='dish-type'></span>")
@@ -1023,6 +1079,7 @@ jQuery(function() {
             .appendTo($ctField);
          $ctField.append(" minutes")
    
+         // add the "servings" views to track nutrition
          var $breakdown = $("<table class='breakdown'></table>")
             .appendTo(this.newField("Breakdown of a single serving"));
          var $tr = $("<tr><td>Fruits and Vegetables</td></tr>")
@@ -1048,20 +1105,26 @@ jQuery(function() {
          this.proteins.render()
          this.carbs.render()
 
+         // create the tag view
          this.$tags = $("<span class='tag-list'></span>")
             .appendTo(this.newField("Tags", "ui-icon-tag"));
+         // initialize the table to display measured ingredients
          this.$mi = $("<table class='ingredients'><tr><th>Ingredient</th><th>Amount</th><th>Notes</th><th></th></tr></table>")
             .appendTo(this.$fields);
          var allIngredients = Ingredients.map(
                function(i) { return i.get("Name"); });
          var $lastRow = $("<tr></tr>")
             .appendTo(this.$mi);
+         // setup the pairings view
          this.initPairings();
+         // create the general "text" field
          this.$text = $("<div class='text'></div>")
             .appendTo(this.newField("Text")); 
       },
+      // populate the view with current data
       render : function() {
          var self = this;
+         // check if this dish is vegan or vegetarian and show the proper icon
          if (this.$vegIcon == null && this.model.tags.fetched) {
             if (this.model.tags.hasWord("Vegan")) {
                this.$vegIcon = $("<img src='images/vegan_32.png' title='Vegan'></imp>");
@@ -1073,10 +1136,12 @@ jQuery(function() {
                   
             }
          }
+         // populate the text fields
          this.$name.text(this.model.get("Name"));
          this.$type.text(this.model.get("DishType"));
          this.$prepTime.text(this.model.get("PrepTimeMinutes"));
          this.$cookTime.text(this.model.get("CookTimeMinutes"));
+         // turn source into a hyperlink if it is a URL
          var source = this.model.get("Source");
          if (source.indexOf("http://") == 0 ||
             source.indexOf("https://") == 0)
@@ -1087,6 +1152,7 @@ jQuery(function() {
          {
             this.$source.text(source);
          }
+         // update the rating by highlighting stars
          var rating = this.model.get("Rating");
          for (var i = 0; i < 5; i ++)
          {
@@ -1095,7 +1161,9 @@ jQuery(function() {
             else
                this.$stars.eq(i).addClass("disabled");
          }
+         // render the tags
          this.renderTags();
+         // add the ingredients
          var self = this;
          this.$mi.find("tr.ingredient").remove();
          this.model.ingredients.each(function(i) {
@@ -1125,7 +1193,9 @@ jQuery(function() {
          if (this.model.ingredients.length == 0) {
             this.$mi.append("<tr class='ingredient'><td>[none]</td></tr>");
          }
+         // render the pairings
          this.renderPairings();
+         // add the text, using createTextNode so we don't inject scripts or HTML or anything
          this.$text.html("");
          var lines = this.model.get("Text").split("\n");
          for (var l in lines) {
@@ -1135,10 +1205,12 @@ jQuery(function() {
          }
          return this;
       },
+      // trigger the edit of the dish
       edit: function(ev) {
          this.trigger("editDish", this.model);
       },
    });
+   // view for editing a dish
    window.DishEditView = window.MealplannerView.extend({
       tagName : "div",
       className : "dish-edit",
@@ -1149,22 +1221,31 @@ jQuery(function() {
       ],
       initialize: function() {
          var self = this;
+         // call base "class" initialize
          MealplannerView.prototype.initialize.call(this);
+         // bind event handlers to this
          _.bindAll(this, "newPairingDrop");
          _.bindAll(this, "newPairing");
+         // bind to nested collection model events
          this.model.ingredients.bind('all', this.render);
          this.model.tags.bind('all', this.render);
          this.model.pairings.bind('all', this.render);
+         // fetch data
          this.model.ingredients.fetchOnce();
          this.model.tags.fetchOnce();
          // always fetch pairings, a given dish may not see one added
          this.model.pairings.fetch();
+         // track the ingredients we know about so we only subit ones that 
+         //  have changed
          this.ingredients = { gen : 0};
+         // create the basic edit layout
          this.createEditView();
          //  grey-out Save button when already saved (hasChanged == false)
          this.$save = this.$title.find("button[value='Save']")
                .button("option", "disabled", true);
+         // add rating field
          this.$stars = this.newRatingField();
+         // add text edit fields
          this.$source = $("<input type='text'></input>")
             .textInput({size:50})
             .appendTo(this.newField("Source"));
@@ -1182,6 +1263,7 @@ jQuery(function() {
             .textInput({size:4})
             .appendTo($ctField);
          $ctField.append(" minutes")
+         // add controls to change serving counts
          var $breakdown = $("<table class='breakdown'></table>")
             .appendTo(this.newField("Breakdown of a single serving"));
          var $tr = $("<tr><td>Fruits and Vegetables</td></tr>")
@@ -1207,6 +1289,7 @@ jQuery(function() {
          this.proteins.render()
          this.carbs.render()
          
+         // add field to add new tags
          this.newTagsEditField();
          this.$mi = $("<table class='ingredients'><tr><th>Ingredient</th><th>Amount</th><th>Notes</th><th></th></tr></table>")
             .appendTo(this.newField("Ingredients [Amount, extra instructions (chopped, peeled, etc.)]"));
@@ -1226,25 +1309,32 @@ jQuery(function() {
                }
             })
 
+         // initialize the view of parings
          this.initPairings();
+         // add the text edit field
          this.$text = $("<textarea cols='50' rows='10'></textarea>")
             .appendTo(this.newField("Text"))
             .change(this.onChange);
          this.$text.before("<br/>");
             
+         // if we don't have an id for the model yet, save to the server
          if (!this.model.id)
             this.save();
       },
+      // update the view with current data
       render : function() {
          var self = this;
+         // enable the Save button if something has changed
          if (this.dirty) {
             this.$save.button({disabled : false, label: "Save"}); 
          }
+         // populate the text edit boxes
          this.$name.val(this.model.get("Name"));
          this.$type.val(this.model.get("DishType"));
          this.$prepTime.val(this.model.get("PrepTimeMinutes"));
          this.$cookTime.val(this.model.get("CookTimeMinutes"));
          this.$source.val(this.model.get("Source"));
+         // update the stars for the rating
          var rating = this.model.get("Rating");
          for (var i = 0; i < 5; i ++)
          {
@@ -1254,7 +1344,14 @@ jQuery(function() {
                this.$stars.eq(i).addClass("disabled");
          }
          var self = this;
+         // display current tags
          this.renderTags();
+         // increment our 'generation' of ingredients 
+         //  walk the current ingredients, and mark in our dictionary
+         //  if they're present
+         // any that have an older generation after this are to be removed
+         // from the view
+         //  any not in our dictionary are new and should be added
          this.ingredients.gen++;
          var nextIngredients = {};
          var animal = false;
@@ -1305,7 +1402,8 @@ jQuery(function() {
                   .appendTo($tr)
                   .find("input")
                   .textInput();
-               ing.$del = $("<td><span class='remove ui-icon ui-icon-close'></span></td>")
+               ing.$del = $("<td></td>")
+                  .append(self.makeRemoveIcon())
                   .appendTo($tr)
                   .click(function() {
                      var $tr = $(this).closest("tr");
@@ -1339,6 +1437,7 @@ jQuery(function() {
          for (var r in remove) {
             delete this.ingredients[remove[r]];
          }
+         // update the tags for Vegan and Vegetarian
          if (animal) {
             this.updateVegTags(0);
          } else if (vegetarian) {
@@ -1346,14 +1445,21 @@ jQuery(function() {
          } else {
             this.updateVegTags(2);
          }
+         // update the pairings
          this.renderPairings();
+         // update the text edit box
          this.$text.val(this.model.get("Text"));
          return this;
       },
+      // add/remove tags based on the ingredients 0 = none, 1 = Vegetarian only
+      // 2 = Vegan & Vegetarian
       updateVegTags : function(which) {
+         // only update if we have fetched tags
          if (!this.model.tags.fetched) return;
+         // if we already have the right tags, skip
          if (this.createdVegTags == which) return;
          this.createdVegTags = which;
+         // look for each tag, and add/remove if we found it or not
          var veganTag = this.model.tags.getWord("Vegan");
          var vegetarianTag = this.model.tags.getWord("Vegetarian");
          switch(which) {
@@ -1377,9 +1483,11 @@ jQuery(function() {
                break;
          }
       },
+      // when we receive focus, focus on the name
       focus : function() {
          this.$name.focus();
       },
+      // copy data from the view into the model
       setModels : function() {
          this.model.set({"Name": this.$name.val(),
             "DishType": this.$type.val(),
@@ -1407,6 +1515,8 @@ jQuery(function() {
          this.parseTags();
          this.addIngredient(true);
       },
+      // add any ingredients that have been typed in
+      // if the typed ingredient doesn't exist, popup a dialog to create it
       addIngredient : function(fromChangeHandler) {
          // skip this if we have an add dialog up
          if (this.$addDialog) return;
@@ -1466,6 +1576,7 @@ jQuery(function() {
          }
       },
    })
+   // view to display fractional numbers, and +/- buttons to change it
    window.ServingView = Backbone.View.extend({
       initialize : function() {
          _.bindAll(this, "inc");
@@ -1495,8 +1606,10 @@ jQuery(function() {
          }
       },
       render : function() {
+         // show the value
          this.$span.html(this.htmlValue(this.val()));
       },
+      // get/set the value
       val : function(newVal) {
          if (newVal == undefined)
             return this.model.get(this.options.field);
@@ -1512,6 +1625,7 @@ jQuery(function() {
                this.options.onChange();
          }
       },
+      // get the HTML view of the value
       htmlValue : function(value) {
          if (value == 0)
             return "0";
@@ -1531,6 +1645,7 @@ jQuery(function() {
             return "" + intPart;
          return "" + intPart + this.htmlValue(fracPart);
       },
+      // decrement
       sub : function() {
          var val = this.val();
          var intPart = parseInt(val);
@@ -1548,6 +1663,7 @@ jQuery(function() {
             val = 0;
          this.val(val);
       },
+      // increment
       inc : function() {
          var val = this.val();
          var intPart = parseInt(val);
@@ -1566,14 +1682,7 @@ jQuery(function() {
          this.val(val);
       },
    });
-   window.IngredientListView = window.MealplannerView.extend({
-      tagName : "ul",
-      className : "ingredient-list",
-      render : function() {
-         this.renderItemNameList("ingredient", "viewIngredient", "ingredients");
-         return this;
-      },
-   })
+   // view to edit an ingredient
    window.IngredientEditView = window.MealplannerView.extend({
       tagName : "div",
       className : "ingredient-edit",
@@ -1584,14 +1693,24 @@ jQuery(function() {
       ],
       initialize: function() {
          var self = this;
+         // call base "class" initialize
          MealplannerView.prototype.initialize.call(this);
+         _.bindAll(this, "dishesReceived");
+         // bind render for callback
          this.model.tags.bind('all', this.render);
+         // fetch tags
          this.model.tags.fetchOnce();
+         // create basic edit view
          this.createEditView();
          //  grey-out Save button when already saved (hasChanged == false)
          this.$save = this.$title.find("button[value='Save']")
                .button("option", "disabled", true);
+         // don't enable the delete button until we
+         //  know if we're in a dish or not
+         this.$delete = this.$title.find("button[value='Delete']")
+               .button("option", "disabled", true);
 
+         // create text fields
          this.$category = $("<input type='text'></input>")
             .textInput()
             .appendTo(this.newField("Category"))
@@ -1599,65 +1718,25 @@ jQuery(function() {
          this.$source= $("<input ></input>")
             .appendTo(this.newField("Source"))
             .combo({source:["Animal", "Vegan", "Vegetarian"]});
+         // create tags edit field
          this.newTagsEditField();
-      },
-      render : function() {
-         if (this.dirty) {
-            this.$save.button({disabled : false, label: "Save"}); 
-         }
-         this.$name.val(this.model.get("Name"));
-         this.$category.val(this.model.get("Category"));
-         this.$source.val(this.model.get("Source"));
-         this.renderTags();
-         return this;
-      },
-      focus : function() {
-         this.$name.focus();
-      },
-      setModels: function() {
-         this.model.set({"Name": this.$name.val(),
-            "Category": this.$category.val(),
-            "Source": this.$source.val()
-            });
-         this.parseTags(true)
-      },
-   })
-   window.IngredientView = window.MealplannerView.extend({
-      tagName : "div",
-      className : "ingredient-view",
-      icon: "ui-icon-ingredient",
-      buttons : [
-         {label:"Edit", title: "Edit This Ingredient", click: "edit" },
-         {label:"Delete", title: "Delete This Ingredient", click: "del" },
-      ],
-      initialize: function() {
-         MealplannerView.prototype.initialize.call(this);
-         var self = this;
-         _.bindAll(this, "edit");
-         _.bindAll(this, "dishesReceived");
-         _.bindAll(this, "viewDish");
-         this.model.tags.bind('all', this.render);
-         this.model.tags.fetchOnce();
-         this.createBasicView();
-         this.$category = $("<span></span>")
-            .appendTo(this.newField("Category"));
-         this.$source = $("<span></span>")
-            .appendTo(this.newField("Source"));
-         this.$tags = $("<span class='tag-list'></span>")
-            .appendTo(this.newField("Tags", "ui-icon-tag"));
+         // display dishes using this ingredient
          this.$dishes = $("<div class='dishes'>Loading...</div>")
             .appendTo(this.newField("Dishes with this ingredient"));
          jQuery.getJSON(this.model.url() + "/in/", this.dishesReceived);
       },
+      // update view with latest values
       render : function() {
-         this.$name.text(this.model.get("Name"));
-         this.$category.text(this.model.get("Category"));
-         this.$source.text(this.model.get("Source"));
+         if (this.dirty) {
+            this.$save.button({disabled : false, label: "Save"}); 
+         }
+         // update text fields
+         this.$name.val(this.model.get("Name"));
+         this.$category.val(this.model.get("Category"));
+         this.$source.val(this.model.get("Source"));
+         // render the current tags
          this.renderTags();
          return this;
-      },
-      edit: function(ev) {
-         this.trigger("editIngredient", this.model);
       },
       dishesReceived : function(dishIds) {
          this.$dishes.html("");
@@ -1667,11 +1746,97 @@ jQuery(function() {
          });
          this.dishListView = new DishListView({model : window.Dishes, searchResults : searchResults});
          this.$dishes.append(this.dishListView.render().el);
+         if (dishIds.length > 0) {
+               this.$delete.button("option", "disabled", true);
+               this.$delete.attr("title", "Cannot delete an ingredient used in any dishes.");
+         } else {
+               this.$delete.button("option", "disabled", false);
+         }
+      },
+      focus : function() {
+         this.$name.focus();
+      },
+      setModels: function() {
+         // save view to the model
+         this.model.set({"Name": this.$name.val(),
+            "Category": this.$category.val(),
+            "Source": this.$source.val()
+            });
+         this.parseTags(true)
+      },
+   })
+   // view for displaying an ingredient
+   window.IngredientView = window.MealplannerView.extend({
+      tagName : "div",
+      className : "ingredient-view",
+      icon: "ui-icon-ingredient",
+      buttons : [
+         {label:"Edit", title: "Edit This Ingredient", click: "edit" },
+         {label:"Delete", title: "Delete This Ingredient", click: "del" },
+      ],
+      initialize: function() {
+         // call base "class" initialize
+         MealplannerView.prototype.initialize.call(this);
+         var self = this;
+         // bind methods to this
+         _.bindAll(this, "edit");
+         _.bindAll(this, "dishesReceived");
+         _.bindAll(this, "viewDish");
+         // bind to the tags change event
+         this.model.tags.bind('all', this.render);
+         // fetch tags
+         this.model.tags.fetchOnce();
+         // create basic view layout
+         this.createBasicView();
+         // don't enable the delete button until we
+         //  know if we're in a dish or not
+         this.$delete = this.$title.find("button[value='Delete']")
+               .button("option", "disabled", true);
+         // add text fields
+         this.$category = $("<span></span>")
+            .appendTo(this.newField("Category"));
+         this.$source = $("<span></span>")
+            .appendTo(this.newField("Source"));
+         this.$tags = $("<span class='tag-list'></span>")
+            .appendTo(this.newField("Tags", "ui-icon-tag"));
+         // display dishes using this ingredient
+         this.$dishes = $("<div class='dishes'>Loading...</div>")
+            .appendTo(this.newField("Dishes with this ingredient"));
+         jQuery.getJSON(this.model.url() + "/in/", this.dishesReceived);
+      },
+      // update the view with current data
+      render : function() {
+         this.$name.text(this.model.get("Name"));
+         this.$category.text(this.model.get("Category"));
+         this.$source.text(this.model.get("Source"));
+         this.renderTags();
+         return this;
+      },
+      // trigger edit
+      edit: function(ev) {
+         this.trigger("editIngredient", this.model);
+      },
+      // handle incoming information about dishes using this ingredient
+      dishesReceived : function(dishIds) {
+         this.$dishes.html("");
+         var searchResults = {};
+         _.each(dishIds, function(id) {
+            searchResults[id] = 1;
+         });
+         this.dishListView = new DishListView({model : window.Dishes, searchResults : searchResults});
+         this.$dishes.append(this.dishListView.render().el);
+         if (dishIds.length > 0) {
+               this.$delete.button("option", "disabled", true);
+               this.$delete.attr("title", "Cannot delete an ingredient used in any dishes.");
+         } else {
+               this.$delete.button("option", "disabled", false);
+         }
       },
       viewDish: function(ev) {
          this.trigger("viewDish", ev);
       },
    })
+   // display on the side to control which menu is being viewed
    window.MenuBarView = window.MealplannerView.extend({
       tagName : "div",
       className : "menubar",
@@ -1680,28 +1845,33 @@ jQuery(function() {
          "autocompleteselect input" : "changeMenu"
       },
       initialize: function() {
+         // call base "class" initialize
          MealplannerView.prototype.initialize.call(this);
 
+         // show "Menus" as title
          this.el.append("<div class='name'><span class='ui-icon ui-icon-menu inline large'></span>Menus</div>");
+         // show a combo box to pick menus, using nowrap to keep it from splitting up the button
          var $nowrap = $("<span class='nowrap'></span>")
             .appendTo(this.el);
          this.$menus = $("<input class='menu-combo' type='text' value='<New Menu>' size='15'></input>")
                .appendTo($nowrap)
                .combo({source:[]});
       },
+      // update list of menus
       render : function() {
          var menus = this.model.map(function(item) { return item.get("Name"); });
          this.$menus.autocomplete("option", "source", menus);
          this.changeMenu();
          return this;
       },
+      // display the selected menu
       changeMenu : function(e, ui) {
          var self = this;
          var menuName = this.$menus.val();
          if (ui && ui.item) {
             menuName = ui.item.value;
          }
-         this.model.each(function(model) {
+         this.model.find(function(model) {
             if (model.get("Name") == menuName) {
                if (self.menuView) {
                   self.menuView.remove();
@@ -1709,15 +1879,20 @@ jQuery(function() {
                self.menuView = new MenuView({model: model,
 						readOnly: App.readOnly});
                self.el.append(self.menuView.render().el);
+               return true;
             }
+            return false;
          });
       },
+      // accept information about the current item being viewed,
+      //  pass it down to the current menu view
       setContext : function(model) {
          if (this.menuView) {
             this.menuView.setContext(model);
          }
       }
    })
+   // view of basics of menu for the menu bar
    window.MenuView = window.MealplannerView.extend({
       tagName : "div",
       className : "menu-view",
@@ -1730,16 +1905,22 @@ jQuery(function() {
          {label:"Delete", title: "Delete Menu", click: "del" }
       ],
       initialize: function() {
+         // call base "class" initialize
          MealplannerView.prototype.initialize.call(this);
+         // bind methods to this
          _.bindAll(this, "clearMenu");
          _.bindAll(this, "cloneMenu");
          _.bindAll(this, "addCurDish");
          _.bindAll(this, "newDish");
+         // bind to the events happening on all dishes so we can
+         // update name and nutrition
          Dishes.bind('all', this.render);
 
+         // create the basic layout
          this.createBasicView();
          // we don't show the name in this view, it's shown by parent
          this.$name.remove();
+         // get references to our buttons
 			if (!this.options.readOnly) {
          	this.$add = this.$buttons.find("button[value='Add']");
          	this.$save = this.$buttons.find("button[value='Save']");
@@ -1750,20 +1931,24 @@ jQuery(function() {
       	
          	this.$delete = this.$buttons.find("button[value='Delete']");
 			}
+         // create dish list
          this.$dishes = $("<ul class='dish-list'></ul>")
             .appendTo(this.newField("Dishes"));
          var $p = $("<p></p>")
             .appendTo(this.$fields);
             
+         // create link to see detail view
          $("<a class='field-head'>Ingredients, etc. »</a>")
             .attr("href", "#viewMenu/" + this.model.id)
             .appendTo($p);
+         // setup droppability to add new dishes
          $(this.el)
 				.droppable({
 					accept: ".dish",
 					hoverClass : "ui-state-highlight drop-accept",
 					drop: this.newDish
 				});
+         // setup charts
          var $charts = $("<div class='menu-chart'></div>")
             .appendTo(this.newField("Nutritional Balance"));
          this.$menuChart = $("<span>")
@@ -1773,6 +1958,7 @@ jQuery(function() {
          $charts.append("<div class='legend'><span class='sample' style='background:#459E00;'></span> Fruits &amp; Veggetables<br><span class='sample' style='background:#B23500'></span> Protein<br><span class='sample' style='background:#770071'></span> Carbohydrates</div>");
       },
       render : function() {
+         // update the view
          var self = this;
          var name = this.model.get("Name");
 			if (!this.options.readOnly) {
@@ -1782,6 +1968,7 @@ jQuery(function() {
             	this.$clear.hide();
          	}
 			}
+         // prepare a list of dishes
          var self = this;
          this.$dishes.children().remove();
          var dishIds = this.model.get("Dishes");
@@ -1796,18 +1983,20 @@ jQuery(function() {
          var veggies = 0;
          var protein = 0;
          var carbs = 0;
+         // create view of each item and sum the nutrition
          _.each(dishes, function(dish) {
-            var $li = $("<li class='dish'><span class='ui-icon inline ui-icon-dish'></span></li>")
+            var $li = $("<li class='dish'></li>")
+               .append(self.makeIcon('ui-icon-dish'))
                .appendTo(self.$dishes)
                .draggable({revert:true,helper:'clone',appendTo:'body'});
             var name = dish.get("Name");
-            $("<a></a>")
+            $.make("a")
                   .appendTo($li)
                   .text(name)
                   .attr("href", "#viewDish/" + dish.id);
 			   $li[0].model = dish;
 				if (!self.options.readOnly) {
-            	var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
+            	var $delTag = self.makeRemoveIcon()
                	.appendTo($li)
                	.click(function () {
                      	self.model.removeDish(dish);
@@ -1819,17 +2008,21 @@ jQuery(function() {
             protein += dish.get("ServingsProtein");  
             carbs += dish.get("ServingsCarb");  
          });
+         // if no dishes, give instructions for adding them
          if (dishes.length == 0) {
             self.$dishes.append("<li class='dish'>Drag dishes here to add them to the menu, or click the 'Add' button above.</li>");
          }
+         // update button state
 			if (!this.options.readOnly) {
          	if ( this.curDish()) {
+               // allow the current dish to be added if we don't have it yet
             	if (this.model.hasDish(this.curDish())) {
                	this.$add.button("option", "disabled", true);
             	} else {
                	this.$add.button("option", "disabled", false);
             	}
          	} else {
+               // if the current item isn't a dish, can't add it
             	this.$add.button("option", "disabled", false);
          	}
          }
@@ -1841,51 +2034,12 @@ jQuery(function() {
             }, 10);
          return this;
       },
-      edit: function(ev) {
-         this.trigger("editDish", this.model);
-      },
+      // handle clearing the menu
       clearMenu : function() {
          this.model.save({Dishes:[]});
          this.render();
       },
-      cloneMenu : function() {
-         var self = this;
-         var $dialog = $("<div><input type='text'></input></div>");
-         var save = function() {
-            var $input = $dialog.find("input");
-            if ($input.val().length > 0 &&
-                $input.val() != "<New Menu>")
-            {
-               var newAttrs = {Name:$input.val(),
-                  Dishes:self.model.get("Dishes")};
-               var newMenu = Menus.create(newAttrs, {
-                  success : function(model, resp, shr) {
-                     $dialog.dialog("close");
-                     App.viewMenu(newMenu);
-                     // empty the draft menu
-                     self.model.save({Dishes: [] });
-                  }});
-            }
-         }
-         $dialog.appendTo(this.el)
-            .dialog({
-               modal: true,
-               title: "Menu Name?",
-               buttons : {
-                  Save : save,
-                  Cancel : function() {
-					      $(this).dialog("close");
-                  }
-               }});
-         $dialog.find("input")
-            .textInput({size:30})
-            .bind('keypress', function (evt) {
-               if (evt.which == 13) {
-                  evt.preventDefault();
-                  save();
-               }
-            });
-      },
+      // handle drop of a new dish
       newDish : function(evt, ui) {
 		   var other = ui.draggable[0].model;
          if (other && !this.model.hasDish(other)) {
@@ -1895,6 +2049,7 @@ jQuery(function() {
             this.render();
          }
       },
+      // get the dish from the current context
       curDish : function() {
          if (App.curContext) {
             if (App.curContext.defaults == Dish.prototype.defaults)
@@ -1902,6 +2057,7 @@ jQuery(function() {
          }
          return null;
       },
+      // add the currently viewed dish to the menu
       addCurDish : function() {
 		   var other = this.curDish();
          if (other && !this.model.hasDish(other)) {
@@ -1911,6 +2067,7 @@ jQuery(function() {
          }
          this.render();
       },
+      // update the add button enabled based on the context 
       setContext : function(model) {
          var showAdd = true;
          if (model && model.defaults == Dish.prototype.defaults) {
@@ -1925,6 +2082,8 @@ jQuery(function() {
 			}
       }
    })
+   // detail view of a menu, similar to MEnuView, but shows
+   //  a list of all ingredients, and extra detail about each dish
    window.MenuDetailView = window.MealplannerView.extend({
       tagName : "div",
       className : "menu-view",
@@ -1936,11 +2095,15 @@ jQuery(function() {
          {label:"Delete", title: "Delete Menu", click: "del" }
       ],
       initialize: function() {
+         // call base "class" initialize
          MealplannerView.prototype.initialize.call(this);
+         // bind methods tothis
          _.bindAll(this, "clearMenu");
          _.bindAll(this, "cloneMenu");
          _.bindAll(this, "newDish");
+         // create basic layout
          this.createBasicView();
+         // get handles to buttons
 			if (!this.options.readOnly) {
          	this.$save = this.$buttons.find("button[value='Save']");
          	// add rounding to clear, button set doesn't know only one
@@ -1950,7 +2113,7 @@ jQuery(function() {
       	
          	this.$delete = this.$buttons.find("button[value='Delete']");
 			}
-
+         // create fields
          this.$dishes = $("<ul class='dish-list'></ul>")
             .appendTo(this.newField("Dishes"));
          this.$ingredients= $("<ul class='ingredient-list'></ul>")
@@ -1962,6 +2125,7 @@ jQuery(function() {
          this.$targetChart = $("<span>")
             .appendTo($charts);
          $charts.append("<div class='legend'><span class='sample' style='background:#459E00;'></span> Fruits &amp; Veggetables<br><span class='sample' style='background:#B23500'></span> Protein<br><span class='sample' style='background:#770071'></span> Carbohydrates</div>");
+         // setup drop target for adding dishes
          this.el.droppable({
 					accept: ".dish",
 					hoverClass : "ui-state-highlight drop-accept",
@@ -1969,9 +2133,11 @@ jQuery(function() {
 				});
       },
       render : function() {
+         // update view with current data
          var self = this;
          var name = this.model.get("Name");
          this.$name.text(name);
+         // switch between delete/clear if we're the "<New Menu>" draft menu
 			if (!this.options.readOnly) {
          	if (this.model == Menus.getDraftMenu()) {
             	this.$delete.hide();
@@ -1979,6 +2145,8 @@ jQuery(function() {
             	this.$clear.hide();
          	}
 			}
+         // construct list of dishes, getting ingredients to be fetched
+         //  and gathering other data for nutrition
          var self = this;
          this.$dishes.children().remove();
          var dishIds = this.model.get("Dishes");
@@ -2022,7 +2190,7 @@ jQuery(function() {
                   .attr("href", "#viewDish/" + dish.id);
             $li.append( " " + dish.get("PrepTimeMinutes") + " + " + dish.get("CookTimeMinutes") + " = " + (parseInt(dish.get("PrepTimeMinutes")) + parseInt(dish.get("CookTimeMinutes"))) + " minutes");
 				if (!self.options.readOnly) {
-            	var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
+            	var $delTag = self.makeRemoveIcon()
                	.appendTo($li)
                	.click(function () {
                      	self.model.removeDish(dish);
@@ -2035,6 +2203,7 @@ jQuery(function() {
             carbs += dish.get("ServingsCarb");  
          });
 
+         // prepare consolidated list of ingredients
          this.$ingredients.children().remove();
          var ingredients = _.sortBy(allIngredients, function(ing) {
                return ing.ingredient.get("Name");
@@ -2068,51 +2237,12 @@ jQuery(function() {
             }, 10);
          return this;
       },
-      edit: function(ev) {
-         this.trigger("editDish", this.model);
-      },
+      // handle clearing the menu
       clearMenu : function() {
          this.model.save({Dishes:[]});
          this.render();
       },
-      cloneMenu : function() {
-         var self = this;
-         var $dialog = $("<div><input type='text'></input></div>");
-         var save = function() {
-            var $input = $dialog.find("input");
-            if ($input.val().length > 0 &&
-                $input.val() != "<New Menu>")
-            {
-               var newAttrs = {Name:$input.val(),
-                  Dishes:self.model.get("Dishes")};
-               var newMenu = Menus.create(newAttrs, {
-                  success : function(model, resp, shr) {
-                     $dialog.dialog("close");
-                     App.viewMenu(newMenu);
-                     // empty the draft menu
-                     self.model.save({Dishes: [] });
-                  }});
-            }
-         }
-         $dialog.appendTo(this.el)
-            .dialog({
-               modal: true,
-               title: "Menu Name?",
-               buttons : {
-                  Save : save,
-                  Cancel : function() {
-					      $(this).dialog("close");
-                  }
-               }});
-         $dialog.find("input")
-            .textInput({size:30})
-            .bind('keypress', function (evt) {
-               if (evt.which == 13) {
-                  evt.preventDefault();
-                  save();
-               }
-            });
-      },
+      // handle drop of a new dish
       newDish : function(evt, ui) {
 		   var other = ui.draggable[0].model;
          if (other && !this.model.hasDish(other)) {
@@ -2122,33 +2252,29 @@ jQuery(function() {
             this.render();
          }
       },
-      
    })
-   window.User = MealplannerModel.extend({
-      
-   });
-
-   window.UserList = MealplannerCollection.extend({
-      url: "/users",
-      model: User
-   })
-   
+   // view for displaying user info and menu in upper left
    window.UserView = Backbone.View.extend({
       el : $("#user"),
       className : "user",
       initialize : function() {
          this.el = $(this.el);
+         // bind handlers
          _.bindAll(this, "render");
          _.bindAll(this, "listLibraries");
          _.bindAll(this, "shareLibrary");
          _.bindAll(this, "restore");
+         // create title view with name/email
 			this.$title = $.make("span")
 				.appendTo(this.el)
+         // make menu
          this.$menu = $.make("div")
                .appendTo(this.el)
                .mpmenu({handle:this.el});
+         // section with libraries
 			this.$libs = $.make("div", {"class":"section"})
                .appendTo(this.$menu);
+         // section with backup-restore
 			this.$brsection= $.make("div", {"class":"section"},
 				 "<div class='field-head'>Backup/Restore</div>")
                .appendTo(this.$menu);
@@ -2169,11 +2295,15 @@ jQuery(function() {
 				})
 				.appendTo(this.$restoreform)
             .change(this.restore);
+         // sign out link
 			this.$signout = $.make("div", {"class":"section"})
                .appendTo(this.$menu);
+         // bind to events for the user
          this.model.bind('all', this.render);
+         // fetch list of libraries
 			jQuery.getJSON("/libraries", this.listLibraries);
       },
+      // render the user's information
       render : function() {
          if (this.model.length > 0) {
             var user = this.model.at(0);
@@ -2185,10 +2315,12 @@ jQuery(function() {
          }
          return this;
       },
+      // handle incoming list of libraries
 		listLibraries : function(data) {
 			var self = this;
 			var $libs = this.$libs;
 			$libs.html("<div class='field-head'>Libraries</div>");
+         // create links to switch the view to the other library
 			_.each(data, function (lib) {
 				var $l;
 				if (lib.Current) {
@@ -2197,6 +2329,7 @@ jQuery(function() {
 						extra = " (current, read-only)";
 						self.$restoreform.hide();
 					}
+               // let the app know if we're looking at a read-only library
 					App.setReadOnly(lib.ReadOnly);
 					$l = $.make("div", {"class" : "current-lib"})
 									.text(lib.Name + extra);
@@ -2220,8 +2353,10 @@ jQuery(function() {
 				}
 			})
 		},
+      // pop-up dialog to let user send email to share their library
 		shareLibrary : function() {
          var self = this;
+         // prepare dialog
          var $content = $.make("div",
             "Enter the email address of the person you want to share your meal planning library with:<br>");
          var $dialog = $.make("div");
@@ -2233,6 +2368,7 @@ jQuery(function() {
          var $write = $.make("input", {type:"checkbox", name:"write"})
             .appendTo($content);
          $content.append(" Allow the user to modify your library.");
+         // show dialog and setup buttons to handle the share
          $dialog
             .appendTo(document.body)
             .dialog( {
@@ -2240,6 +2376,9 @@ jQuery(function() {
                title: "Share Your Library",
                buttons : {
                   "Share" : function() {
+                     // to share, we use HTTP to fetch a URL
+                     //  we then update Success/Failure in dialog
+                     //  when complete
                      var url = "/share/";
                      if ($write[0].checked) {
                         url += "write/email/";
@@ -2276,6 +2415,7 @@ jQuery(function() {
             });
             
 		},
+      // handle the restore operation
 		restore : function() {
          // show a dialog so that user will know the import is starting
          // and won't try starting another one or do other things that could
@@ -2291,6 +2431,7 @@ jQuery(function() {
 			this.$restoreform.submit();
 		}
    })
+   // simple view to show the user that data is being loaded
    window.LoadingView = Backbone.View.extend({
       tagName : "div",
       className : "search-view",
@@ -2303,31 +2444,32 @@ jQuery(function() {
       }
       });
 
-   window.Search = MealplannerModel.extend({
-      defaults : {Rating: 0}
-   });
+   // view to show search query, filter and results
    window.SearchView = window.MealplannerView.extend({
       tagName : "div",
       className : "search-view",
       initialize : function() {
          this.el = $(this.el);
+         // bind our methods to this
          _.bindAll(this, "startSearch");
          _.bindAll(this, "render");
          _.bindAll(this, "searchComplete");
-         _.bindAll(this, "dishSelected");
-         _.bindAll(this, "ingredientSelected");
          _.bindAll(this, "textSearch");
          _.bindAll(this, "search");
          _.bindAll(this, "addSearchSuggestions");
          _.bindAll(this, "parseTags");
+         // bind to our model
          if (!this.model) {
             this.model = new Search();
          }
          this.model.bind('change', this.startSearch);
+         // create input for keywords
          this.$words = $.make("input", {type:"text"})
                .textInput({size:15})
                .appendTo(this.el);
+         // fetch tags to use for a suggestion
          jQuery.getJSON("/tags", this.addSearchSuggestions);
+         // create button to start a search
          this.$doSearch = $.make("button")
                .button({title: "Start Search",
                         text: false,
@@ -2335,20 +2477,16 @@ jQuery(function() {
                .click(this.textSearch)
                .appendTo(this.el);
          var self = this;
-         /*this.$words
-            .bind('keypress', function (evt) {
-               if (evt.which == 13) {
-                  evt.preventDefault();
-                  $(this).autocomplete("close");
-                  self.textSearch();
-               }
-            });*/
+         // setup event handlers so we'll search when data changes
          this.$words
             .bind('autocompletechange', this.textSearch)
             .bind('change', this.textSearch);
+         // setup the fields section
          this.$fields= $.make("div")
             .appendTo(this.el);
+         // add rating filter
          this.$stars = this.newRatingField(" &ge; ");
+         // add tags input to filter on tags
          var $tagField = this.newField("Tags", "ui-icon-tag");
          this.$tags = $("<span class='tag-list'></span>")
             .appendTo($tagField);
@@ -2363,67 +2501,85 @@ jQuery(function() {
             .bind('autocompletechange', this.parseTags)
             .bind('change', this.parseTags)
             .appendTo($tagField);
+         // setup results section
          this.$results = $.make("div")
             .appendTo(this.el);
+         // create dish list view for dish results
          this.dishListView = new DishListView({
             model : window.Dishes,
             searchResults: [],
             minRating : this.model.get("Rating"),
          });
+         // create ingredient list view for ingredient list
          this.ingredientListView = new IngredientListView({
             model : window.Ingredients,
             searchResults: [],
          });
+         // start the search
          this.startSearch();
       },
+      // outside call to update our search model
       search : function(model) {
          if (!model) return;
+         // destroy any previous models
          if (this.model) {
             this.model.destroy();
          }
+         // bind new events
          this.model = model;
          this.model.bind('change', this.startSearch);
+         // start the search
          this.startSearch();
+         // update the view
          this.render();
       },
+      // update our search with the text
       textSearch : function() {
          this.model.set({Word: this.$words.val()});
       },
       startSearch : function() {
+         // start our query
+         // make sure we've parsed all tags entered
          this.parseTags();
+         // prepare the query data we send to server
          var attrs = $.extend({}, this.model.attributes);
+         // remove Rating -- we'll filter on rating locally
          delete attrs["Rating"];
-         /*if ( attrs.Tags && attrs.Tags.length > 0
-               && ((!attrs.Word) || attrs.Word.length == 0)) {
-            attrs.Word = attrs.Tags.join();
-            delete attrs["Tags"];
-         }*/
+         // prepare the query to be posted
          var query = JSON.stringify(attrs);
+         // skip the trip to the server if nothing has changed (maybe just
+         //  the rating was changed)
          if (this.lastResults && this.lastQuery == query) {
+            // update the view of the results we have
             this.searchComplete(this.lastResults);
             return;
          }
          this.lastQuery = query;
-         if (this.model) {
-            var tags = this.model.get("Tags");
-            var word = this.model.get("Word");
-            if ( ((!tags) || tags.length == 0) 
-                && ((!word) || word.length == 0)) {
-               if (Dishes.length > 0 && Ingredients.length > 0) {
-                  var dishes = {};
-                  Dishes.each(function(i) { return dishes[i.id] = 1; })
-                  var ings = {};
-                  Ingredients.each(function(i) { return ings[i.id] = 1;})
-                  this.searchComplete({
-                     Dish : dishes,
-                     Ingredient : ings
-                  });
-               }
-            } else {
-               jQuery.post("/search", query, this.searchComplete);
+         // handle the special case when there are no words and no tags,
+         //  we can localy return all items, and allow the local ratings
+         //  filter to be done
+         var tags = this.model.get("Tags");
+         var word = this.model.get("Word");
+         if ( ((!tags) || tags.length == 0) 
+             && ((!word) || word.length == 0)) {
+            if (Dishes.length > 0 && Ingredients.length > 0) {
+               var dishes = {};
+               Dishes.each(function(i) { return dishes[i.id] = 1; })
+               var ings = {};
+               Ingredients.each(function(i) { return ings[i.id] = 1;})
+               this.searchComplete({
+                  Dish : dishes,
+                  Ingredient : ings
+               });
             }
+         } else {
+            jQuery.post("/search", query, this.searchComplete);
          }
       },
+      // handle incoming search results
+      // they come in the form of a dictionary:
+      // { id : count, id : count, ...}
+      // where count indicates how many words matched so things can be ranked
       searchComplete :  function(results) {
          this.lastResults = results;
          if (! ("Dish" in results)) {
@@ -2438,6 +2594,7 @@ jQuery(function() {
             = results.Ingredient;
          this.render();
       },
+      // update our view based on the query we're building
       render : function() {
          var rating = this.model.get("Rating");
          for (var i = 0; i < 5; i ++)
@@ -2461,15 +2618,11 @@ jQuery(function() {
 			   var words = "";
 			   if (this.model.get("Word"))
 				   words = this.model.get("Word");
-			   /*if (this.model.get("Tags"))
-				   words = this.model.get("Tags")
-                  .reduce(function(prevValue, curValue, index, array) {
-					      return prevValue + " " + curValue;
-				      }, words)*/
 			   this.$words.val($.trim(words))
          }
          return this;
       },
+      // update the view of the tags being filtered
       renderTags : function () {
          var self = this;
          var $tags = this.$tags;
@@ -2486,7 +2639,7 @@ jQuery(function() {
                .appendTo($tag)
                .text(tag);
 				if (!self.options.readOnly) {
-            	var $delTag = $("<span class='remove ui-icon ui-icon-close'></span>")
+            	var $delTag = self.makeRemoveIcon()
                	.appendTo($tag)
                	.click(function () {
                      	var newTags = self.model.get("Tags");
@@ -2499,22 +2652,21 @@ jQuery(function() {
 				}
          });
       },
-      dishSelected : function(dish) {
-         this.trigger('selecteddish', dish);
-      },
-      ingredientSelected : function(dish) {
-         this.trigger('selectedingredient', dish);
-      },
+      // update autocomplete with our list of tags
+      //  as suggestions
       addSearchSuggestions : function(tags) {
          this.$words.autocomplete({source: tags});
          this.$newTags.autocomplete({source: tags});
       }
    })
 
+   // setup global collections
    window.Users = new UserList
    window.Dishes = new DishList
    window.Ingredients = new IngredientList
    window.Menus = new MenuList
+   // setup the router, so we can track in the broswer history and
+   //  bookmark individual views
    var Router = Backbone.Router.extend({
       routes: {
          "viewDish/:id": "viewDish",
@@ -2562,9 +2714,11 @@ jQuery(function() {
       }
    });
    window.Workspace = new Router();
+   // the main app view that gets everything startd
    window.AppView = Backbone.View.extend({
       el : $("#app"),
       initialize : function() {
+         // bind methods to this
          _.bindAll(this, "render");
          _.bindAll(this, "newDish");
          _.bindAll(this, "editDish");
@@ -2577,41 +2731,53 @@ jQuery(function() {
          _.bindAll(this, "onFetched");
          _.bindAll(this, "onMenuFetched");
          _.bindAll(this, "refresh");
+         // global flag for use in tracking if we are looking
+         //  at a readOnly library so we don't show editing in the UI
 			this.readOnly = false;
+         // top-level views
          this.userView = new UserView({model : Users});
          this.searchView = new SearchView({el: $("#search-tab")}).render();
-         this.dishListView = new DishListView({model : Dishes});
          this.mainView = null;
+         this.dishListView = new DishListView({model : Dishes});
+         // prepare the tabs
          $("#dishes").append(this.dishListView.render().el);
+         this.ingredientListView = new IngredientListView({model : Ingredients});
+         $("#ingredients").append(this.ingredientListView.render().el);
+         $("#side-tabs").tabs({ });
+
+         // connect the refresh button
          this.el.find(".refresh")
                .button({text:true, label:"&zwj;", icons:{primary:"ui-icon-refresh"}})
                .click(this.refresh);
+         // connect the add buttons
          this.el.find(".add-dish")
                   .button({icons : {primary:"ui-icon-pencil"}})
                   .click(this.newDish);
-         this.ingredientListView = new IngredientListView({model : Ingredients});
-         $("#ingredients").append(this.ingredientListView.render().el);
          this.el.find(".add-ingredient")
                   .button({icons : {primary:"ui-icon-pencil"}})
                   .click(this.newIngredient)
                   .parent()
                      .buttonset();
-         
-         $("#side-tabs").tabs({ });
+         // setup fetch counter so we can know when to remove the LoadingView
          this.fetched = 0;
+         // kick of a fetch
          this.refresh();
       },
       refresh : function() {
          if (this.fetched > 0) {
             window.Workspace.navigate("refresh");
          }
+         // show the user we're loading
          this.show(new LoadingView());
+         // fetch each top-level collection
          Menus.fetch({success:this.onMenuFetched, error:this.onFetched});
          Users.fetch({success:this.onFetched, error:this.onFetched});
          Dishes.fetch({success:this.onFetched, error:this.onFetched});
          Ingredients.fetch({success:this.onFetched, error:this.onFetched});
+         // fetch tags
          jQuery.getJSON("/tags", this.renderTags);
       },
+      // set the readOnly flag when we know about libraries
 		setReadOnly : function(readOnly) {
 			this.readOnly = readOnly;
 			if (readOnly) {
@@ -2622,6 +2788,7 @@ jQuery(function() {
          	this.el.find(".add-dish").show();
 			}
 		},
+      // handle fetching of the menus
       onMenuFetched : function() {
          // make sure we have a menu to be built up
          Menus.getDraftMenu();
@@ -2634,10 +2801,14 @@ jQuery(function() {
             }
             $("#menubar").append(this.menuBarView.render().el);
          }
+         // continue as we do for other collections
          this.onFetched();
       },
       onFetched : function() {
+         // count how many fetches have finished
          this.fetched++;
+         // if we have 4, we can start the history and navigate
+         //  to any items we might have bookmarked
          if (this.fetched == 4) {
             Backbone.history || (Backbone.history = new Backbone.History);
             try {
@@ -2645,6 +2816,7 @@ jQuery(function() {
             } catch (e) {
             }
          }
+         // remove the loading view when we've finished loading
          if (this.fetched % 4 == 0) {
             if (this.mainView
                 && this.mainView.constructor == LoadingView) {
@@ -2652,23 +2824,27 @@ jQuery(function() {
             }
          }
       },
+      // render the app
       render : function() {
          this.userView.render();
          return this
       },
+      // update the tags tab with the list of tags
       renderTags : function(tags) {
          var $tags = $("#tags");
          for (var tag in tags)
          {
             var $li = $("<li class='tag'></li>")
                .appendTo($tags);
-            $("<a></a>")
+            $.make("a")
                .appendTo($li)
                .text(tags[tag])
                .attr("href", "#search/" + tags[tag] + "//");
          }
       },
+      // show a view in the main pane
       show : function(view) {
+         // remove any existing view
          if (this.mainView)
             this.mainView.remove();
          if (view == null)
@@ -2676,45 +2852,60 @@ jQuery(function() {
             this.mainView = null;
             return;
          }
+         // bind to the events triggered by the new view
          view.bind("viewDish", this.viewDish);
          view.bind("viewIngredient", this.viewIngredient);
          view.bind("editDish", this.editDish);
          view.bind("editIngredient", this.editIngredient);
          this.mainView = view;
+         // scroll to make the top of the new view visible
          $(window).scrollTop(0);
          $("#main").append(view.render().el);
+         // call the focus method if the view has one
          if (view.focus)
             view.focus();
+         // update the document title with the item's name
          if (view.model) {
             this.curContext = view.model;
 			   document.title = view.model.get("Name");
          }
+         // if there is a model, track it and tell the menuBarView
+         //  so it can update buttons
          if (this.menuBarView) {
             this.menuBarView.setContext(view.model);
          }
       },
+      // start a search
       search : function (search) {
          $("#side-tabs").tabs('select', 0);
          this.searchView.search(search);
       },
+      // reate a new dish
       newDish : function() {
+			if (this.readOnly) { return; }
          var nd = Dishes.create({}, { success : function( model) {
             this.editDish(model)
          }.bind(this)});
       },
+      // create a new view of a dish
       viewDish : function(dish) {
          var viewDish = new DishView({model : dish,
 				readOnly: this.readOnly})
          viewDish.bind("edit", this.editDish);
          this.show(viewDish);
+         // save this to browser history
          window.Workspace.navigate("viewDish/" + dish.id);
       },
+      // create a new edit view for a dish
       editDish : function(dish) {
+         // for read-only, route to view
 			if (this.readOnly) { return this.viewDish(dish); }
          var editDishView = new DishEditView({model : dish})
          this.show(editDishView);
+         // save this to browser history
          window.Workspace.navigate("editDish/" + dish.id);
       },
+      // create a new ingredient
       newIngredient : function() {
 			if (this.readOnly) { return; }
          Ingredients.create({}, {success:
@@ -2722,24 +2913,31 @@ jQuery(function() {
                this.editIngredient(model)
          }.bind(this)});
       },
+      // create a new view of an ingredient
       viewIngredient : function(ingredient) {
          var viewIngredient = new IngredientView({model : ingredient,
 				readOnly: this.readOnly })
          viewIngredient.bind("edit", this.editIngredient);
          this.show(viewIngredient);
+         // save this to browser history
          window.Workspace.navigate("viewIngredient/" + ingredient.id);
       },
+      // create a new edit view for an ingredient
+      editIngredient : function(ingredient) {
+         // for read-only, route to view
+			if (this.readOnly) return this.viewIngredient(ingredient);
+         var editIngredientView = new IngredientEditView({model : ingredient})
+         this.show(editIngredientView);
+         // save this to browser history
+         window.Workspace.navigate("editIngredient/" + ingredient.id);
+      },
+      // create a new view of a menu
       viewMenu : function(model) {
          var viewMenu = new MenuDetailView({model : model,
 				readOnly: App.readOnly })
          this.show(viewMenu);
+         // save this to browser history
          window.Workspace.navigate("viewMenu/" + model.id);
-      },
-      editIngredient : function(ingredient) {
-			if (this.readOnly) return this.viewIngredient(ingredient);
-         var editIngredientView = new IngredientEditView({model : ingredient})
-         this.show(editIngredientView);
-         window.Workspace.navigate("editIngredient/" + ingredient.id);
       },
    })
 
