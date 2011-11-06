@@ -2273,6 +2273,17 @@ jQuery(function() {
             
 		},
 		restore : function() {
+         // show a dialog so that user will know the import is starting
+         // and won't try starting another one or do other things that could
+         // cause the import to fail
+         var $dialog = $.make("div", "Please wait while the data is imported.")
+            .appendTo(document.body)
+            .dialog({
+               title : "Importing...",
+               modal : true,
+               closeOnEscape: false,
+            });
+         // post the form to send the data to the server
 			this.$restoreform.submit();
 		}
    })
