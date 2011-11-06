@@ -194,10 +194,9 @@ func dishHandler(c *context) {
 func addTags(c appengine.Context, key *datastore.Key,
 words map[string]bool) {
 	query := datastore.NewQuery("Tags").Ancestor(key)
-	tags := make([]Word, 0, 20)
-	_, err := query.GetAll(c, &tags)
-	check(err)
-	for _, tag := range tags {
+	iter := query.Run(c)
+	tag := &Word{}
+	for _, err := iter.Next(tag); err == nil; _, err = iter.Next(tag) {
 		addWords(tag.Word, words)
 	}
 }
@@ -256,16 +255,15 @@ func addWords(text string, words map[string]bool) {
 // returns true if any entries were added or removed
 func updateKeywords(c appengine.Context, key *datastore.Key, words map[string]bool) bool {
 	query := datastore.NewQuery("Keyword").Ancestor(key)
-	existingWords := make([]Word, 0, 25)
-	keys, err := query.GetAll(c, &existingWords)
-	check(err)
+	iter := query.Run(c)
 	changed := false
-	for i, word := range existingWords {
+	word := &Word{}
+	for key, err := iter.Next(word); err == nil; _, err = iter.Next(word) {
 		if _, ok := words[word.Word]; ok {
 			words[word.Word] = true
 		} else {
 			// this keyword isn't here any more
-			datastore.Delete(c, keys[i])
+			datastore.Delete(c, key)
 			changed = true
 		}
 	}
@@ -331,12 +329,11 @@ func dishesForIngredientHandler(c *context) {
 		switch c.r.Method {
 		case "GET":
 			query := c.NewQuery("MeasuredIngredient").Filter("Ingredient =", ingKey).KeysOnly()
-			keys, err := query.GetAll(handler.c, nil)
-			check(err)
+         iter := query.Run(c.c)
 			dishes := make([]string, 0, 100)
-			for _, key := range keys {
+         for key, err := iter.Next(nil); err == nil; key, err = iter.Next(nil) {
 				dishes = append(dishes, key.Parent().Encode())
-			}
+         }
 			handler.sendJSON(dishes)
 		}
 		return
