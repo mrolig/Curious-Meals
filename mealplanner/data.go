@@ -41,6 +41,12 @@ type Share struct {
 	ReadOnly       bool
 }
 
+// interface that allows getting/setting ID string field
+type Ided interface {
+	ID() string
+	SetID(string)
+}
+
 // Fields describing a dish
 // Child of Library
 type Dish struct {
