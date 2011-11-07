@@ -1,0 +1,19 @@
+Curious Meals meal planner is a Google App Engine application written in Go and Javascript
+You must install the Google App Engine SDK for go. See <http://code.google.com/appengine/docs/go/overview.html>
+These instructions assume the appengine sdk directory is in your path.
+
+Run the local development server:
+	$ dev_appserver.py .
+Access the development server:
+	http://localhost:8080
+Access the development server admin console:
+	http://localhost:8080/_ah/admin/
+
+Uploading to Google App Engine
+	(you will need to change the appid in app.yaml)
+	$ appcfg.py update .
+
+static content and images are in the static/ and image/ directories
+The go source code for the backend is under mealplanner
+
+mealplanner/base.json is the content for the initial user's library
