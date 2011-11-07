@@ -1,9 +1,7 @@
 - add management of library sharing
-- TODOs in backup Handler
 - refactor handling of 'changes' to not lose changes
 - comments from users?
-- comment code
 - add to github
 - create "tutorial" intro page
-- rearrange ingredient order on dish
+- add feature to rearrange ingredient order on dish
 

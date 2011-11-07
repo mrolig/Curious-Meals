@@ -157,9 +157,14 @@ func dishHandler(c *context) {
 				// update keyword index after a change
 				updateDishKeywords(c, key, item.(*Dish))
 			case "DELETE":
-				// removing any pairings that reference this dish
-				query := c.NewQuery("Pairing").Filter("Other=", key).KeysOnly()
+				// remove any measured ingredients of this dish
+				query := c.NewQuery("MeasuredIngredient").Ancestor(key).KeysOnly()
 				keys, err := query.GetAll(c.c, nil)
+				check(err)
+				datastore.DeleteMulti(c.c, keys)
+				// removing any pairings that reference this dish
+				query = c.NewQuery("Pairing").Filter("Other=", key).KeysOnly()
+				keys, err = query.GetAll(c.c, nil)
 				check(err)
 				datastore.DeleteMulti(c.c, keys)
 				for _, pk := range keys {
@@ -321,7 +326,7 @@ func dishesForIngredientHandler(c *context) {
 			check(err)
 			dishes = append(dishes, key.Parent().Encode())
 		}
-		handler.sendJSON(dishes)
+		handler.sendJSONNoCache(dishes)
 	} else {
 		check(ErrUnsupported)
 	}
@@ -620,6 +625,13 @@ func (self *context) sendJSON(object interface{}) {
 		// we shouldn't get here, deletes don't send back JSON
 	}
 }
+// same as sendJSON, but won't cache the result
+func (self *context) sendJSONNoCache(object interface{}) {
+	j, err := json.Marshal(object)
+	check(err)
+	self.w.Header().Set("Content-Type", "application/json")
+	self.w.(io.Writer).Write(j)
+}
 
 // encode the object in JSON, nicely indented, and write 
 //  the response with application/json content-type
@@ -905,7 +917,7 @@ func searchHandler(c *context) {
 
 	// merge the results from all the queries
 	results := mergeResults(resultsChannel, queries)
-	c.sendJSON(results)
+	c.sendJSONNoCache(results)
 }
 // loop through the results, adding them to a two level map keyed on the entity
 //  kind (Dish,Ingredient) and then the item itself, counting how many
@@ -977,7 +989,7 @@ func allTagsHandler(c *context) {
 			lastTag = tag.Word
 		}
 	}
-	c.sendJSON(tags)
+	c.sendJSONNoCache(tags)
 }
 
 // handler to create JSON to backup all data in the current library
@@ -992,74 +1004,86 @@ func backupHandler(c *context) {
 	query := c.NewQuery("Dish")
 	keys, err := query.GetAll(c.c, &b.Dishes)
 	check(err)
-	// TODO handle children on their own at the end not with separate queries for each
-	for index, _ := range b.Dishes {
-		key := keys[index]
-		b.Dishes[index].Id = key.Encode()
-		ingredients := make([]MeasuredIngredient, 0, 100)
-		query = c.NewQuery("MeasuredIngredient").Ancestor(key).Order("Order")
-		ikeys, err := query.GetAll(c.c, &ingredients)
-		check(err)
-		for iindex, _ := range ingredients {
-			ingredients[iindex].Id = ikeys[iindex].Encode()
-		}
-		if len(ingredients) > 0 {
-			b.MeasuredIngredients[key.Encode()] = ingredients
-		}
-		tags := make([]Word, 0, 10)
-		query = c.NewQuery("Tags").Ancestor(key)
-		tkeys, err := query.GetAll(c.c, &tags)
-		check(err)
-		for tindex, _ := range tags {
-			tags[tindex].Id = tkeys[tindex].Encode()
-		}
-		if len(tags) > 0 {
-			b.Tags[key.Encode()] = tags
-		}
-		pairings := make([]Pairing, 0, 10)
-		query = c.NewQuery("Pairing").Ancestor(key)
-		pkeys, err := query.GetAll(c.c, &pairings)
-		check(err)
-		for pindex, _ := range pairings {
-			pairings[pindex].Id = pkeys[pindex].Encode()
-		}
-		if len(pairings) > 0 {
-			b.Pairings[key.Encode()] = pairings
-		}
+	for i, _ := range b.Dishes {
+		key := keys[i]
+		b.Dishes[i].Id = key.Encode()
 	}
+	// gather all the ingredients
 	query = c.NewQuery("Ingredient")
 	keys, err = query.GetAll(c.c, &b.Ingredients)
 	check(err)
-	for index, _ := range b.Ingredients {
-		key := keys[index]
-		b.Ingredients[index].Id = key.Encode()
-		tags := make([]Word, 0, 10)
-		query = c.NewQuery("Tags").Ancestor(key)
-		tkeys, err := query.GetAll(c.c, &tags)
-		check(err)
-		for tindex, _ := range tags {
-			tags[tindex].Id = tkeys[tindex].Encode()
-		}
-		if len(tags) > 0 {
-			b.Tags[key.Encode()] = tags
-		}
-		pairings := make([]Pairing, 0, 10)
-		query = c.NewQuery("Pairing").Ancestor(key)
-		pkeys, err := query.GetAll(c.c, &pairings)
-		check(err)
-		for pindex, _ := range pairings {
-			pairings[pindex].Id = pkeys[pindex].Encode()
-		}
-		if len(pairings) > 0 {
-			b.Pairings[key.Encode()] = pairings
-		}
+	for i, _ := range b.Ingredients {
+		key := keys[i]
+		b.Ingredients[i].Id = key.Encode()
 	}
+	// gather all the tags
+	tags := make([]Word, 0, 500)
+	query = c.NewQuery("Tags")
+	tkeys, err := query.GetAll(c.c, &tags)
+	check(err)
+	first := 0
+	var lastParent *datastore.Key = nil
+	// fix-up each tags' ID and after we've found
+	//  all tags belonging to a single parent, save
+	//  that slice of tags to the map
+	for i, _ := range tags {
+		parent := tkeys[i].Parent()
+		if !parent.Eq(lastParent) {
+			if lastParent != nil {
+				b.Tags[lastParent.Encode()] = tags[first:i]
+			}
+			lastParent, first = parent, i
+		}
+		tags[i].SetID(tkeys[i].Encode())
+	}
+	if lastParent != nil {
+		b.Tags[lastParent.Encode()] = tags[first:]
+	}
+	// gather the measured ingredients
+	mis := make([]MeasuredIngredient, 0, 512)
+	query = c.NewQuery("MeasuredIngredient")
+	ikeys, err := query.GetAll(c.c, &mis)
+	check(err)
+	lastParent, first = nil, 0
+	for i, _ := range mis {
+		parent := ikeys[i].Parent()
+		if !parent.Eq(lastParent) {
+			if lastParent != nil {
+				b.MeasuredIngredients[lastParent.Encode()] = mis[first:i]
+			}
+			lastParent, first = parent, i
+		}
+		mis[i].Id = ikeys[i].Encode()
+	}
+	if lastParent != nil {
+		b.MeasuredIngredients[lastParent.Encode()] = mis[first:]
+	}
+	// gather all the pairings
+	pairings := make([]Pairing, 0, 512)
+	query = c.NewQuery("Pairing")
+	pkeys, err := query.GetAll(c.c, &pairings)
+	check(err)
+	lastParent, first = nil, 0
+	for i, _ := range pairings {
+		parent := pkeys[i].Parent()
+		if !parent.Eq(lastParent) {
+			if lastParent != nil {
+				b.Pairings[lastParent.Encode()] = pairings[first:i]
+			}
+			lastParent, first = parent, i
+		}
+		pairings[i].Id = pkeys[i].Encode()
+	}
+	if lastParent != nil {
+		b.Pairings[lastParent.Encode()] = pairings[first:]
+	}
+	// gather the menus
 	query = c.NewQuery("Menu")
 	keys, err = query.GetAll(c.c, &b.Menus)
 	check(err)
-	for index, _ := range b.Menus {
-		key := keys[index]
-		b.Menus[index].SetID(key.Encode())
+	for i, _ := range b.Menus {
+		key := keys[i]
+		b.Menus[i].SetID(key.Encode())
 	}
 	c.sendJSONIndent(b)
 }
@@ -1072,6 +1096,7 @@ func restoreHandler(c *context) {
 	indexHandler(c)
 }
 
+// email a sharing request
 func shareHandler(c *context) {
 	// create a request to share the library
 	// form: /share/read/email/other@email.address.com
@@ -1081,7 +1106,8 @@ func shareHandler(c *context) {
 	if uid != c.l.OwnerId {
 		check(os.EPERM)
 	}
-	var email = getID(c.r)
+	// construct a Share entity to store as a child of the 
+	//  being shared
 	var permStr = getParentID(c.r)
 	share := Share{
 		ExpirationDate: time.Seconds() + 30*24*60*60,
@@ -1090,6 +1116,8 @@ func shareHandler(c *context) {
 	key := datastore.NewIncompleteKey(c.c, "Share", c.lid)
 	key, err := datastore.Put(c.c, key, &share)
 	check(err)
+	// construct an email to the requested user
+	var email = getID(c.r)
 	subject := c.u.Email + " would like to share a meal-planning library with you"
 	body := subject + ".\n\nFollow this link to gain access to the library: http://" + c.r.Header.Get("Host") + "/shareAccept/" + key.Encode()
 
@@ -1099,24 +1127,29 @@ func shareHandler(c *context) {
 		Subject: subject,
 		Body:    body,
 	}
+	// send the message on the user's behalf
 	if err := mail.Send(c.c, &msg); err != nil {
 		fmt.Fprintf(c.w, "Failed to send an email message to '%v'. %v", email, err)
 		datastore.Delete(c.c, key)
 	}
 }
 
+// accept an invitation to share
 func shareAcceptHandler(c *context) {
+	// validate the key for a share entry
 	key, err := datastore.DecodeKey(getID(c.r))
 	if err != nil {
 		fmt.Fprintf(c.w, "{\"Error\":\"Invalid key, please check your email to ensure you typed the URL correctly.\"}")
 		return
 	}
+	// fetch the record
 	share := Share{}
 	err = datastore.Get(c.c, key, &share)
 	if err != nil {
 		fmt.Fprintf(c.w, "This invitation has expired, please ensure you typed the URL correctly or contact the sender to retry.")
 		return
 	}
+	// grant user access to this library by creating a permission
 	libKey := key.Parent()
 	uid := c.getUid()
 	// remove any previous permissions the user had to the library
@@ -1142,6 +1175,8 @@ func shareAcceptHandler(c *context) {
 	c.l.UserPreferredLibrary = libKey.Encode()
 	datastore.Put(c.c, c.lid, c.l)
 	memcache.Gob.Set(c.c, &memcache.Item{Key: c.lid.Encode(), Object: c.l})
+	// redirect the user back to index.html to view the newly accessible
+	//  library
 	indexHandler(c)
 }
 
@@ -1155,33 +1190,40 @@ type UserLibrary struct {
 }
 // return a list of libraries this user can access
 func librariesHandler(c *context) {
+	// start with the library the user owns
 	lid, l, _ := getOwnLibrary(c.c, c.u)
 	uid := c.getUid()
 	libraries := make([]UserLibrary, 0, 10)
 	libraries = append(libraries, UserLibrary{lid, l.Name, false, lid.Eq(c.lid), true})
+	// look for any permissions the user has to access other libraries
 	query := datastore.NewQuery("Perm").Filter("UserId=", uid)
 	perm := Perm{}
 	iter := query.Run(c.c)
 	for key, err := iter.Next(&perm); err != datastore.Done; key, err = iter.Next(&perm) {
 		check(err)
+		// fetch libraries that we find
 		lib := Library{}
 		libkey := key.Parent()
 		err = datastore.Get(c.c, libkey, &lib)
 		if err != nil {
 			continue
 		}
+		// add our client's structure to the list to send
 		ul := UserLibrary{libkey, lib.Name, perm.ReadOnly,
 			libkey.Eq(c.lid), false}
+		// use the OwnerId as the name if the library isn't named
 		if len(ul.Name) == 0 {
 			ul.Name = lib.OwnerId
 		}
 		libraries = append(libraries, ul)
 	}
-	c.sendJSON(libraries)
+	// send JSON to the client
+	c.sendJSONNoCache(libraries)
 }
 
 // handler to switch which library the user is looking at
 func switchHandler(c *context) {
+	// verify the library key
 	desiredKey, err := datastore.DecodeKey(getID(c.r))
 	check(err)
 	if desiredKey.Kind() != "Library" {
@@ -1211,14 +1253,23 @@ func switchHandler(c *context) {
 	_, err = datastore.Put(c.c, lid, l)
 	check(err)
 	memcache.Gob.Set(c.c, &memcache.Item{Key: lid.Encode(), Object: l})
+	// redirect the user back to the index to use the updated library preference
 	indexHandler(c)
 }
 
 // handler to delete entire library
 func deletelibHandler(c *context) {
+	for _, kind := range []string{"Keyword", "Tags", "Pairing", "Menu", "MeasuredIngredient", "Dish", "Ingredient" } {
+		query := c.NewQuery(kind).KeysOnly()
+		dkeys, err := query.GetAll(c.c, nil)
+		if err == nil {
+			datastore.DeleteMulti(c.c, dkeys)
+		}
+	}
 	lid, _, _ := getOwnLibrary(c.c, c.u)
 	err := datastore.Delete(c.c, lid)
 	check(err)
+	// flush the cache at the top level
 	memcache.Delete(c.c, lid.Encode())
 	memcache.Delete(c.c, lid.Encode()+"/dish")
 	memcache.Delete(c.c, lid.Encode()+"/dish/")
