@@ -1259,7 +1259,7 @@ func switchHandler(c *context) {
 
 // handler to delete entire library
 func deletelibHandler(c *context) {
-	for _, kind := range []string{"Keyword", "Tags", "Pairing", "Menu", "MeasuredIngredient", "Dish", "Ingredient" } {
+	for _, kind := range []string{"Keyword", "Tags", "Pairing", "Menu", "MeasuredIngredient", "Dish", "Ingredient"} {
 		query := c.NewQuery(kind).KeysOnly()
 		dkeys, err := query.GetAll(c.c, nil)
 		if err == nil {
