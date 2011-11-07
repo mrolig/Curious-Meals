@@ -1,3 +1,7 @@
+// Copyright (c) 2011 Michael Rolig
+// Distributed under the MIT License see file LICENSE
+//  or license section in index.html
+//
 // jQuery add-on functions
 (function($) {
    // make the element hide when the specified container element is hovered

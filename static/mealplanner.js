@@ -1,3 +1,7 @@
+// Copyright (c) 2011 Michael Rolig
+// Distributed under the MIT License see file LICENSE
+//  or license section in index.html
+//
 // load google's visualization for charts
 google.load("visualization", "1", {packages:["corechart"]});
 
@@ -2275,6 +2279,10 @@ jQuery(function() {
 			$.make("a", {"href" : "#tutorial"}, "Tutorial")
 				.click(function() { this.$menu.hide(); return true; }.bind(this))
 				.appendTo(this.$helpsection);
+			this.$helpsection.appendNew("br")
+			$.make("a", {"href" : "#about"}, "About")
+				.click(function() { this.$menu.hide(); return true; }.bind(this))
+				.appendTo(this.$helpsection);
          // section with backup-restore
 			this.$brsection= $.make("div", {"class":"section"})
 					.append($("<div class='field-head'>Backup/Restore</div>")
@@ -2445,6 +2453,18 @@ jQuery(function() {
       initialize : function() {
          this.el = $(this.el);
          this.el.html("<H2>Loading...</h2>");
+      },
+      render : function() {
+         return this;
+      }
+   });
+	// simple view to show the help/about
+   window.AboutView = Backbone.View.extend({
+      tagName : "div",
+      className : "about",
+      initialize : function() {
+         this.el = $(this.el);
+         this.el.html($("#about").html())
       },
       render : function() {
          return this;
@@ -2721,6 +2741,7 @@ jQuery(function() {
          "viewMenu/:id": "viewMenu",
          "search/:tag/:word/:rating": "search",
          "tutorial": "viewTutorial",
+         "about": "viewAbout",
       },
       viewDish : function(id) {
          var m = window.Dishes.get(id);
@@ -2749,6 +2770,9 @@ jQuery(function() {
       },
       viewTutorial : function() {
          window.App.viewTutorial();
+      },
+      viewAbout : function() {
+         window.App.viewAbout();
       },
       search : function(tag,word,rating) {
          var attrs = {};
@@ -2993,6 +3017,12 @@ jQuery(function() {
          this.show(new TutorialView());
          // save this to browser history
          window.Workspace.navigate("tutorial");
+      },
+      // view the help/about display
+      viewAbout : function() {
+         this.show(new AboutView());
+         // save this to browser history
+         window.Workspace.navigate("about");
       },
    })
 
