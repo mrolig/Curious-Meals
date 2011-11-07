@@ -146,50 +146,50 @@ func dishHandler(c *context) {
 		pairingHandler(c)
 		return
 	}
-   // use the standard data handler, add post-processing via callback
-   //  so we can update keywords and remove references to this dish
-   //  when items are written and deleted
+	// use the standard data handler, add post-processing via callback
+	//  so we can update keywords and remove references to this dish
+	//  when items are written and deleted
 	handler := newDataHandler(c, "Dish", func() Ided { return &Dish{} }, "Name")
-   handler.handleRequest(c.lid,
-      func(method string, key *datastore.Key, item Ided) {
-      switch method {
-         case "POST", "PUT":
-            // update keyword index after a change
-            updateDishKeywords(c, key, item.(*Dish))
-         case "DELETE":
-		      // removing any pairings that reference this dish
-		      query := c.NewQuery("Pairing").Filter("Other=", key).KeysOnly()
-		      keys, err := query.GetAll(c.c, nil)
-		      check(err)
-		      datastore.DeleteMulti(c.c, keys)
-		      for _, pk := range keys {
-			      memcache.Delete(c.c, "/dish/"+pk.Parent().Encode()+"/pairing/")
-		      }
-		      // fix any menus referencing this dish
-		      query = c.NewQuery("Menu")
+	handler.handleRequest(c.lid,
+		func(method string, key *datastore.Key, item Ided) {
+			switch method {
+			case "POST", "PUT":
+				// update keyword index after a change
+				updateDishKeywords(c, key, item.(*Dish))
+			case "DELETE":
+				// removing any pairings that reference this dish
+				query := c.NewQuery("Pairing").Filter("Other=", key).KeysOnly()
+				keys, err := query.GetAll(c.c, nil)
+				check(err)
+				datastore.DeleteMulti(c.c, keys)
+				for _, pk := range keys {
+					memcache.Delete(c.c, "/dish/"+pk.Parent().Encode()+"/pairing/")
+				}
+				// fix any menus referencing this dish
+				query = c.NewQuery("Menu")
 				iter := query.Run(c.c)
 				menu := &Menu{}
-		      for mkey, err := iter.Next(menu); err != datastore.Done; mkey, err = iter.Next(menu) {
-               check(err)
-			      newDishes := make([]*datastore.Key, 0, len(menu.Dishes))
-			      for _, dkey := range menu.Dishes {
-				      if !key.Eq(dkey) {
-					      newDishes = append(newDishes, dkey)
-				      }
-			      }
-			      if len(newDishes) < len(menu.Dishes) {
-				      menu.Dishes = newDishes
-				      _, err = datastore.Put(c.c, mkey, menu)
-                  check(err)
-                  // flush the cache for menus 
-				      memcache.Delete(c.c, c.lid.Encode() + "/menu/"+mkey.Encode())
-				      memcache.Delete(c.c, c.lid.Encode() + "/menu/")
-				      memcache.Delete(c.c, c.lid.Encode() + "/menu")
-			      }
+				for mkey, err := iter.Next(menu); err != datastore.Done; mkey, err = iter.Next(menu) {
+					check(err)
+					newDishes := make([]*datastore.Key, 0, len(menu.Dishes))
+					for _, dkey := range menu.Dishes {
+						if !key.Eq(dkey) {
+							newDishes = append(newDishes, dkey)
+						}
+					}
+					if len(newDishes) < len(menu.Dishes) {
+						menu.Dishes = newDishes
+						_, err = datastore.Put(c.c, mkey, menu)
+						check(err)
+						// flush the cache for menus 
+						memcache.Delete(c.c, c.lid.Encode()+"/menu/"+mkey.Encode())
+						memcache.Delete(c.c, c.lid.Encode()+"/menu/")
+						memcache.Delete(c.c, c.lid.Encode()+"/menu")
+					}
 					menu = &Menu{}
-		      }
-         }
-      })
+				}
+			}
+		})
 }
 
 // query data store for tags applied to the element with key given,
@@ -294,103 +294,103 @@ func updateKeywords(c appengine.Context, key *datastore.Key, words map[string]bo
 
 // handler for requests to get the measured ingredients of a dish (parent)
 func measuredIngredientsHandler(c *context) {
-   // get the dish's id and verify it
+	// get the dish's id and verify it
 	parent, err := datastore.DecodeKey(getParentID(c.r))
 	check(err)
 	c.checkUser(parent)
-   // use the default data handler
+	// use the default data handler
 	handler := newDataHandler(c, "MeasuredIngredient", func() Ided { return &MeasuredIngredient{} }, "Order")
-   handler.handleRequest(parent, nil)
+	handler.handleRequest(parent, nil)
 }
 
 // handler to get list of dishes that include the given ingredient
 func dishesForIngredientHandler(c *context) {
-   // check that the ingredient is valid
+	// check that the ingredient is valid
 	ingKey, err := datastore.DecodeKey(getParentID(c.r))
 	check(err)
 	c.checkUser(ingKey)
-   // setup handler class
+	// setup handler class
 	handler := newDataHandler(c, "Dish", func() Ided { return &Dish{} }, "")
 	if c.r.Method == "GET" {
-      // get all measured ingredients that reference this ingredient
+		// get all measured ingredients that reference this ingredient
 		query := c.NewQuery("MeasuredIngredient").Filter("Ingredient =", ingKey).KeysOnly()
 		dishes := make([]string, 0, 100)
-      iter := query.Run(c.c)
-      // take each match, and add its parent (dish)
-      for key, err := iter.Next(nil); err != datastore.Done; key, err = iter.Next(nil) {
-         check(err)
+		iter := query.Run(c.c)
+		// take each match, and add its parent (dish)
+		for key, err := iter.Next(nil); err != datastore.Done; key, err = iter.Next(nil) {
+			check(err)
 			dishes = append(dishes, key.Parent().Encode())
-      }
+		}
 		handler.sendJSON(dishes)
 	} else {
-      check(ErrUnsupported)
-   }
+		check(ErrUnsupported)
+	}
 }
 
 // handler to access tags and keyword children of an item (parent)
 func wordHandler(c *context, kind string) {
-   // validate the parent Key
+	// validate the parent Key
 	parentKey, err := datastore.DecodeKey(getParentID(c.r))
 	check(err)
 	c.checkUser(parentKey)
-   // use the default handler
+	// use the default handler
 	handler := newDataHandler(c, kind, func() Ided { return &Word{} }, "")
-   handler.handleRequest(parentKey, nil)
+	handler.handleRequest(parentKey, nil)
 }
 
 // handler to access pairings as children of a dish (parent)
 func pairingHandler(c *context) {
-   // validate the dish key
+	// validate the dish key
 	parentKey, err := datastore.DecodeKey(getParentID(c.r))
 	check(err)
 	c.checkUser(parentKey)
 	kind := "Pairing"
 	handler := newDataHandler(c, kind, func() Ided { return &Pairing{} }, "")
-   // we don't use the standard handlers for PUT and DELETE
-   switch c.r.Method {
-      case "PUT":
-		   // can't modify a pairing, only add/remove
-		   check(ErrUnsupported)
-      case "DELETE":
-         // validate the id
-	      id := getID(c.r)
-	      key, err := datastore.DecodeKey(id)
-	      check(err)
-	      handler.checkUser(key)
-         // find the symetrical pairing so we can remove it too
-         pairing := Pairing{}
-		   err = datastore.Get(c.c, key, &pairing)
-		   check(err)
-		   otherParent := pairing.Other
-		   query := datastore.NewQuery(kind).Ancestor(otherParent).Filter("Other=", parentKey).Filter("Description=", pairing.Description).KeysOnly()
-		   keys, err := query.GetAll(c.c, nil)
-		   check(err)
-         // delete the entry given
-		   handler.delete(key)
-         // delete the symetrical pairing(s)
-		   datastore.DeleteMulti(handler.c, keys)
-         // flush the cache
-		   clearPairingCache(c, otherParent, key)
-      default:
-         // use the default handler for "GET" and "POST"
-         handler.handleRequest(parentKey,
-            func(method string, key *datastore.Key, item Ided) {
-            switch method {
-		      case "POST":
-               // after a "POST" to create a new item,
-               //  add the symetrical entry for the other dish
-               pairing := item.(*Pairing)
-			      // create the matching entry
-			      other := pairing.Other
-			      newPairKey := datastore.NewIncompleteKey(c.c, kind, other)
-			      pairing.Other = parentKey
-			      pairing.Id = ""
-			      newPairKey, err := datastore.Put(c.c, newPairKey, pairing)
-			      check(err)
-			      clearPairingCache(c, other, nil)
-            }
-         })
-   }
+	// we don't use the standard handlers for PUT and DELETE
+	switch c.r.Method {
+	case "PUT":
+		// can't modify a pairing, only add/remove
+		check(ErrUnsupported)
+	case "DELETE":
+		// validate the id
+		id := getID(c.r)
+		key, err := datastore.DecodeKey(id)
+		check(err)
+		handler.checkUser(key)
+		// find the symetrical pairing so we can remove it too
+		pairing := Pairing{}
+		err = datastore.Get(c.c, key, &pairing)
+		check(err)
+		otherParent := pairing.Other
+		query := datastore.NewQuery(kind).Ancestor(otherParent).Filter("Other=", parentKey).Filter("Description=", pairing.Description).KeysOnly()
+		keys, err := query.GetAll(c.c, nil)
+		check(err)
+		// delete the entry given
+		handler.delete(key)
+		// delete the symetrical pairing(s)
+		datastore.DeleteMulti(handler.c, keys)
+		// flush the cache
+		clearPairingCache(c, otherParent, key)
+	default:
+		// use the default handler for "GET" and "POST"
+		handler.handleRequest(parentKey,
+			func(method string, key *datastore.Key, item Ided) {
+				switch method {
+				case "POST":
+					// after a "POST" to create a new item,
+					//  add the symetrical entry for the other dish
+					pairing := item.(*Pairing)
+					// create the matching entry
+					other := pairing.Other
+					newPairKey := datastore.NewIncompleteKey(c.c, kind, other)
+					pairing.Other = parentKey
+					pairing.Id = ""
+					newPairKey, err := datastore.Put(c.c, newPairKey, pairing)
+					check(err)
+					clearPairingCache(c, other, nil)
+				}
+			})
+	}
 }
 
 // clear the pairing cache for the specified dish/pair that is changed
@@ -405,15 +405,15 @@ func clearPairingCache(c *context, dishKey *datastore.Key, pairingKey *datastore
 
 // handler for ingredients
 func ingredientHandler(c *context) {
-   // handle requests for dishes using the ingredient 
+	// handle requests for dishes using the ingredient 
 	if strings.Contains(c.r.URL.Path, "/in/") {
 		dishesForIngredientHandler(c)
 		return
 	}
-   // handler for tags
+	// handler for tags
 	if strings.Contains(c.r.URL.Path, "/tags/") {
 		wordHandler(c, "Tags")
-      // update keywords if tags were changed
+		// update keywords if tags were changed
 		if c.r.Method != "GET" {
 			key, err := datastore.DecodeKey(getParentID(c.r))
 			check(err)
@@ -424,33 +424,33 @@ func ingredientHandler(c *context) {
 		}
 		return
 	}
-   // handler for debugging keywords
+	// handler for debugging keywords
 	if strings.Contains(c.r.URL.Path, "/keywords/") {
 		wordHandler(c, "Keyword")
 		return
 	}
-   // use default data handler with callback when done
+	// use default data handler with callback when done
 	handler := newDataHandler(c, "Ingredient", func() Ided { return &Ingredient{} }, "Name")
-   handler.handleRequest(c.lid,
-      func(method string, key *datastore.Key, item Ided) {
-      switch method {
-         case "POST", "PUT":
-            // update keywords after adding/changing an item
-			   updateIngredientKeywords(c, key, item.(*Ingredient))
-      }
-   })
+	handler.handleRequest(c.lid,
+		func(method string, key *datastore.Key, item Ided) {
+			switch method {
+			case "POST", "PUT":
+				// update keywords after adding/changing an item
+				updateIngredientKeywords(c, key, item.(*Ingredient))
+			}
+		})
 }
 
 // handler for menu requests
 func menuHandler(c *context) {
-   // handle tags 
+	// handle tags 
 	if strings.Contains(c.r.URL.Path, "/tags/") {
 		wordHandler(c, "Tags")
 		return
 	}
-   // use default data handler
+	// use default data handler
 	handler := newDataHandler(c, "Menu", func() Ided { return &Menu{} }, "Name")
-   handler.handleRequest(c.lid, nil)
+	handler.handleRequest(c.lid, nil)
 }
 
 // helper function for decoding json checking for errors
@@ -491,7 +491,7 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 		uid = u.Email
 	}
 	lid, l, init := getOwnLibrary(c, u)
-   // check if the user wants to use a different library
+	// check if the user wants to use a different library
 	upl, err := datastore.DecodeKey(l.UserPreferredLibrary)
 	if err != nil {
 		//fmt.Fprintf(w, "No UPL %v", l.UserPreferredLibrary)
@@ -500,7 +500,7 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 	readOnly := false
 	// use an alternate library if the user wants to
 	if upl != nil && !lid.Eq(upl) {
-      // check for permision
+		// check for permision
 		perm := getLibPerm(c, uid, upl)
 		//fmt.Fprintf(w, "Try UPL %v, %v\n", l.UserPreferredLibrary, perm)
 		var otherlib *Library = nil
@@ -529,9 +529,9 @@ func newContext(w http.ResponseWriter, r *http.Request) *context {
 			readOnly = perm.ReadOnly
 		}
 	}
-   // create the context with all of the data we gathered
+	// create the context with all of the data we gathered
 	ctxt := &context{w, r, c, u, uid, l, lid, readOnly}
-   // if this is a new library, populate it with data
+	// if this is a new library, populate it with data
 	if init {
 		file, err := os.Open("mealplanner/base.json")
 		if err != nil {
@@ -633,12 +633,12 @@ func (self *context) sendJSONIndent(object interface{}) {
 // dataHandler to generalize the GET/POST/PUT/DELETE handling for the client interface
 type dataHandler struct {
 	context
-   // the Datastore entity 'kind'
-	kind    string
-   // a factory to generate a new item for receiving datastore and JSON data
+	// the Datastore entity 'kind'
+	kind string
+	// a factory to generate a new item for receiving datastore and JSON data
 	factory func() Ided
-   // the field from the data store for ordering a query (used for getAll)
-   orderField string
+	// the field from the data store for ordering a query (used for getAll)
+	orderField string
 }
 
 // factory for data handler
@@ -655,47 +655,47 @@ func newDataHandler(c *context, kind string, factory func() Ided, orderField str
 //  key is nil for GET(all)
 //  method specifies which HTTP method was used
 func (self *dataHandler) handleRequest(ancestor *datastore.Key,
-   callback func (method string, key *datastore.Key, item Ided)) {
-   id := getID(self.r)
-   var key *datastore.Key
-   var item Ided
-   // handle request with no specific ID
+callback func(method string, key *datastore.Key, item Ided)) {
+	id := getID(self.r)
+	var key *datastore.Key
+	var item Ided
+	// handle request with no specific ID
 	if len(id) == 0 {
 		switch self.r.Method {
 		case "GET":
-         // we return a JSON list of all items
+			// we return a JSON list of all items
 			self.getAll(ancestor)
 		case "POST":
-         // we create a new item and return it
+			// we create a new item and return it
 			key, item = self.createEntry(ancestor)
-      default:
-         check(ErrUnsupported)
+		default:
+			check(ErrUnsupported)
 		}
 	} else {
-      // we are working with a specific id, validate it
-      var err os.Error
-	   key, err = datastore.DecodeKey(id)
-	   check(err)
-	   if key.Incomplete() {
-		   check(ErrUnknownItem)
-	   }
-	   self.checkUser(key)
-      // handle the get, update and delete methods
-	   switch self.r.Method {
-	   case "GET":
-		   item = self.get(key)
-	   case "PUT":
-		   item = self.update(key)
-	   case "DELETE":
-		   self.delete(key)
-      default:
-         check(ErrUnsupported)
-	   }
-   }
-   // call the callback if we have one
-   if callback != nil {
-      callback(self.r.Method, key, item)
-   }
+		// we are working with a specific id, validate it
+		var err os.Error
+		key, err = datastore.DecodeKey(id)
+		check(err)
+		if key.Incomplete() {
+			check(ErrUnknownItem)
+		}
+		self.checkUser(key)
+		// handle the get, update and delete methods
+		switch self.r.Method {
+		case "GET":
+			item = self.get(key)
+		case "PUT":
+			item = self.update(key)
+		case "DELETE":
+			self.delete(key)
+		default:
+			check(ErrUnsupported)
+		}
+	}
+	// call the callback if we have one
+	if callback != nil {
+		callback(self.r.Method, key, item)
+	}
 }
 
 // send back JSON for every item returned by the query
@@ -727,57 +727,57 @@ func (self *dataHandler) createEntry(parent *datastore.Key) (*datastore.Key, Ide
 	}
 	r := self.r
 	c := self.c
-   // use the factory to create an item
-   item := self.factory()
-   // read the JSON from client
+	// use the factory to create an item
+	item := self.factory()
+	// read the JSON from client
 	readJSON(r, item)
-   // create a new datastore key
+	// create a new datastore key
 	key := datastore.NewIncompleteKey(c, self.kind, parent)
-   // save the new item
+	// save the new item
 	key, err := datastore.Put(c, key, item)
 	check(err)
-   // write the key into the Id field for the JSON response to address
-   //  the new item
+	// write the key into the Id field for the JSON response to address
+	//  the new item
 	item.SetID(key.Encode())
-   // send back the response and cache it
+	// send back the response and cache it
 	self.sendJSON(item)
-   // return the new key and item
+	// return the new key and item
 	return key, item
 }
 // default data handler for "GET" to fetch one item
 // returns the fetched item
 func (self *dataHandler) get(key *datastore.Key) Ided {
-   // create the object
-   object := self.factory()
-   // fetch it from the data sstore
+	// create the object
+	object := self.factory()
+	// fetch it from the data sstore
 	err := datastore.Get(self.c, key, object)
 	check(err)
-   // ensure the item has the proper Id in the JSON to the client
+	// ensure the item has the proper Id in the JSON to the client
 	object.SetID(key.Encode())
-   // send the object to the client and cache it
+	// send the object to the client and cache it
 	self.sendJSON(object)
-   return object
+	return object
 }
 // default data handler for "PUT" to update one item
 // returns the updated item
 func (self *dataHandler) update(key *datastore.Key) Ided {
-   // create object to receive data
-   object := self.factory()
-   // read the JSON
+	// create object to receive data
+	object := self.factory()
+	// read the JSON
 	readJSON(self.r, object)
 	// don't let user change the ID
 	object.SetID(key.Encode())
-   // save to the datastore
+	// save to the datastore
 	_, err := datastore.Put(self.c, key, object)
 	check(err)
-   // send JSON back to the client and cache it
+	// send JSON back to the client and cache it
 	self.sendJSON(object)
-   return object
+	return object
 }
 
 // default data handler for "DELETE" to remove one itme
 func (self *dataHandler) delete(key *datastore.Key) {
-   // delete the item
+	// delete the item
 	err := datastore.Delete(self.c, key)
 	check(err)
 	// remove this item from the cache
@@ -837,35 +837,35 @@ func getLibPerm(c appengine.Context, uid string, libKey *datastore.Key) *Perm {
 
 // structure to read search parameters from client's post
 type searchParams struct {
-   // list of tags that must match
-	Tags   []string
-   // space/comma separated list of keywords to search for
-	Word   string
+	// list of tags that must match
+	Tags []string
+	// space/comma separated list of keywords to search for
+	Word string
 }
 // handler for search requests, client "POST"s searchParams as JSON
 func searchHandler(c *context) {
-   // decode the JSON search parameters
+	// decode the JSON search parameters
 	sp := searchParams{}
 	readJSON(c.r, &sp)
-   // create a channel for goroutines to send back search results
+	// create a channel for goroutines to send back search results
 	resultsChannel := make(chan map[string]map[string]uint)
-   // count how many goroutines we start so we read all the results back from the channel
+	// count how many goroutines we start so we read all the results back from the channel
 	var queries uint = 0
 
 	// start a goroutine to search for items each specified tag
-   // the merge will do the "and" operation to constrain them
+	// the merge will do the "and" operation to constrain them
 	if len(sp.Tags) > 0 {
 		for _, target := range sp.Tags {
-         word := target
+			word := target
 			go func() {
-            // fetch the tags that match 
+				// fetch the tags that match 
 				query := c.NewQuery("Tags").KeysOnly()
 				query.Filter("Word=", word)
 				keys, err := query.GetAll(c.c, nil)
 				check(err)
 				results := make(map[string]map[string]uint)
 				addResults(keys, results)
-            // send the results through the channel
+				// send the results through the channel
 				resultsChannel <- results
 			}()
 			queries++
@@ -897,13 +897,13 @@ func searchHandler(c *context) {
 					addResults(keys, results)
 				}
 			}
-         // send the results through the channel
+			// send the results through the channel
 			resultsChannel <- results
 		}()
 		queries++
 	}
 
-   // merge the results from all the queries
+	// merge the results from all the queries
 	results := mergeResults(resultsChannel, queries)
 	c.sendJSON(results)
 }
@@ -939,8 +939,8 @@ count uint) map[string]map[string]uint {
 	}
 	// start with the first map we get
 	results := <-resultsChannel
-   // for each additional set we get, make a new map
-   // keeping only items that appear in both results
+	// for each additional set we get, make a new map
+	// keeping only items that appear in both results
 	count--
 	for count > 0 {
 		results2 := <-resultsChannel
@@ -982,17 +982,17 @@ func allTagsHandler(c *context) {
 
 // handler to create JSON to backup all data in the current library
 func backupHandler(c *context) {
-   // initialize the backup structures
+	// initialize the backup structures
 	b := backup{}
 	b.MeasuredIngredients = map[string][]MeasuredIngredient{}
 	b.Tags = map[string][]Word{}
 	b.Pairings = map[string][]Pairing{}
 
-   // gather all the dishes
+	// gather all the dishes
 	query := c.NewQuery("Dish")
 	keys, err := query.GetAll(c.c, &b.Dishes)
 	check(err)
-   // TODO handle children on their own at the end not with separate queries for each
+	// TODO handle children on their own at the end not with separate queries for each
 	for index, _ := range b.Dishes {
 		key := keys[index]
 		b.Dishes[index].Id = key.Encode()
@@ -1162,8 +1162,8 @@ func librariesHandler(c *context) {
 	query := datastore.NewQuery("Perm").Filter("UserId=", uid)
 	perm := Perm{}
 	iter := query.Run(c.c)
-   for key, err := iter.Next(&perm); err != datastore.Done; key, err = iter.Next(&perm) {
-      check(err)
+	for key, err := iter.Next(&perm); err != datastore.Done; key, err = iter.Next(&perm) {
+		check(err)
 		lib := Library{}
 		libkey := key.Parent()
 		err = datastore.Get(c.c, libkey, &lib)
@@ -1220,10 +1220,10 @@ func deletelibHandler(c *context) {
 	err := datastore.Delete(c.c, lid)
 	check(err)
 	memcache.Delete(c.c, lid.Encode())
-	memcache.Delete(c.c, lid.Encode() + "/dish")
-	memcache.Delete(c.c, lid.Encode() + "/dish/")
-	memcache.Delete(c.c, lid.Encode() + "/ingredient")
-	memcache.Delete(c.c, lid.Encode() + "/ingredient/")
-	memcache.Delete(c.c, lid.Encode() + "/menu")
-	memcache.Delete(c.c, lid.Encode() + "/menu/")
+	memcache.Delete(c.c, lid.Encode()+"/dish")
+	memcache.Delete(c.c, lid.Encode()+"/dish/")
+	memcache.Delete(c.c, lid.Encode()+"/ingredient")
+	memcache.Delete(c.c, lid.Encode()+"/ingredient/")
+	memcache.Delete(c.c, lid.Encode()+"/menu")
+	memcache.Delete(c.c, lid.Encode()+"/menu/")
 }
