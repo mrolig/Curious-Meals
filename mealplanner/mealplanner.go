@@ -39,7 +39,19 @@ func init() {
 	http.HandleFunc("/search", errorHandler(searchHandler))
 }
 
-// type to let us build general functionality
+// context structure to carry common data we need for most of our handlers
+type context struct {
+	w        http.ResponseWriter
+	r        *http.Request
+	c        appengine.Context
+	u        *user.User
+	uid      string
+	l        *Library
+	lid      *datastore.Key
+	readOnly bool
+}
+// type to let us build general functionality for a handler
+//  using a common context
 type handlerFunc func(c *context)
 
 // errorHandler catches errors and prints an HTTP 500 error 
@@ -85,65 +97,55 @@ func cacheHandler(handler handlerFunc) http.HandlerFunc {
 		handler(c)
 	})
 }
+// panics if err != nill
 func check(err os.Error) {
 	if err != nil {
 		panic(err)
 	}
 }
+// redirect "/" to "index.html"
 func indexHandler(c *context) {
 	http.Redirect(c.w, c.r, "/index.html", http.StatusFound)
 }
+
+// returns JSON information about the user [{Name: "", logoutURL:""}, ...]
 func usersHandler(c *context) {
 	logoutURL, _ := user.LogoutURL(c.c, "/index.html")
 	fmt.Fprintf(c.w, `[{ "Name" : "%v", "logoutURL" : "%v"}]`,
 		c.u, logoutURL)
 }
+// returns JSON with dish or dishes
 func dishHandler(c *context) {
+   // handle measured ingredients
 	if strings.Contains(c.r.URL.Path, "/mi/") {
 		measuredIngredientsHandler(c)
-		if c.r.Method != "GET" {
-			key, err := datastore.DecodeKey(getParentID(c.r))
-			check(err)
-			dish := Dish{}
-			err = datastore.Get(c.c, key, &dish)
-			check(err)
-			updateDishKeywords(c, key, &dish)
-		}
 		return
 	}
+   // handle tags
 	if strings.Contains(c.r.URL.Path, "/tags/") {
 		wordHandler(c, "Tags")
+      // update keywords if tags have changed
 		if c.r.Method != "GET" {
-			key, err := datastore.DecodeKey(getParentID(c.r))
-			check(err)
-			dish := Dish{}
-			err = datastore.Get(c.c, key, &dish)
-			check(err)
-			updateDishKeywords(c, key, &dish)
+         updateDishKeywordsKeyStr(c, getParentID(c.r))
 		}
 		return
 	}
+   // for debugging, get keywords
 	if strings.Contains(c.r.URL.Path, "/keywords/") {
 		wordHandler(c, "Keyword")
 		return
 	}
+   // handle pairings
 	if strings.Contains(c.r.URL.Path, "/pairing/") {
 		pairingHandler(c)
 		return
 	}
-	handler := newDataHandler(c, "Dish")
+	handler := newDataHandler(c, "Dish", func() Ided{return &Dish{}})
 	id := getID(c.r)
 	if len(id) == 0 {
 		switch c.r.Method {
 		case "GET":
-			query := c.NewQuery("Dish").Order("Name")
-			dishes := make([]Dish, 0, 100)
-			keys, err := query.GetAll(handler.c, &dishes)
-			check(err)
-			for index, _ := range dishes {
-				dishes[index].Id = keys[index].Encode()
-			}
-			handler.sendJSON(dishes)
+         handler.getAll(c.lid, "Name")
 		case "POST":
 			dish := Dish{}
 			newKey := handler.createEntry(&dish, nil)
@@ -219,6 +221,15 @@ dish *Dish) {
 		memcache.Delete(c.c, cacheKey)
 	}
 }
+// update the keywords for the dish, starting with the encoded key for the dish
+func updateDishKeywordsKeyStr(c *context, keyStr string) {
+	key, err := datastore.DecodeKey(keyStr)
+	check(err)
+	dish := Dish{}
+	err = datastore.Get(c.c, key, &dish)
+	check(err)
+	updateDishKeywords(c, key, &dish)
+}
 func updateIngredientKeywords(c *context, key *datastore.Key,
 ing *Ingredient) {
 	words := make(map[string]bool)
@@ -284,7 +295,7 @@ func updateKeywords(c appengine.Context, key *datastore.Key, words map[string]bo
 }
 
 func measuredIngredientsHandler(c *context) {
-	handler := newDataHandler(c, "MeasuredIngredient")
+	handler := newDataHandler(c, "MeasuredIngredient", func() Ided{return &MeasuredIngredient{}})
 	id := getID(c.r)
 	parent, err := datastore.DecodeKey(getParentID(c.r))
 	check(err)
@@ -292,14 +303,7 @@ func measuredIngredientsHandler(c *context) {
 	if len(id) == 0 {
 		switch c.r.Method {
 		case "GET":
-			query := c.NewQuery(handler.kind).Ancestor(parent).Order("Order")
-			ingredients := make([]MeasuredIngredient, 0, 100)
-			keys, err := query.GetAll(handler.c, &ingredients)
-			check(err)
-			for index, _ := range ingredients {
-				ingredients[index].Id = keys[index].Encode()
-			}
-			handler.sendJSON(ingredients)
+         handler.getAll(parent, "Order")
 		case "POST":
 			mi := MeasuredIngredient{}
 			handler.createEntry(&mi, parent)
@@ -324,7 +328,7 @@ func measuredIngredientsHandler(c *context) {
 }
 
 func dishesForIngredientHandler(c *context) {
-	handler := newDataHandler(c, "Dish")
+	handler := newDataHandler(c, "Dish", func() Ided{return &Dish{}})
 	id := getID(c.r)
 	ingKey, err := datastore.DecodeKey(getParentID(c.r))
 	check(err)
@@ -345,7 +349,7 @@ func dishesForIngredientHandler(c *context) {
 }
 
 func wordHandler(c *context, kind string) {
-	handler := newDataHandler(c, kind)
+	handler := newDataHandler(c, kind, func()Ided{return&Word{}})
 	id := getID(c.r)
 	parentKey, err := datastore.DecodeKey(getParentID(c.r))
 	check(err)
@@ -353,14 +357,7 @@ func wordHandler(c *context, kind string) {
 	if len(id) == 0 {
 		switch c.r.Method {
 		case "GET":
-			query := c.NewQuery(kind).Ancestor(parentKey)
-			words := make([]Word, 0, 100)
-			keys, err := query.GetAll(handler.c, &words)
-			check(err)
-			for index, _ := range words {
-				words[index].SetID(keys[index].Encode())
-			}
-			handler.sendJSON(words)
+         handler.getAll(parentKey, "")
 		case "POST":
 			word := Word{}
 			handler.createEntry(&word, parentKey)
@@ -383,7 +380,7 @@ func wordHandler(c *context, kind string) {
 
 func pairingHandler(c *context) {
 	kind := "Pairing"
-	handler := newDataHandler(c, kind)
+	handler := newDataHandler(c, kind, func() Ided {return &Pairing{}})
 	id := getID(c.r)
 	parentKey, err := datastore.DecodeKey(getParentID(c.r))
 	check(err)
@@ -391,14 +388,7 @@ func pairingHandler(c *context) {
 	if len(id) == 0 {
 		switch c.r.Method {
 		case "GET":
-			query := c.NewQuery(kind).Ancestor(parentKey)
-			pairs := make([]Pairing, 0, 20)
-			keys, err := query.GetAll(handler.c, &pairs)
-			check(err)
-			for index, _ := range pairs {
-				pairs[index].SetID(keys[index].Encode())
-			}
-			handler.sendJSON(pairs)
+         handler.getAll(parentKey, "")
 		case "POST":
 			pairing := Pairing{}
 			handler.createEntry(&pairing, parentKey)
@@ -471,19 +461,12 @@ func ingredientHandler(c *context) {
 		pairingHandler(c)
 		return
 	}
-	handler := newDataHandler(c, "Ingredient")
+	handler := newDataHandler(c, "Ingredient", func() Ided{return&Ingredient{}})
 	id := getID(c.r)
 	if len(id) == 0 {
 		switch c.r.Method {
 		case "GET":
-			query := c.NewQuery("Ingredient").Order("Name")
-			ingredients := make([]Ingredient, 0, 100)
-			keys, err := query.GetAll(handler.c, &ingredients)
-			check(err)
-			for index, _ := range ingredients {
-				ingredients[index].Id = keys[index].Encode()
-			}
-			handler.sendJSON(ingredients)
+         handler.getAll(c.lid, "Name")
 		case "POST":
 			ingredient := Ingredient{}
 			newKey := handler.createEntry(&ingredient, nil)
@@ -511,19 +494,12 @@ func menuHandler(c *context) {
 		wordHandler(c, "Tags")
 		return
 	}
-	handler := newDataHandler(c, "Menu")
+	handler := newDataHandler(c, "Menu", func()Ided{return&Menu{}})
 	id := getID(c.r)
 	if len(id) == 0 {
 		switch c.r.Method {
 		case "GET":
-			query := c.NewQuery("Menu").Order("Name")
-			menus := make([]Menu, 0, 100)
-			keys, err := query.GetAll(handler.c, &menus)
-			check(err)
-			for index, _ := range menus {
-				menus[index].Id = keys[index].Encode()
-			}
-			handler.sendJSON(menus)
+         handler.getAll(c.lid, "Name")
 		case "POST":
 			menu := Menu{}
 			handler.createEntry(&menu, nil)
@@ -575,20 +551,11 @@ type Ided interface {
 	SetID(string)
 }
 
-type context struct {
-	w        http.ResponseWriter
-	r        *http.Request
-	c        appengine.Context
-	u        *user.User
-	uid      string
-	l        *Library
-	lid      *datastore.Key
-	readOnly bool
-}
 
 type dataHandler struct {
 	context
 	kind string
+   factory func() Ided
 }
 
 func (self *context) getUid() string {
@@ -763,8 +730,30 @@ func (self *context) sendJSONIndent(object interface{}) {
 	self.w.(io.Writer).Write(j)
 }
 
-func newDataHandler(c *context, kind string) *dataHandler {
-	return &dataHandler{*c, kind}
+func newDataHandler(c *context, kind string, factory func() Ided) *dataHandler {
+	return &dataHandler{*c, kind, factory}
+}
+
+// send back json for every item returned by the query
+//  fixing up the Id fields for each
+func (self *dataHandler) getAll(ancestor *datastore.Key, orderField string) {
+   query := datastore.NewQuery(self.kind).Ancestor(ancestor)
+   if len(orderField) != 0 {
+      query = query.Order(orderField)
+   }
+   iter := query.Run(self.c)
+   var err os.Error = nil
+   items := make([]interface{}, 0, 100)
+   for err == nil {
+      item := self.factory()
+      var key *datastore.Key
+      key, err = iter.Next(item)
+      if err == nil {
+         item.SetID(key.Encode())
+         items = append(items, item)
+      }
+   }
+	self.sendJSON(items)
 }
 
 func (self *dataHandler) createEntry(newObject interface{}, parent *datastore.Key) *datastore.Key {
