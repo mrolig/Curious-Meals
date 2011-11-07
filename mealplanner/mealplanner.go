@@ -1,4 +1,5 @@
 package mealplanner
+// main HTTP server handlers for the meal planner backend
 
 import (
 	"http"
@@ -16,6 +17,7 @@ import (
 	"time"
 )
 
+// setup the handler functions
 func init() {
 	http.HandleFunc("/", errorHandler(indexHandler))
 	http.HandleFunc("/dish", cacheHandler(dishHandler))
@@ -24,9 +26,6 @@ func init() {
 	http.HandleFunc("/ingredient", cacheHandler(ingredientHandler))
 	http.HandleFunc("/ingredient/", cacheHandler(ingredientHandler))
 	http.HandleFunc("/menu/", cacheHandler(menuHandler))
-	// search uses POST for a read, we don't use permHandler because
-	// it would block searches of readonly libraries
-	http.HandleFunc("/search", errorHandler(searchHandler))
 	http.HandleFunc("/tags", permHandler(allTagsHandler))
 	http.HandleFunc("/backup", permHandler(backupHandler))
 	http.HandleFunc("/restore", permHandler(restoreHandler))
@@ -35,8 +34,12 @@ func init() {
 	http.HandleFunc("/libraries", errorHandler(librariesHandler))
 	http.HandleFunc("/switch/", errorHandler(switchHandler))
 	http.HandleFunc("/deletelib", errorHandler(deletelibHandler))
+	// search uses POST for a read, we don't use permHandler because
+	// it would block searches of readonly libraries
+	http.HandleFunc("/search", errorHandler(searchHandler))
 }
 
+// type to let us build general functionality
 type handlerFunc func(c *context)
 
 // errorHandler catches errors and prints an HTTP 500 error 
@@ -208,6 +211,7 @@ dish *Dish) {
 	words := make(map[string]bool)
 	addWords(dish.Name, words)
 	addWords(dish.Source, words)
+	addWords(dish.Text, words)
 	addTags(c.c, key, words)
 	if updateKeywords(c.c, key, words) {
 		// if we made changes, we need to clear the cache
