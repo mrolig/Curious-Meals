@@ -152,6 +152,21 @@
       var ret = Array(zeros+1).join("0") + str;
       return ret;
    }
-    
+   // create a span with proper ui-icon classes to show an icon
+   // returns jQuery object
+   $.makeIcon = function(iconClass, large) {
+      var $icon = $.make("span")
+         .addClass("ui-icon")
+         .addClass("inline")
+         .addClass(iconClass);
+      if (large) {
+         $icon.addClass("large")
+      }
+      return $icon;
+   }
+   $.makeRemoveIcon = function() {
+      return $("<span class='remove ui-icon ui-icon-close'></span>");
+   }
+ 
 })(jQuery);
 

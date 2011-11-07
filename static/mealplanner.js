@@ -335,7 +335,7 @@ jQuery(function() {
          this.$title = $.make("div", {class:"title"})
             .appendTo(this.el);
          if (this.icon) {
-            this.makeIcon(this.icon, true)
+            $.makeIcon(this.icon, true)
                .appendTo(this.$title);
          }
          this.$name = $.make("span", {class:"name"})
@@ -365,21 +365,6 @@ jQuery(function() {
          this.$fields = $.make("div", {class:"fields"})
             .appendTo(this.el);
       },
-      // create a span with proper ui-icon classes to show an icon
-      // returns jQuery object
-      makeIcon : function(iconClass, large) {
-         var $icon = $.make("span")
-            .addClass("ui-icon")
-            .addClass("inline")
-            .addClass(iconClass);
-         if (large) {
-            $icon.addClass("large")
-         }
-         return $icon;
-      },
-      makeRemoveIcon : function() {
-         return $("<span class='remove ui-icon ui-icon-close'></span>");
-      },
       // Add a new field to the $fields section
       //  adds <span class='field-head'>[name]</span> [separator] [icon]
       // returns jQuery object
@@ -394,7 +379,7 @@ jQuery(function() {
             $field.append(separator);
          }
          if (icon) {
-            this.makeIcon(icon)
+            $.makeIcon(icon)
                .appendTo($field);
          }
          return $field;
@@ -732,7 +717,7 @@ jQuery(function() {
                .text(tag.get("Word"))
                .attr("href", "#search/" + tag.get("Word") + "//");
 				if (!self.options.readOnly) {
-            	var $delTag = self.makeRemoveIcon()
+            	var $delTag = $.makeRemoveIcon()
                	.appendTo($tag)
                	.click(function () {
                      	tag.destroy();
@@ -827,7 +812,7 @@ jQuery(function() {
 				   .appendTo($pairings);
 			   _.each(list, function(pairing, p) {
          	   var $pairing = $.make("li", {"class":"pairing dish"})
-                  .append(self.makeIcon('ui-icon-dish'))
+                  .append($.makeIcon('ui-icon-dish'))
             	   .appendTo($ul);
                $pairing[0].model = pairing.other;
          	   $.make("a")
@@ -835,7 +820,7 @@ jQuery(function() {
             	   .text(pairing.other.get("Name"))
             	   .attr("href", "#viewDish/" + pairing.other.id);
 					if(!self.options.readOnly) {
-         	   	var $delTag = self.makeRemoveIcon()
+         	   	var $delTag = $.makeRemoveIcon()
             	   	.appendTo($pairing)
             	   	.click(function () {
                   	   	pairing.pairing.destroy();
@@ -859,7 +844,7 @@ jQuery(function() {
 				   .appendTo($pairings);
             _.each(menus, function(menu) {
          	   var $pairing = $.make("li", {"class": "pairing"})
-                  .append(self.makeIcon("ui-icon-menu"))
+                  .append($.makeIcon("ui-icon-menu"))
             	   .appendTo($ul);
                $pairing[0].model = menu;
          	   $.make("a")
@@ -1127,11 +1112,11 @@ jQuery(function() {
          // check if this dish is vegan or vegetarian and show the proper icon
          if (this.$vegIcon == null && this.model.tags.fetched) {
             if (this.model.tags.hasWord("Vegan")) {
-               this.$vegIcon = $("<img src='images/vegan_32.png' title='Vegan'></imp>");
+               this.$vegIcon = $("<img src='images/vegan_32.png' title='Vegan'></img>");
                this.$name.before(this.$vegIcon);
                   
             } else if (this.model.tags.hasWord("Vegetarian")) {
-               this.$vegIcon = $("<img src='images/vegetarian_32.png' title='Vegetarian'></imp>");
+               this.$vegIcon = $("<img src='images/vegetarian_32.png' title='Vegetarian'></img>");
                this.$name.before(this.$vegIcon);
                   
             }
@@ -1169,7 +1154,9 @@ jQuery(function() {
          this.model.ingredients.each(function(i) {
                var $tr = $("<tr class='ingredient'></tr>");
                $tr.attr("id", i.id);
-               var $name = $("<td><span class='ui-icon ui-icon-ingredient inline'></span></td>").appendTo($tr);
+               var $name = $("<td></td>")
+						.append($.makeIcon("ui-icon-ingredient"))
+						.appendTo($tr);
                var $amount = $("<td><span class='ingredient-amount'></span></td>")
                   .appendTo($tr)
                   .find("span");
@@ -1403,7 +1390,7 @@ jQuery(function() {
                   .find("input")
                   .textInput();
                ing.$del = $("<td></td>")
-                  .append(self.makeRemoveIcon())
+                  .append($.makeRemoveIcon())
                   .appendTo($tr)
                   .click(function() {
                      var $tr = $(this).closest("tr");
@@ -1588,11 +1575,11 @@ jQuery(function() {
          this.$span = $.make("div", {class:"serving-value"})
             .appendTo(this.$div);
          if (this.options.onChange) {
-            var $plus = $("<span class='ui-icon ui-icon-plus inline'></span>")
+            var $plus = $.makeIcon("ui-icon-plus")
                .appendTo(this.$div)
                .hide()
                .click(this.inc);
-            var $minus = $("<span class='ui-icon ui-icon-minus inline'></span>")
+            var $minus = $.makeIcon("ui-icon-minus")
                .appendTo(this.$div)
                .hide()
                .click(this.sub);
@@ -1849,7 +1836,11 @@ jQuery(function() {
          MealplannerView.prototype.initialize.call(this);
 
          // show "Menus" as title
-         this.el.append("<div class='name'><span class='ui-icon ui-icon-menu inline large'></span>Menus</div>");
+			$.make("div")
+				.addClass("name")
+				.text("Menus")
+				.prepend($.makeIcon("ui-icon-menu", true))
+				.appendTo(this.el);
          // show a combo box to pick menus, using nowrap to keep it from splitting up the button
          var $nowrap = $("<span class='nowrap'></span>")
             .appendTo(this.el);
@@ -1986,7 +1977,7 @@ jQuery(function() {
          // create view of each item and sum the nutrition
          _.each(dishes, function(dish) {
             var $li = $("<li class='dish'></li>")
-               .append(self.makeIcon('ui-icon-dish'))
+               .append($.makeIcon('ui-icon-dish'))
                .appendTo(self.$dishes)
                .draggable({revert:true,helper:'clone',appendTo:'body'});
             var name = dish.get("Name");
@@ -1996,7 +1987,7 @@ jQuery(function() {
                   .attr("href", "#viewDish/" + dish.id);
 			   $li[0].model = dish;
 				if (!self.options.readOnly) {
-            	var $delTag = self.makeRemoveIcon()
+            	var $delTag = $.makeRemoveIcon()
                	.appendTo($li)
                	.click(function () {
                      	self.model.removeDish(dish);
@@ -2179,7 +2170,8 @@ jQuery(function() {
                   }
                }
             });
-            var $li = $("<li class='dish'><span class='ui-icon inline ui-icon-dish'></span></li>")
+            var $li = $("<li class='dish'></li>")
+					.append($.makeIcon("ui-icon-dish"))
                .appendTo(self.$dishes)
                .draggable({revert:true,helper:'clone',appendTo:'body'});
 			   $li[0].model= dish;
@@ -2190,7 +2182,7 @@ jQuery(function() {
                   .attr("href", "#viewDish/" + dish.id);
             $li.append( " " + dish.get("PrepTimeMinutes") + " + " + dish.get("CookTimeMinutes") + " = " + (parseInt(dish.get("PrepTimeMinutes")) + parseInt(dish.get("CookTimeMinutes"))) + " minutes");
 				if (!self.options.readOnly) {
-            	var $delTag = self.makeRemoveIcon()
+            	var $delTag = $.makeRemoveIcon()
                	.appendTo($li)
                	.click(function () {
                      	self.model.removeDish(dish);
@@ -2210,7 +2202,8 @@ jQuery(function() {
             });
          _.each(ingredients, function(ing) {
             var ingredient = ing.ingredient;
-            var $li = $("<li class='ingredient'><span class='ui-icon inline ui-icon-ingredient'></span></li>")
+            var $li = $("<li class='ingredient'></li>")
+					.append($.makeIcon('ui-icon-ingredient'))
                .appendTo(self.$ingredients)
                .draggable({revert:true,helper:'clone',appendTo:'body'});
 			   $li[0].model= ingredient;
@@ -2274,9 +2267,18 @@ jQuery(function() {
          // section with libraries
 			this.$libs = $.make("div", {"class":"section"})
                .appendTo(this.$menu);
+			// section with help
+			this.$helpsection= $.make("div", {"class":"section"})
+					.append($("<div class='field-head'>Help</div>")
+								.prepend($.makeIcon("ui-icon-help")))
+               .appendTo(this.$menu);
+			$.make("a", {"href" : "#tutorial"}, "Tutorial")
+				.click(function() { this.$menu.hide(); return true; }.bind(this))
+				.appendTo(this.$helpsection);
          // section with backup-restore
-			this.$brsection= $.make("div", {"class":"section"},
-				 "<div class='field-head'>Backup/Restore</div>")
+			this.$brsection= $.make("div", {"class":"section"})
+					.append($("<div class='field-head'>Backup/Restore</div>")
+								.prepend($.makeIcon("ui-icon-transferthick-e-w")))
                .appendTo(this.$menu);
 			this.$brsection.append("<a href='/backup' title='Save this file to backup the database.'>Backup</a><br/>");
 			this.$restoreform = $.make("form", {
@@ -2310,7 +2312,8 @@ jQuery(function() {
             this.$title.text(user.get("Name"));
 				this.$signout
                .html($.make("a", {href:user.get("logoutURL")},
-                              "Sign out"));
+                              "Sign out"))
+					.prepend($.makeIcon("ui-icon-person"));
 				
          }
          return this;
@@ -2319,7 +2322,11 @@ jQuery(function() {
 		listLibraries : function(data) {
 			var self = this;
 			var $libs = this.$libs;
-			$libs.html("<div class='field-head'>Libraries</div>");
+			$libs.html();
+			$.make("div", "Libraries")
+				.addClass("field-head")
+				.prepend($.makeIcon("ui-icon-folder-collapsed"))
+				.appendTo($libs);
          // create links to switch the view to the other library
 			_.each(data, function (lib) {
 				var $l;
@@ -2437,12 +2444,50 @@ jQuery(function() {
       className : "search-view",
       initialize : function() {
          this.el = $(this.el);
-         this.el.text("Loading...");
+         this.el.html("<H2>Loading...</h2>");
       },
       render : function() {
          return this;
       }
-      });
+   });
+	// simple view to show the tutorial
+   window.TutorialView = Backbone.View.extend({
+      tagName : "div",
+      className : "tutorial",
+      initialize : function() {
+         this.el = $(this.el);
+         this.el.html($("#tutorial").html())
+			var $toc = this.el.find("ul.toc");
+			var $uls = [$toc];
+			$uls.push($.make("ul"));
+			var $anchors = this.el.find("a[name]");
+			var last = "H3";
+			$anchors.each(function(idx, a) {
+				var $a = $(a);
+				var $parent = $a.parent();
+				var $ul = $uls[$uls.length-1];
+				var tagName = $parent.attr("tagName");
+				if (tagName == last) {
+					$uls.pop();
+					$ul = $uls[$uls.length-1];
+				} else if (tagName < last) {
+					$uls.pop();
+					$uls.pop();
+					$ul = $uls[$uls.length-1];
+				}
+				last = tagName;
+				var $next = $.make("ul");
+				$.make("li")
+					.appendNew("a", {"href": "#"+ $a.attr("name")}, $parent.text())
+					.append($next)
+					.appendTo($ul)
+				$uls.push($next);
+			})
+      },
+      render : function() {
+         return this;
+      }
+   });
 
    // view to show search query, filter and results
    window.SearchView = window.MealplannerView.extend({
@@ -2639,7 +2684,7 @@ jQuery(function() {
                .appendTo($tag)
                .text(tag);
 				if (!self.options.readOnly) {
-            	var $delTag = self.makeRemoveIcon()
+            	var $delTag = $.makeRemoveIcon()
                	.appendTo($tag)
                	.click(function () {
                      	var newTags = self.model.get("Tags");
@@ -2675,6 +2720,7 @@ jQuery(function() {
          "editIngredient/:id": "editIngredient",
          "viewMenu/:id": "viewMenu",
          "search/:tag/:word/:rating": "search",
+         "tutorial": "viewTutorial",
       },
       viewDish : function(id) {
          var m = window.Dishes.get(id);
@@ -2700,6 +2746,9 @@ jQuery(function() {
          var m = window.Menus.get(id);
          if (m)
             window.App.viewMenu(m);
+      },
+      viewTutorial : function() {
+         window.App.viewTutorial();
       },
       search : function(tag,word,rating) {
          var attrs = {};
@@ -2820,7 +2869,7 @@ jQuery(function() {
          if (this.fetched % 4 == 0) {
             if (this.mainView
                 && this.mainView.constructor == LoadingView) {
-               this.show(null);
+               this.show(new TutorialView());
             }
          }
       },
@@ -2938,6 +2987,12 @@ jQuery(function() {
          this.show(viewMenu);
          // save this to browser history
          window.Workspace.navigate("viewMenu/" + model.id);
+      },
+      // view the help/tutorial display
+      viewTutorial : function() {
+         this.show(new TutorialView());
+         // save this to browser history
+         window.Workspace.navigate("tutorial");
       },
    })
 

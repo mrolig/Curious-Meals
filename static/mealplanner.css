@@ -255,3 +255,6 @@ span.summary {
 .nowrap {
 	white-space:nowrap;
 }
+ul.toc ul {
+	margin: 0px;
+}
