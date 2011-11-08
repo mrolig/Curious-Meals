@@ -1,3 +1,4 @@
+- try making tags and keywords a list of strings on the element itself ??
 - add management of library sharing
 - refactor handling of 'changes' to not lose changes
 - comments from users?
