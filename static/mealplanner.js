@@ -336,17 +336,17 @@ jQuery(function() {
       // creates members: $title, $name, $buttons, $fields
       // uses: options.readOnly, options.buttons
       createBasicView : function () {
-         this.$title = $.make("div", {class:"title"})
+         this.$title = $.make("div", {"class":"title"})
             .appendTo(this.el);
          if (this.icon) {
             $.makeIcon(this.icon, true)
                .appendTo(this.$title);
          }
-         this.$name = $.make("span", {class:"name"})
+         this.$name = $.make("span", {"class":"name"})
             .appendTo(this.$title);
          this.$title.append(" ");
          if (this.buttons && !this.options.readOnly) {
-            this.$buttons = $.make("span", {class:"buttons"})
+            this.$buttons = $.make("span", {"class":"buttons"})
                .appendTo(this.$title);
             for (var b in this.buttons) {
                var info = this.buttons[b];
@@ -366,7 +366,7 @@ jQuery(function() {
                .removeClass("ui-corner-left")
                .addClass("ui-corner-right");
          }
-         this.$fields = $.make("div", {class:"fields"})
+         this.$fields = $.make("div", {"class":"fields"})
             .appendTo(this.el);
       },
       // Add a new field to the $fields section
@@ -374,10 +374,10 @@ jQuery(function() {
       // returns jQuery object
       newField : function(name, icon, separator) {
          separator = separator || ": ";
-         var $field = $.make("div", {class: "field" } )
+         var $field = $.make("div", {"class": "field" } )
             .appendTo(this.$fields);
          if (name) {
-            $.make("span", {class: "field-head"})
+            $.make("span", {"class": "field-head"})
                .text(name)
                .appendTo($field);
             $field.append(separator);
@@ -1574,9 +1574,9 @@ jQuery(function() {
          _.bindAll(this, "sub");
          _.bindAll(this, "render");
          this.model.bind('all', this.render);
-         this.$div = $.make("div", {class:"serving"})
+         this.$div = $.make("div", {"class":"serving"})
             .appendTo(this.el);
-         this.$span = $.make("div", {class:"serving-value"})
+         this.$span = $.make("div", {"class":"serving-value"})
             .appendTo(this.$div);
          if (this.options.onChange) {
             var $plus = $.makeIcon("ui-icon-plus")
@@ -1950,7 +1950,7 @@ jQuery(function() {
             .appendTo($charts);
          this.$targetChart = $("<span>")
             .appendTo($charts);
-         $charts.append("<div class='legend'><span class='sample' style='background:#459E00;'></span> Fruits &amp; Veggetables<br><span class='sample' style='background:#B23500'></span> Protein<br><span class='sample' style='background:#770071'></span> Carbohydrates</div>");
+         $charts.append("<div class='legend'><span class='sample' style='background:#459E00;'></span> Fruits &amp; Vegetables<br><span class='sample' style='background:#B23500'></span> Protein<br><span class='sample' style='background:#770071'></span> Carbohydrates</div>");
       },
       render : function() {
          // update the view
@@ -2119,7 +2119,7 @@ jQuery(function() {
             .appendTo($charts);
          this.$targetChart = $("<span>")
             .appendTo($charts);
-         $charts.append("<div class='legend'><span class='sample' style='background:#459E00;'></span> Fruits &amp; Veggetables<br><span class='sample' style='background:#B23500'></span> Protein<br><span class='sample' style='background:#770071'></span> Carbohydrates</div>");
+         $charts.append("<div class='legend'><span class='sample' style='background:#459E00;'></span> Fruits &amp; Vegetables<br><span class='sample' style='background:#B23500'></span> Protein<br><span class='sample' style='background:#770071'></span> Carbohydrates</div>");
          // setup drop target for adding dishes
          this.el.droppable({
 					accept: ".dish",
