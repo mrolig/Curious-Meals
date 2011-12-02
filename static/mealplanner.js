@@ -2220,7 +2220,7 @@ jQuery(function() {
                if (index > 0) {
                   $li.append(", ");
                } else {
-                  $li.append(" &dash; ");
+                  $li.append(" &ndash; ");
                   }
                   $li.append(dishName);
                });
