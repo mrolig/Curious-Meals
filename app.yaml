@@ -1,6 +1,6 @@
 application: curiousmeals
 version: 5
-runtime: go
+runtime: go1
 api_version: 3
 
 handlers:
