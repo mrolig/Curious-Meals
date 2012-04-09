@@ -21,8 +21,8 @@ import (
 
 // Error constants
 var (
-	ErrUnknownItem = errors.New("Unknown item")
-	ErrUnsupported = errors.New("Unsupported action")
+	ErrUnknownItem      = errors.New("Unknown item")
+	ErrUnsupported      = errors.New("Unsupported action")
 	ErrPermissionDenied = errors.New("Permission Denied")
 )
 
@@ -1130,7 +1130,7 @@ func shareHandler(c *context) {
 	//  being shared
 	var permStr = getParentID(c.r)
 	share := Share{
-		ExpirationDate: time.Now().Add(30*24*time.Hour),
+		ExpirationDate: time.Now().Add(30 * 24 * time.Hour),
 		ReadOnly:       permStr != "write",
 	}
 	key := datastore.NewIncompleteKey(c.c, "Share", c.lid)
