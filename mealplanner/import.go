@@ -1,20 +1,20 @@
 package mealplanner
+
 // import function to allow importing a big JSON file with all the data
 
 import (
 	"appengine"
 	"appengine/datastore"
 	"appengine/memcache"
+	"encoding/json"
 	"io"
-	"os"
-	"json"
 )
 
 // the structure holding all data for JSON serialization
 type backup struct {
-	Dishes              []Dish
-	Ingredients         []Ingredient
-   // mapping from the data store key of items to their children
+	Dishes      []Dish
+	Ingredients []Ingredient
+	// mapping from the data store key of items to their children
 	MeasuredIngredients map[string][]MeasuredIngredient
 	Tags                map[string][]Word
 	Pairings            map[string][]Pairing
@@ -23,7 +23,7 @@ type backup struct {
 
 // class to handle the import
 type importer struct {
-   // "inherit" the context
+	// "inherit" the context
 	context
 	// decoded JSON data being imported
 	jsonData backup
@@ -46,15 +46,15 @@ type importer struct {
 
 // method to import from JSON read with the file reader
 func importFile(c *context, file io.Reader) {
-   // run in a transaction so that each datastore write doesn't redo the index,
-   //  rather all the indecies get updated at once when we're done
-	datastore.RunInTransaction(c.c, func(tc appengine.Context) os.Error {
-      // decode the data
+	// run in a transaction so that each datastore write doesn't redo the index,
+	//  rather all the indecies get updated at once when we're done
+	datastore.RunInTransaction(c.c, func(tc appengine.Context) error {
+		// decode the data
 		decoder := json.NewDecoder(file)
 		data := backup{}
 		err := decoder.Decode(&data)
 		check(err)
-      // setup a worker to do the work
+		// setup a worker to do the work
 		worker := &importer{
 			context:           *c,
 			jsonData:          data,
@@ -65,7 +65,7 @@ func importFile(c *context, file io.Reader) {
 			dirtyCacheEntries: make([]string, 0, 1000),
 		}
 		worker.c = tc
-      // kick off the import
+		// kick off the import
 		worker.doImport()
 		return nil
 	}, nil)
@@ -73,8 +73,8 @@ func importFile(c *context, file io.Reader) {
 
 // perform an import using the data we've decoded in jsonData
 func (self *importer) doImport() {
-   // initialize our list of dirty cache entries with the top-level items
-   // these (and more) will be flushed from the cache when we're done
+	// initialize our list of dirty cache entries with the top-level items
+	// these (and more) will be flushed from the cache when we're done
 	self.dirtyCacheEntries = append(self.dirtyCacheEntries, []string{
 		"/dish",
 		"/dish/",
@@ -83,7 +83,7 @@ func (self *importer) doImport() {
 		"/ingredient",
 		"/ingredient/",
 	}...)
-   // build an index of the tags currently in the datastore
+	// build an index of the tags currently in the datastore
 	self.indexCurrentTags()
 	self.importIngredients()
 	self.importDishes()
@@ -105,22 +105,22 @@ func (self *importer) doImport() {
 
 // build an index of tags, (dish|ingredient)key -> tagstr -> tagkey
 func (self *importer) indexCurrentTags() {
-   // query for all of the tags in this library
+	// query for all of the tags in this library
 	query := self.NewQuery("Tags")
-   // use the iterator to walk through results
+	// use the iterator to walk through results
 	iter := query.Run(self.c)
 	word := &Word{}
-   // loop through the results from the iterator
+	// loop through the results from the iterator
 	for key, err := iter.Next(word); err == nil; key, err = iter.Next(word) {
 		parent := key.Parent().Encode()
-      // add map for each parent we find
+		// add map for each parent we find
 		var m map[string]bool
 		var found bool
 		if m, found = self.allTags[parent]; !found {
 			m = make(map[string]bool)
 			self.allTags[parent] = m
 		}
-      // add the word to the map for the parent
+		// add the word to the map for the parent
 		m[word.Word] = true
 	}
 }
@@ -135,14 +135,14 @@ func (self *importer) debugPrintTags() {
 //  return a datastore key we can use.  If the key didn't come from our library
 //  we will create a new one -- we use the parent we're given if we create a new key
 func (self *importer) restoreKey(encoded string, parent *datastore.Key) *datastore.Key {
-   // decode the key to a datastore.Key
+	// decode the key to a datastore.Key
 	key, err := datastore.DecodeKey(encoded)
 	check(err)
-   // check if we've already fixed this one up
+	// check if we've already fixed this one up
 	if newKey, found := self.fixUpKeys[encoded]; found {
 		return newKey
 	}
-   // if this isn't in our library, create a new key
+	// if this isn't in our library, create a new key
 	if !self.isInLibrary(key) {
 		newKey := datastore.NewIncompleteKey(self.c, key.Kind(), parent)
 		self.fixUpKeys[encoded] = newKey
@@ -160,7 +160,7 @@ func (self *importer) importIngredients() {
 		func(key *datastore.Key, item interface{}) string {
 			return item.(*Ingredient).Name
 		})
-   // create slices to track items to be added, the keys, and the original JSON ids
+	// create slices to track items to be added, the keys, and the original JSON ids
 	putItems := make([]interface{}, 0, len(self.jsonData.Ingredients))
 	putKeys := make([]*datastore.Key, 0, len(self.jsonData.Ingredients))
 	putIds := make([]string, 0, len(self.jsonData.Ingredients))
@@ -169,10 +169,10 @@ func (self *importer) importIngredients() {
 	for index, _ := range self.jsonData.Ingredients {
 		i := &self.jsonData.Ingredients[index]
 		id := i.Id
-      // restore the ky
+		// restore the ky
 		key := self.restoreKey(id, self.lid)
-      // if we didn't find it, look for an ingredient with
-      //  the same name so we can avoid duplicates
+		// if we didn't find it, look for an ingredient with
+		//  the same name so we can avoid duplicates
 		if key.Incomplete() {
 			// check if we have an item of the same name already
 			if ikey, ok := prevIngredientsByName[i.Name]; ok {
@@ -286,7 +286,7 @@ func (self *importer) importMeasuredIngredients() {
 	}
 	prevMIs := self.indexItems(self.NewQuery("MeasuredIngredient"),
 		&MeasuredIngredient{}, miKeyFunc)
-   // slices of items to be written
+	// slices of items to be written
 	count := len(self.jsonData.MeasuredIngredients)
 	putItems := make([]interface{}, 0, count)
 	putKeys := make([]*datastore.Key, 0, count)
@@ -296,15 +296,15 @@ func (self *importer) importMeasuredIngredients() {
 		dishKeyEncoded := dishKey.Encode()
 		for index, _ := range jsonMis {
 			jsonMi := &jsonMis[index]
-         // restore the key for the measure ingredient AND the ingredient reference
+			// restore the key for the measure ingredient AND the ingredient reference
 			miKey := self.restoreKey(jsonMi.Id, dishKey)
 			ingKey := self.restoreKey(jsonMi.Ingredient.Encode(), self.lid)
 			// if we didn't import the ingredient, we need to skip this one
 			if ingKey.Incomplete() {
 				continue
 			}
-         // if we don't have an entry yet, check if we already have
-         //  a reference to this ingredient for this dish
+			// if we don't have an entry yet, check if we already have
+			//  a reference to this ingredient for this dish
 			if miKey.Incomplete() {
 				miIndexKey := dishKeyEncoded + ingKey.Encode()
 				if existingKey, found := prevMIs[miIndexKey]; found {
@@ -339,18 +339,18 @@ func (self *importer) importPairings() {
 	}
 	prevPairings := self.indexItems(self.NewQuery("Pairing"),
 		&Pairing{}, pairingKeyFunc)
-   // slices of items to be added
+	// slices of items to be added
 	count := len(self.jsonData.Pairings)
 	putItems := make([]interface{}, 0, count)
 	putKeys := make([]*datastore.Key, 0, count)
 
-   // walk each pairing finding if we need to add the pairing given
+	// walk each pairing finding if we need to add the pairing given
 	for dishId, jsonPairings := range self.jsonData.Pairings {
 		dishKey := self.restoreKey(dishId, self.lid)
 		dishKeyEncoded := dishKey.Encode()
 		for index, _ := range jsonPairings {
 			jsonPairing := &jsonPairings[index]
-         // restore our own key and the reference key
+			// restore our own key and the reference key
 			pairingKey := self.restoreKey(jsonPairing.Id, dishKey)
 			otherKey := self.restoreKey(jsonPairing.Other.Encode(), self.lid)
 			if otherKey.Incomplete() {
@@ -368,7 +368,7 @@ func (self *importer) importPairings() {
 			}
 		}
 	}
-   // store the new pairings
+	// store the new pairings
 	if len(putKeys) > 0 {
 		_, err := datastore.PutMulti(self.c, putKeys, putItems)
 		check(err)
@@ -390,21 +390,21 @@ func (self *importer) importMenus() {
 	prevMenus := self.indexItems(self.NewQuery("Menu"), &Menu{},
 		menuKeyFunc)
 	count := len(self.jsonData.Menus)
-   // slices of menu items to be stored
+	// slices of menu items to be stored
 	putItems := make([]interface{}, 0, count)
 	putKeys := make([]*datastore.Key, 0, count)
-   // walk each menu
+	// walk each menu
 	for index, _ := range self.jsonData.Menus {
 		jsonMenu := &self.jsonData.Menus[index]
-      // get the key to store to
+		// get the key to store to
 		key := self.restoreKey(jsonMenu.Id, self.lid)
 		if key.Incomplete() {
-         // check if we already have a menu by this name
+			// check if we already have a menu by this name
 			if existingKey, found := prevMenus[jsonMenu.Name]; found {
 				key = existingKey
 			}
 		}
-      // walk the dishes, keeping only the ones we can reference properly
+		// walk the dishes, keeping only the ones we can reference properly
 		newDishes := make([]*datastore.Key, 0, len(jsonMenu.Dishes))
 		for _, dishKey := range jsonMenu.Dishes {
 			destKey := self.restoreKey(dishKey.Encode(), self.lid)
@@ -412,13 +412,13 @@ func (self *importer) importMenus() {
 				newDishes = append(newDishes, destKey)
 			}
 		}
-      // add this menu to the list to be added
+		// add this menu to the list to be added
 		jsonMenu.Dishes = newDishes
 		jsonMenu.Id = ""
 		putItems = append(putItems, jsonMenu)
 		putKeys = append(putKeys, key)
 	}
-   // store the menus and clear the cache
+	// store the menus and clear the cache
 	if len(putKeys) > 0 {
 		_, err := datastore.PutMulti(self.c, putKeys, putItems)
 		check(err)
@@ -465,7 +465,7 @@ func (self *importer) importTags(ids []string, keys []*datastore.Key) {
 // create an index for items, by calling the keyFunc function provided for each item
 //  returning a map from those keys to the items
 func (self *importer) indexItems(query *datastore.Query, item interface{},
-keyFunc func(*datastore.Key, interface{}) string) map[string]*datastore.Key {
+	keyFunc func(*datastore.Key, interface{}) string) map[string]*datastore.Key {
 	index := make(map[string]*datastore.Key)
 	iter := query.Run(self.c)
 	for dataKey, err := iter.Next(item); err == nil; dataKey, err = iter.Next(item) {

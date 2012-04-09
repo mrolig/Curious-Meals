@@ -3,6 +3,7 @@ package mealplanner
 
 import (
 	"appengine/datastore"
+	"time"
 )
 
 // root of all elements, owned by exactly one user
@@ -36,7 +37,7 @@ type Perm struct {
 // Child of Library
 type Share struct {
    // date that the request expires
-	ExpirationDate int64
+	ExpirationDate time.Time
    // true if the user can only view the library
 	ReadOnly       bool
 }
